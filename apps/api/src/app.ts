@@ -10,8 +10,11 @@ import { calculateDiscountEgp, calculateEarnedPoints } from './services/loyalty.
 import { createQrReceiptService } from './services/qrReceipts.js';
 import { createGameService } from './services/games.js';
 import { createPaymobService } from './services/payments.js';
+import { catalogRouter } from './routes/catalog.js';
 
-// In-memory demo store. Replaced with Supabase in Phase 1.
+// In-memory demo store for orders/payments/loyalty. Reads (catalog) come
+// from Supabase if configured, otherwise from a fallback fixture in
+// `db/catalogRepo.ts` so dev works with zero infra.
 type DemoOrder = {
   id: string;
   userId: string;
@@ -31,6 +34,8 @@ type DemoOrder = {
 
 const orders = new Map<string, DemoOrder>();
 const userPoints = new Map<string, number>();
+const userProfiles = new Map<string, Record<string, unknown>>();
+const pushDevices = new Map<string, Array<{ platform: 'ios' | 'web'; token: string; last_seen_at: string }>>();
 
 const qrReceipts = createQrReceiptService();
 const games = createGameService();
@@ -100,6 +105,9 @@ export function createApp() {
     res.json({ ok: true, service: 'cup-and-co-api', time: new Date().toISOString() });
   });
 
+  // Catalog (public reads, no auth required)
+  app.use(catalogRouter());
+
   // -------- Auth (phone OTP) --------
   // Stub: in dev the OTP is always "000000". In Phase 1 this calls Supabase.
   app.post('/auth/otp/send', (req, res, next) => {
@@ -129,7 +137,108 @@ export function createApp() {
   // -------- Customer routes --------
   app.get('/me', requireAuth, (req, res) => {
     const u = getRequestUser(req);
-    res.json({ user: u, points: userPoints.get(u.id) ?? 0 });
+    const profile = userProfiles.get(u.id) ?? {};
+    res.json({
+      user: { ...u, ...profile },
+      points: userPoints.get(u.id) ?? 0,
+    });
+  });
+
+  // PATCH /me — update profile fields (full_name, role, language_pref,
+  // biometric_enabled, university_id, major, department).
+  app.patch('/me', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const input = z
+        .object({
+          full_name: z.string().min(1).max(120).optional(),
+          role: z.enum(['student', 'faculty', 'office']).optional(),
+          language_pref: z.enum(['en', 'ar']).optional(),
+          biometric_enabled: z.boolean().optional(),
+          university_id: z.string().min(1).max(40).optional(),
+          major: z.string().min(1).max(80).optional(),
+          department: z.string().min(1).max(80).optional(),
+        })
+        .parse(req.body);
+
+      const existing = userProfiles.get(u.id) ?? {};
+      const updated = { ...existing, ...input };
+      userProfiles.set(u.id, updated);
+
+      // Role and verification flow into the request user too
+      if (input.role) u.role = input.role;
+      // Students start as 'pending' until ID approved; staff also start pending
+      // unless they're already approved (dev seeded users are approved).
+      const verificationStatus =
+        input.role && existing.verification_status !== 'approved'
+          ? 'pending'
+          : existing.verification_status ?? u.verificationStatus;
+
+      res.json({
+        user: { ...u, ...updated, verificationStatus },
+        points: userPoints.get(u.id) ?? 0,
+      });
+    } catch (e) { next(e); }
+  });
+
+  // POST /me/verification — submit ID image (multipart in production; here we
+  // accept a base64 data URL or a public URL for the dev stub).
+  app.post('/me/verification', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const input = z
+        .object({
+          image_url: z.string().min(1).max(2_000_000).optional(),
+          image_base64: z.string().min(1).max(8_000_000).optional(),
+          notes: z.string().max(500).optional(),
+        })
+        .refine((v) => v.image_url || v.image_base64, {
+          message: 'Provide image_url or image_base64',
+        })
+        .parse(req.body);
+
+      const existing = userProfiles.get(u.id) ?? {};
+      userProfiles.set(u.id, {
+        ...existing,
+        verification_status: 'pending',
+        verification_submitted_at: new Date().toISOString(),
+        verification_image_url: input.image_url ?? '[base64]',
+        verification_notes: input.notes ?? null,
+      });
+      res.status(201).json({
+        ok: true,
+        status: 'pending',
+        message: 'Submitted for review. You will be notified once approved.',
+      });
+    } catch (e) { next(e); }
+  });
+
+  // POST /push/register — store device token for push notifications.
+  app.post('/push/register', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const { platform, token } = z
+        .object({
+          platform: z.enum(['ios', 'web']),
+          token: z.string().min(8).max(2000),
+        })
+        .parse(req.body);
+      const list = pushDevices.get(u.id) ?? [];
+      const filtered = list.filter((d) => d.token !== token);
+      filtered.push({ platform, token, last_seen_at: new Date().toISOString() });
+      pushDevices.set(u.id, filtered);
+      res.status(201).json({ ok: true, registered: filtered.length });
+    } catch (e) { next(e); }
+  });
+
+  app.delete('/push/register', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const { token } = z.object({ token: z.string().min(8) }).parse(req.body);
+      const list = pushDevices.get(u.id) ?? [];
+      pushDevices.set(u.id, list.filter((d) => d.token !== token));
+      res.json({ ok: true });
+    } catch (e) { next(e); }
   });
 
   app.post('/orders', requireAuth, (req, res, next) => {
