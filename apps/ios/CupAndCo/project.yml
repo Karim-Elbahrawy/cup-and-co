@@ -1,0 +1,42 @@
+name: CupAndCo
+options:
+  bundleIdPrefix: com.cupandco
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: en
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: 1
+    PRODUCT_BUNDLE_IDENTIFIER: com.cupandco.ios
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  CupAndCo:
+    type: application
+    platform: iOS
+    sources:
+      - path: CupAndCo
+    info:
+      path: CupAndCo/Info.plist
+      properties:
+        CFBundleDisplayName: Cup & Co
+        UILaunchStoryboardName: LaunchScreen
+        NSFaceIDUsageDescription: Use Face ID to securely sign in to Cup & Co.
+        NSCameraUsageDescription: Camera is used to scan receipt QR codes for loyalty points.
+        UISupportedInterfaceOrientations~iphone:
+          - UIInterfaceOrientationPortrait
+        CFBundleLocalizations:
+          - en
+          - ar
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+  CupAndCoTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/CupAndCoTests
+    dependencies:
+      - target: CupAndCo

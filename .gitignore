@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+.turbo/
+out/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude harness local files
+.claude/settings.local.json
+.claude/worktrees/
+
+# Test
+coverage/
+test-results/
+playwright-report/
+
+# Supabase
+supabase/.temp/
+
+# iOS
+apps/ios/CupAndCo/DerivedData/
+apps/ios/CupAndCo/*.xcuserdata
+apps/ios/CupAndCo/build/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cup-orange: #FF8B3D;
+  --cup-cream: #FFE2BD;
+  --cup-paper: #FFF1DC;
+  --cup-surface: #FFF8EE;
+  --cup-brown: #3D2914;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--cup-surface);
+  color: var(--cup-brown);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+button { cursor: pointer; }

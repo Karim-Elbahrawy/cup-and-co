@@ -1,0 +1,142 @@
+export interface Translations {
+  common: {
+    appName: string;
+    goodMorning: string;
+    search: string;
+    filter: string;
+    orderNow: string;
+    addToCart: string;
+    viewCart: string;
+    checkout: string;
+    cancel: string;
+    confirm: string;
+    save: string;
+    delete: string;
+    edit: string;
+    back: string;
+    next: string;
+    done: string;
+    loading: string;
+    error: string;
+    retry: string;
+    noResults: string;
+    seeAll: string;
+  };
+  auth: {
+    phoneNumber: string;
+    enterOtp: string;
+    sendCode: string;
+    verifyCode: string;
+    resendCode: string;
+    faceIdPrompt: string;
+    enableFaceId: string;
+    skipForNow: string;
+    logout: string;
+  };
+  roles: {
+    student: string;
+    faculty: string;
+    office: string;
+    selectRole: string;
+    roleDescription: {
+      student: string;
+      faculty: string;
+      office: string;
+    };
+  };
+  home: {
+    todayOnly: string;
+    superDiscount: string;
+    offPercent: string;
+    categories: {
+      coffee: string;
+      desserts: string;
+      breakfast: string;
+      popular: string;
+    };
+  };
+  product: {
+    details: string;
+    rating: string;
+    size: string;
+    sugar: string;
+    ice: string;
+    small: string;
+    medium: string;
+    large: string;
+    normal: string;
+    less: string;
+    no: string;
+    prepTime: string;
+    minutes: string;
+  };
+  cart: {
+    myCart: string;
+    subtotal: string;
+    discount: string;
+    total: string;
+    emptyCart: string;
+    emptyCartMessage: string;
+    redeemPoints: string;
+    pointsAvailable: string;
+  };
+  checkout: {
+    pickupTime: string;
+    asap: string;
+    scheduled: string;
+    fulfillment: string;
+    pickup: string;
+    delivery: string;
+    paymentMethod: string;
+    payWithCard: string;
+    payWithWallet: string;
+    payWithCash: string;
+    placeOrder: string;
+  };
+  orders: {
+    myOrders: string;
+    orderTracking: string;
+    received: string;
+    accepted: string;
+    preparing: string;
+    ready: string;
+    outForDelivery: string;
+    completed: string;
+    cancelled: string;
+    pickupCode: string;
+    noOrders: string;
+    noOrdersMessage: string;
+  };
+  loyalty: {
+    rewards: string;
+    points: string;
+    pointsBalance: string;
+    redeemPoints: string;
+    history: string;
+    earned: string;
+    redeemed: string;
+    scanQr: string;
+    scanQrMessage: string;
+  };
+  games: {
+    play: string;
+    leaderboard: string;
+    weeklyReset: string;
+    yourRank: string;
+    topPlayers: string;
+    prizes: string;
+    sessionsLeft: string;
+    gameOver: string;
+    score: string;
+    highScore: string;
+  };
+  profile: {
+    myProfile: string;
+    personalInfo: string;
+    language: string;
+    faceId: string;
+    notifications: string;
+    support: string;
+    about: string;
+  };
+}

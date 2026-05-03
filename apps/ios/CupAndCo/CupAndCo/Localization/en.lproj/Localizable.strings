@@ -1,0 +1,27 @@
+/* Cup & Co — English */
+"app.name" = "Cup & Co";
+"app.tagline" = "Your morning, handled.";
+"common.good_morning" = "Good Morning";
+"common.order_now" = "Order Now";
+"common.add_to_cart" = "Add to Cart";
+"common.checkout" = "Checkout";
+"common.cancel" = "Cancel";
+"common.confirm" = "Confirm";
+"home.today_only" = "Today Only";
+"home.super_discount" = "Super Discount";
+"home.off_percent" = "%@%% OFF";
+"product.size" = "Size";
+"product.sugar" = "Sugar";
+"product.ice" = "Ice";
+"product.size.small" = "Small";
+"product.size.medium" = "Medium";
+"product.size.large" = "Large";
+"product.option.normal" = "Normal";
+"product.option.less" = "Less";
+"product.option.no" = "No";
+"role.student" = "Student";
+"role.faculty" = "Faculty";
+"role.office" = "Office";
+"category.coffee" = "Coffee";
+"category.desserts" = "Desserts";
+"category.breakfast" = "Breakfast";

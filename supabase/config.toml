@@ -1,0 +1,46 @@
+project_id = "cup-and-co"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000", "http://localhost:3001"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.sms]
+enable_signup = true
+enable_confirmations = true
+template = "Your Cup & Co code is {{ .Code }}"
+
+# Phone OTP via Twilio (configure in Supabase dashboard); dev uses test mode below
+
+[auth.sms.test_otp]
+"+201000000001" = "000000"
+"+201000000002" = "000000"
+"+201000000003" = "000000"
+"+201000000004" = "000000"
+"+201000000005" = "000000"

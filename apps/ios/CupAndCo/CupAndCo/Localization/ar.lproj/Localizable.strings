@@ -1,0 +1,27 @@
+/* Cup & Co — Arabic */
+"app.name" = "كب آند كو";
+"app.tagline" = "صباحك معانا.";
+"common.good_morning" = "صباح الخير";
+"common.order_now" = "اطلب الآن";
+"common.add_to_cart" = "أضف للسلة";
+"common.checkout" = "إتمام الطلب";
+"common.cancel" = "إلغاء";
+"common.confirm" = "تأكيد";
+"home.today_only" = "اليوم فقط";
+"home.super_discount" = "خصم خاص";
+"home.off_percent" = "خصم %@%%";
+"product.size" = "الحجم";
+"product.sugar" = "السكر";
+"product.ice" = "الثلج";
+"product.size.small" = "صغير";
+"product.size.medium" = "وسط";
+"product.size.large" = "كبير";
+"product.option.normal" = "عادي";
+"product.option.less" = "أقل";
+"product.option.no" = "بدون";
+"role.student" = "طالب";
+"role.faculty" = "هيئة تدريس";
+"role.office" = "إدارة";
+"category.coffee" = "قهوة";
+"category.desserts" = "حلويات";
+"category.breakfast" = "فطور";
