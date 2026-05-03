@@ -1,15 +1,89 @@
 /* Cup & Co — English */
+
+/* App identity */
 "app.name" = "Cup & Co";
 "app.tagline" = "Your morning, handled.";
+
+/* Common */
 "common.good_morning" = "Good Morning";
 "common.order_now" = "Order Now";
 "common.add_to_cart" = "Add to Cart";
 "common.checkout" = "Checkout";
 "common.cancel" = "Cancel";
 "common.confirm" = "Confirm";
+"common.close" = "Close";
+"common.retry" = "Try Again";
+"common.coming_soon" = "Coming soon";
+
+/* Onboarding */
+"onboarding.skip" = "Skip";
+"onboarding.next" = "Next";
+"onboarding.get_started" = "Get Started";
+"onboarding.title.1" = "Your morning, handled.";
+"onboarding.body.1" = "Order ahead, skip the line, and grab your coffee on your way through campus.";
+"onboarding.title.2" = "Earn every sip.";
+"onboarding.body.2" = "Every order earns Points. 100 Points = 5 EGP off your next drink.";
+"onboarding.title.3" = "Play & climb.";
+"onboarding.body.3" = "Play Coffee Collector and top the weekly leaderboard for a free combo.";
+
+/* Phone OTP */
+"phone.title" = "Enter your number";
+"phone.subtitle" = "We'll text you a 6-digit code to sign in.";
+"phone.placeholder" = "1XXXXXXXXX";
+"phone.send_code" = "Send Code";
+
+/* OTP verify */
+"otp.title" = "Enter the code";
+"otp.subtitle" = "We sent a 6-digit code to";
+"otp.verify" = "Verify";
+"otp.resend" = "Didn't get it? Resend code";
+
+/* Roles */
+"role.student" = "Student";
+"role.faculty" = "Faculty";
+"role.office" = "Office";
+"role.owner" = "Owner";
+"role.barista" = "Barista";
+"role.title" = "Tell us who you are";
+"role.subtitle" = "We use this to show offers that fit you.";
+"role.continue" = "Continue";
+"role.student.desc" = "Studying on campus.";
+"role.faculty.desc" = "Teaching or researching.";
+"role.office.desc" = "Working in admin or staff.";
+
+/* Verify ID */
+"verify.title" = "Verify your ID";
+"verify.subtitle" = "Optional — verified accounts unlock role-specific offers.";
+"verify.upload_cta" = "Upload your ID";
+"verify.upload_hint" = "JPG or PNG, under 5MB. Your ID is reviewed within 24 hours.";
+"verify.later" = "Maybe Later";
+"verify.status.pending" = "Pending";
+"verify.status.approved" = "Verified";
+"verify.status.rejected" = "Rejected";
+"verify.status.blocked" = "Blocked";
+
+/* Home */
 "home.today_only" = "Today Only";
+"home.today_only_eyebrow" = "TODAY ONLY";
 "home.super_discount" = "Super Discount";
 "home.off_percent" = "%@%% OFF";
+"home.off_percent_a11y" = "%d percent off";
+"home.search_placeholder" = "Search drinks, snacks, offers";
+"home.filter" = "Filters";
+"home.popular" = "Popular";
+"home.see_all" = "See All";
+"home.guest" = "there";
+"home.notifications" = "Notifications";
+"home.open_profile" = "Open profile";
+
+/* Tabs */
+"tab.home" = "Home";
+"tab.search" = "Search";
+"tab.cart" = "Cart";
+"tab.rewards" = "Rewards";
+"tab.profile" = "Profile";
+
+/* Product */
 "product.size" = "Size";
 "product.sugar" = "Sugar";
 "product.ice" = "Ice";
@@ -19,9 +93,35 @@
 "product.option.normal" = "Normal";
 "product.option.less" = "Less";
 "product.option.no" = "No";
-"role.student" = "Student";
-"role.faculty" = "Faculty";
-"role.office" = "Office";
+"product.favorite" = "Add to favorites";
+"product.unfavorite" = "Remove from favorites";
+
+/* Categories */
 "category.coffee" = "Coffee";
 "category.desserts" = "Desserts";
 "category.breakfast" = "Breakfast";
+
+/* Profile */
+"profile.title" = "Profile";
+"profile.guest" = "Guest";
+"profile.section.account" = "Account";
+"profile.section.preferences" = "Preferences";
+"profile.section.about" = "About";
+"profile.row.name" = "Name";
+"profile.row.phone" = "Phone";
+"profile.row.verification" = "Verification";
+"profile.row.language" = "Language";
+"profile.row.face_id" = "Face ID";
+"profile.row.notifications" = "Notifications";
+"profile.row.terms" = "Terms of Service";
+"profile.row.privacy" = "Privacy Policy";
+"profile.row.version" = "Version";
+"profile.logout" = "Log Out";
+"profile.logout.confirm.title" = "Log out of Cup & Co?";
+"profile.logout.confirm.message" = "You'll need to sign in again next time.";
+
+/* Errors */
+"error.network" = "Couldn't reach Cup & Co. Check your connection and try again.";
+"error.decoding" = "Something looked off in the response. Please try again.";
+"error.unauthorized" = "Your session expired. Please sign in again.";
+"error.offline" = "You're offline. We'll retry when you're back.";

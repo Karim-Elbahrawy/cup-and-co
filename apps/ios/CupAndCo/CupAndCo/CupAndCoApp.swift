@@ -2,143 +2,141 @@ import SwiftUI
 
 @main
 struct CupAndCoApp: App {
+    @State private var session = SessionStore()
+    @State private var catalog = CatalogStore()
+
     var body: some Scene {
         WindowGroup {
             RootView()
+                .environment(session)
+                .environment(catalog)
                 .environment(\.locale, .init(identifier: AppLanguage.current.code))
+                .environment(\.layoutDirection,
+                             AppLanguage.current == .arabic ? .rightToLeft : .leftToRight)
+                .preferredColorScheme(.light)
         }
     }
 }
 
+/// Auth-gated root.  Routes to the right top-level view based on
+/// `SessionStore.phase`.  The bootstrap pass runs once on appear and
+/// flips us out of `.splash` after fetching `/me` (or short-circuiting
+/// to onboarding/phone if there's no token).
 struct RootView: View {
+    @Environment(SessionStore.self) private var session
+
     var body: some View {
-        // Phase 0 placeholder with upgraded Espresso Sunrise palette.
-        // Phase 1 replaces this with the auth-gated navigation stack +
-        // Home + role select + verification.
+        ZStack {
+            switch session.phase {
+            case .splash:
+                SplashView()
+                    .transition(.opacity)
+            case .onboarding:
+                OnboardingView()
+                    .transition(.opacity)
+            case .phone:
+                NavigationStack { PhoneOTPView() }
+                    .transition(.opacity)
+            case .otp(let phone):
+                NavigationStack { OTPVerifyView(phone: phone) }
+                    .transition(.opacity)
+            case .roleSelect:
+                NavigationStack { RoleSelectView() }
+                    .transition(.opacity)
+            case .home:
+                MainTabShell()
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: phaseTag)
+        .task {
+            // Run the bootstrap once.  Splash holds for at least ~1.2s so
+            // the user actually sees the brand mark.
+            let started = Date()
+            await session.bootstrap()
+            let elapsed = Date().timeIntervalSince(started)
+            let minSplashSeconds: TimeInterval = 1.2
+            if elapsed < minSplashSeconds {
+                let remaining = minSplashSeconds - elapsed
+                try? await Task.sleep(for: .milliseconds(Int(remaining * 1000)))
+            }
+        }
+    }
+
+    /// `Phase` isn't directly `Hashable` because of the associated value,
+    /// so we project it down to a stable identifier for the animation.
+    private var phaseTag: String {
+        switch session.phase {
+        case .splash:           return "splash"
+        case .onboarding:       return "onboarding"
+        case .phone:            return "phone"
+        case .otp(let p):       return "otp:\(p)"
+        case .roleSelect:       return "role"
+        case .home:             return "home"
+        }
+    }
+}
+
+/// Bottom-tab shell shown once the user is authenticated.  All five tabs
+/// share the same chrome but only `Home` and `Profile` have real content
+/// in Phase 1; the others show a friendly "coming soon" state.
+struct MainTabShell: View {
+    @State private var tab: AppTab = .home
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            CupColors.paper.ignoresSafeArea()
+
+            Group {
+                switch tab {
+                case .home:    HomeView()
+                case .search:  ComingSoonView(title: "tab.search",
+                                              symbol: "magnifyingglass")
+                case .cart:    ComingSoonView(title: "tab.cart",
+                                              symbol: "bag")
+                case .rewards: ComingSoonView(title: "tab.rewards",
+                                              symbol: "gift")
+                case .profile: NavigationStack { ProfileView() }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            BottomTabBar(selection: $tab)
+        }
+    }
+}
+
+/// Phase-1 placeholder for tabs that aren't yet implemented.
+/// We keep this in-file because it's tiny and only used here.
+struct ComingSoonView: View {
+    let title: LocalizedStringKey
+    let symbol: String
+
+    var body: some View {
         ZStack {
             CupColors.paper.ignoresSafeArea()
-            VStack(alignment: .leading, spacing: 28) {
-                // Header
-                HStack(spacing: 12) {
-                    MonogramView()
-                        .frame(width: 48, height: 48)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("GOOD MORNING")
-                            .font(.system(size: 11, weight: .semibold))
-                            .tracking(2)
-                            .foregroundStyle(CupColors.muted)
-                        Text("Cup & Co")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(CupColors.espresso)
-                    }
-                    Spacer()
-                }
-
-                // Hero promo card
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("TODAY ONLY")
-                        .font(.system(size: 11, weight: .semibold))
-                        .tracking(2.5)
-                        .foregroundStyle(.white.opacity(0.9))
-                    Text("70% OFF")
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text("Super Discount")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.92))
-                    Button("Order Now") {}
-                        .buttonStyle(CupPrimaryButtonStyle(inverted: true))
-                        .padding(.top, 6)
-                }
-                .padding(22)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    LinearGradient(
-                        colors: CupColors.sunriseStops,
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .shadow(color: CupColors.primary.opacity(0.18), radius: 16, x: 0, y: 8)
-
-                // Sample product card
-                HStack(spacing: 14) {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
                         .fill(CupColors.cream)
-                        .frame(width: 78, height: 78)
-                        .overlay(
-                            // Top-down cup glyph
-                            ZStack {
-                                Circle().fill(LinearGradient(colors: CupColors.sunriseStops,
-                                                              startPoint: .top, endPoint: .bottom))
-                                    .frame(width: 56, height: 56)
-                                Circle().fill(CupColors.espresso).frame(width: 38, height: 38)
-                                Ellipse().fill(CupColors.cream.opacity(0.55))
-                                    .frame(width: 26, height: 7)
-                                    .offset(y: -4)
-                            }
-                        )
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Velvet Cappuccino")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundStyle(CupColors.espresso)
-                        Text("Silky steamed milk · cocoa dust")
-                            .font(.system(size: 12))
-                            .foregroundStyle(CupColors.muted)
-                        Text("EGP 65")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundStyle(CupColors.primary)
-                            .padding(.top, 2)
-                    }
-                    Spacer()
+                        .frame(width: 96, height: 96)
+                    Image(systemName: symbol)
+                        .font(.system(size: 38, weight: .semibold))
+                        .foregroundStyle(CupColors.primary)
                 }
-                .padding(14)
-                .background(CupColors.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(CupColors.stroke, lineWidth: 1)
-                )
-
-                Spacer()
+                Text(title)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(CupColors.espresso)
+                Text("common.coming_soon")
+                    .font(.system(size: 14, design: .rounded))
+                    .foregroundStyle(CupColors.muted)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
+            .padding(.bottom, 80) // keep above tab bar
         }
     }
 }
 
-/// Inline SwiftUI rendering of the brand monogram (top-down cup with teal steam).
-struct MonogramView: View {
-    var body: some View {
-        ZStack {
-            Circle().fill(CupColors.paper)
-            Circle()
-                .fill(LinearGradient(colors: CupColors.sunriseStops,
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 32, height: 32)
-                .offset(y: 3)
-            Circle().fill(CupColors.espresso).frame(width: 22, height: 22).offset(y: 3)
-            Ellipse().fill(CupColors.cream.opacity(0.55))
-                .frame(width: 16, height: 4)
-                .offset(y: 0)
-            // Steam
-            ZStack {
-                ForEach(0..<3) { i in
-                    let dx: CGFloat = CGFloat(i) * 8 - 8
-                    Path { p in
-                        p.move(to: CGPoint(x: 12 + dx, y: 0))
-                        p.addQuadCurve(to: CGPoint(x: 12 + dx, y: 12),
-                                       control: CGPoint(x: 16 + dx, y: 6))
-                    }
-                    .stroke(CupColors.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                }
-            }
-            .offset(y: -16)
-        }
-    }
-}
+// MARK: - Language helper
 
 enum AppLanguage: String, CaseIterable {
     case english, arabic

@@ -1,15 +1,89 @@
 /* Cup & Co — Arabic */
+
+/* App identity */
 "app.name" = "كب آند كو";
 "app.tagline" = "صباحك معانا.";
+
+/* Common */
 "common.good_morning" = "صباح الخير";
 "common.order_now" = "اطلب الآن";
 "common.add_to_cart" = "أضف للسلة";
 "common.checkout" = "إتمام الطلب";
 "common.cancel" = "إلغاء";
 "common.confirm" = "تأكيد";
+"common.close" = "إغلاق";
+"common.retry" = "حاول مجدداً";
+"common.coming_soon" = "قريباً";
+
+/* Onboarding */
+"onboarding.skip" = "تخطي";
+"onboarding.next" = "التالي";
+"onboarding.get_started" = "ابدأ الآن";
+"onboarding.title.1" = "صباحك معانا.";
+"onboarding.body.1" = "اطلب من قبل، تخطّى الطابور، واستلم قهوتك في طريقك.";
+"onboarding.title.2" = "كل رشفة تكسبك.";
+"onboarding.body.2" = "كل طلب يكسبك نقاط. 100 نقطة = خصم 5 جنيه على طلبك التالي.";
+"onboarding.title.3" = "العب واصعد.";
+"onboarding.body.3" = "العب Coffee Collector وتصدّر اللوحة الأسبوعية لتفوز بكومبو مجاني.";
+
+/* Phone OTP */
+"phone.title" = "أدخل رقمك";
+"phone.subtitle" = "هنبعتلك كود من 6 أرقام لتسجيل الدخول.";
+"phone.placeholder" = "1XXXXXXXXX";
+"phone.send_code" = "أرسل الكود";
+
+/* OTP verify */
+"otp.title" = "أدخل الكود";
+"otp.subtitle" = "أرسلنا كود من 6 أرقام إلى";
+"otp.verify" = "تأكيد";
+"otp.resend" = "ما وصلش الكود؟ أعد الإرسال";
+
+/* Roles */
+"role.student" = "طالب";
+"role.faculty" = "هيئة تدريس";
+"role.office" = "إدارة";
+"role.owner" = "صاحب";
+"role.barista" = "باريستا";
+"role.title" = "عرّفنا بنفسك";
+"role.subtitle" = "بنستخدمها عشان نعرضلك العروض اللي تناسبك.";
+"role.continue" = "متابعة";
+"role.student.desc" = "بتدرس في الحرم الجامعي.";
+"role.faculty.desc" = "بتدرّس أو بتعمل أبحاث.";
+"role.office.desc" = "بتشتغل في الإدارة أو طاقم العمل.";
+
+/* Verify ID */
+"verify.title" = "تحقّق من هويتك";
+"verify.subtitle" = "اختياري — الحسابات الموثّقة تفتح عروض خاصة.";
+"verify.upload_cta" = "ارفع صورة هويتك";
+"verify.upload_hint" = "JPG أو PNG، أقل من 5 ميجا. هنراجعها في خلال 24 ساعة.";
+"verify.later" = "ربما لاحقاً";
+"verify.status.pending" = "قيد المراجعة";
+"verify.status.approved" = "موثّق";
+"verify.status.rejected" = "مرفوض";
+"verify.status.blocked" = "محظور";
+
+/* Home */
 "home.today_only" = "اليوم فقط";
+"home.today_only_eyebrow" = "اليوم فقط";
 "home.super_discount" = "خصم خاص";
 "home.off_percent" = "خصم %@%%";
+"home.off_percent_a11y" = "خصم %d بالمئة";
+"home.search_placeholder" = "ابحث عن مشروبات أو سناكس أو عروض";
+"home.filter" = "فلاتر";
+"home.popular" = "الأكثر طلباً";
+"home.see_all" = "عرض الكل";
+"home.guest" = "صديقنا";
+"home.notifications" = "الإشعارات";
+"home.open_profile" = "فتح الملف الشخصي";
+
+/* Tabs */
+"tab.home" = "الرئيسية";
+"tab.search" = "البحث";
+"tab.cart" = "السلة";
+"tab.rewards" = "المكافآت";
+"tab.profile" = "الملف";
+
+/* Product */
 "product.size" = "الحجم";
 "product.sugar" = "السكر";
 "product.ice" = "الثلج";
@@ -19,9 +93,35 @@
 "product.option.normal" = "عادي";
 "product.option.less" = "أقل";
 "product.option.no" = "بدون";
-"role.student" = "طالب";
-"role.faculty" = "هيئة تدريس";
-"role.office" = "إدارة";
+"product.favorite" = "أضف للمفضلة";
+"product.unfavorite" = "احذف من المفضلة";
+
+/* Categories */
 "category.coffee" = "قهوة";
 "category.desserts" = "حلويات";
 "category.breakfast" = "فطور";
+
+/* Profile */
+"profile.title" = "الملف الشخصي";
+"profile.guest" = "ضيف";
+"profile.section.account" = "الحساب";
+"profile.section.preferences" = "التفضيلات";
+"profile.section.about" = "عن التطبيق";
+"profile.row.name" = "الاسم";
+"profile.row.phone" = "الموبايل";
+"profile.row.verification" = "التوثيق";
+"profile.row.language" = "اللغة";
+"profile.row.face_id" = "Face ID";
+"profile.row.notifications" = "الإشعارات";
+"profile.row.terms" = "شروط الاستخدام";
+"profile.row.privacy" = "سياسة الخصوصية";
+"profile.row.version" = "الإصدار";
+"profile.logout" = "تسجيل الخروج";
+"profile.logout.confirm.title" = "تسجيل الخروج من كب آند كو؟";
+"profile.logout.confirm.message" = "هتحتاج تسجل دخول تاني المرة الجاية.";
+
+/* Errors */
+"error.network" = "تعذر الاتصال بكب آند كو. تأكد من الإنترنت وحاول تاني.";
+"error.decoding" = "في حاجة غريبة في الرد. حاول تاني.";
+"error.unauthorized" = "انتهت جلستك. سجّل دخول مرة أخرى.";
+"error.offline" = "إنت مش متصل بالإنترنت. هنعيد المحاولة لما تتصل.";
