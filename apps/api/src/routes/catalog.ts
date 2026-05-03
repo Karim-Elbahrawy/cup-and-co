@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getCatalog, getProductDetail } from '../db/catalogRepo.js';
 
-export function catalogRouter() {
+export function catalogRouter(): Router {
   const router = Router();
 
   router.get('/catalog', async (_req, res, next) => {

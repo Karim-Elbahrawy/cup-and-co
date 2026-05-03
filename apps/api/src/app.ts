@@ -2,7 +2,6 @@ import cors from 'cors';
 import express from 'express';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
-import type { OrderStatus } from '@cup-and-co/types';
 import { errorHandler } from './http/errors.js';
 import { requireAuth, requireAdmin, getRequestUser, getAdminRole, signSession } from './http/auth.js';
 import { assertAdminPermission } from './services/permissions.js';
@@ -10,43 +9,50 @@ import { calculateDiscountEgp, calculateEarnedPoints } from './services/loyalty.
 import { createQrReceiptService } from './services/qrReceipts.js';
 import { createGameService } from './services/games.js';
 import { createPaymobService } from './services/payments.js';
+import {
+  applyStatusTransition,
+  buildOrder,
+  trackingTimelineFor,
+  type Order,
+} from './services/orders.js';
+import { createPushService, statusNotificationCopy } from './services/push.js';
 import { catalogRouter } from './routes/catalog.js';
+import { getProductDetail } from './db/catalogRepo.js';
 
-// In-memory demo store for orders/payments/loyalty. Reads (catalog) come
-// from Supabase if configured, otherwise from a fallback fixture in
-// `db/catalogRepo.ts` so dev works with zero infra.
-type DemoOrder = {
-  id: string;
-  userId: string;
-  status: OrderStatus;
-  paymentStatus: string;
-  paymentMethod: string;
-  fulfillmentType: 'pickup' | 'delivery';
-  subtotalEgp: number;
-  discountEgp: number;
-  totalEgp: number;
-  pointsAwarded: number;
-  pointsRedeemed: number;
-  pickupCode: string | null;
-  createdAt: string;
-  scheduledFor: string | null;
-};
-
-const orders = new Map<string, DemoOrder>();
+// In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
+// if configured, fixture otherwise). Phase 3 will move orders/loyalty/games
+// to Supabase too; the public surface stays stable.
+const orders = new Map<string, Order>();
 const userPoints = new Map<string, number>();
 const userProfiles = new Map<string, Record<string, unknown>>();
 const pushDevices = new Map<string, Array<{ platform: 'ios' | 'web'; token: string; last_seen_at: string }>>();
 
+// Admin-mutable kiosk state. Phase 3 promotes to a Supabase row.
+const kioskState = {
+  is_open: true,
+  message_en: 'We are open — your morning is handled' as string | null,
+  message_ar: 'مفتوحون — صباحك معانا' as string | null,
+  capacity_per_slot: 10,
+  slot_minutes: 15,
+  opens_at: '07:00',
+  closes_at: '22:00',
+};
+
+// Admin-mutable per-product availability override. `productAvailability.get(id)`
+// returns the boolean override; absent means "use catalog default".
+const productAvailability = new Map<string, boolean>();
+
 const qrReceipts = createQrReceiptService();
 const games = createGameService();
 const paymob = createPaymobService();
+const pushService = createPushService();
 
-// Schemas
+// -------------- Schemas --------------
+
 const orderItemSchema = z.object({
   productId: z.string().min(1),
   quantity: z.number().int().positive().max(20),
   options: z.record(z.string()).default({}),
-  unitPriceEgp: z.number().positive(),
 });
 
 const createOrderSchema = z.object({
@@ -60,15 +66,10 @@ const createOrderSchema = z.object({
 
 const updateOrderStatusSchema = z.object({
   status: z.enum([
-    'received',
-    'accepted',
-    'preparing',
-    'ready',
-    'out_for_delivery',
-    'completed',
-    'cancelled',
-    'refunded',
+    'received', 'accepted', 'preparing', 'ready',
+    'out_for_delivery', 'completed', 'cancelled', 'refunded',
   ]),
+  note: z.string().max(200).optional(),
 });
 
 const otpSendSchema = z.object({ phone: z.string().regex(/^\+?\d{8,15}$/) });
@@ -95,25 +96,44 @@ const submitScoreSchema = z.object({
   durationSeconds: z.number().positive(),
 });
 
+// -------------- Helpers --------------
+
+async function notifyOrderStatus(order: Order, status: Parameters<typeof statusNotificationCopy>[0]['status']) {
+  const profile = userProfiles.get(order.userId) ?? {};
+  const language = (profile.language_pref === 'ar' ? 'ar' : 'en') as 'en' | 'ar';
+  const devices = pushDevices.get(order.userId) ?? [];
+  if (devices.length === 0) return;
+  const payload = statusNotificationCopy({
+    status,
+    pickupCode: order.pickupCode,
+    fulfillmentType: order.fulfillmentType,
+    language,
+  });
+  await pushService.notify(devices, {
+    ...payload,
+    data: { order_id: order.id, status },
+  });
+}
+
+// -------------- App --------------
+
 export function createApp() {
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
 
-  // Health
   app.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'cup-and-co-api', time: new Date().toISOString() });
   });
 
-  // Catalog (public reads, no auth required)
+  // Catalog (public)
   app.use(catalogRouter());
 
   // -------- Auth (phone OTP) --------
-  // Stub: in dev the OTP is always "000000". In Phase 1 this calls Supabase.
   app.post('/auth/otp/send', (req, res, next) => {
     try {
       const { phone } = otpSendSchema.parse(req.body);
-      // TODO Phase 1: supabase.auth.signInWithOtp({ phone })
+      // TODO Phase 3: supabase.auth.signInWithOtp({ phone })
       res.json({ ok: true, phone, devCode: '000000', message: 'OTP sent (dev stub).' });
     } catch (e) { next(e); }
   });
@@ -144,8 +164,6 @@ export function createApp() {
     });
   });
 
-  // PATCH /me — update profile fields (full_name, role, language_pref,
-  // biometric_enabled, university_id, major, department).
   app.patch('/me', requireAuth, (req, res, next) => {
     try {
       const u = getRequestUser(req);
@@ -160,20 +178,14 @@ export function createApp() {
           department: z.string().min(1).max(80).optional(),
         })
         .parse(req.body);
-
       const existing = userProfiles.get(u.id) ?? {};
       const updated = { ...existing, ...input };
       userProfiles.set(u.id, updated);
-
-      // Role and verification flow into the request user too
       if (input.role) u.role = input.role;
-      // Students start as 'pending' until ID approved; staff also start pending
-      // unless they're already approved (dev seeded users are approved).
       const verificationStatus =
         input.role && existing.verification_status !== 'approved'
           ? 'pending'
           : existing.verification_status ?? u.verificationStatus;
-
       res.json({
         user: { ...u, ...updated, verificationStatus },
         points: userPoints.get(u.id) ?? 0,
@@ -181,8 +193,6 @@ export function createApp() {
     } catch (e) { next(e); }
   });
 
-  // POST /me/verification — submit ID image (multipart in production; here we
-  // accept a base64 data URL or a public URL for the dev stub).
   app.post('/me/verification', requireAuth, (req, res, next) => {
     try {
       const u = getRequestUser(req);
@@ -196,7 +206,6 @@ export function createApp() {
           message: 'Provide image_url or image_base64',
         })
         .parse(req.body);
-
       const existing = userProfiles.get(u.id) ?? {};
       userProfiles.set(u.id, {
         ...existing,
@@ -213,7 +222,6 @@ export function createApp() {
     } catch (e) { next(e); }
   });
 
-  // POST /push/register — store device token for push notifications.
   app.post('/push/register', requireAuth, (req, res, next) => {
     try {
       const u = getRequestUser(req);
@@ -241,50 +249,99 @@ export function createApp() {
     } catch (e) { next(e); }
   });
 
-  app.post('/orders', requireAuth, (req, res, next) => {
+  // -------- Orders (customer) --------
+  app.post('/orders', requireAuth, async (req, res, next) => {
     try {
       const user = getRequestUser(req);
       const input = createOrderSchema.parse(req.body);
-      const subtotal = input.items.reduce((s, it) => s + it.quantity * it.unitPriceEgp, 0);
+      if (!kioskState.is_open) {
+        const e = new Error('Kiosk ordering is closed.') as Error & { status?: number };
+        e.status = 409;
+        throw e;
+      }
+
+      // Resolve product details from the catalog so we trust prices server-side.
+      const enriched = [];
+      for (const item of input.items) {
+        const detail = await getProductDetail(item.productId);
+        if (!detail) {
+          const e = new Error(`Product not found: ${item.productId}`) as Error & { status?: number };
+          e.status = 400;
+          throw e;
+        }
+        const override = productAvailability.get(item.productId);
+        const isAvailable = override ?? detail.product.is_available;
+        if (!isAvailable) {
+          const e = new Error(`Product unavailable: ${detail.product.name_en}`) as Error & { status?: number };
+          e.status = 409;
+          throw e;
+        }
+        // Sum option price deltas
+        let unitPrice = detail.product.base_price_egp;
+        for (const [, optionName] of Object.entries(item.options)) {
+          const opt = detail.options.find((o) => o.name_en === optionName || o.name_ar === optionName);
+          if (opt) unitPrice += opt.price_delta_egp;
+        }
+        enriched.push({
+          productId: detail.product.id,
+          productNameEn: detail.product.name_en,
+          productNameAr: detail.product.name_ar,
+          imageUrl: detail.product.image_url,
+          quantity: item.quantity,
+          options: item.options,
+          unitPriceEgp: unitPrice,
+        });
+      }
+
+      const subtotal = enriched.reduce((s, it) => s + it.quantity * it.unitPriceEgp, 0);
       const discount = Math.min(calculateDiscountEgp(input.redeemPoints), subtotal);
-      const total = subtotal - discount;
-      const paymentStatus = input.paymentMethod === 'cash' ? 'pending' : 'unpaid';
+      const total = Math.max(0, subtotal - discount);
+
       const pointsAwarded =
         input.paymentMethod === 'cash'
           ? calculateEarnedPoints({ amountEgp: total, source: 'cash_in_app' })
           : calculateEarnedPoints({ amountEgp: total, source: 'online_paid' });
-      const pickupCode = Math.floor(1000 + Math.random() * 9000).toString();
 
-      const order: DemoOrder = {
-        id: randomUUID(),
-        userId: user.id,
-        status: 'received',
-        paymentStatus,
-        paymentMethod: input.paymentMethod,
-        fulfillmentType: input.fulfillmentType,
-        subtotalEgp: subtotal,
-        discountEgp: discount,
-        totalEgp: total,
-        pointsAwarded,
-        pointsRedeemed: input.redeemPoints,
-        pickupCode,
-        createdAt: new Date().toISOString(),
-        scheduledFor: input.scheduledFor ?? null,
-      };
+      const order = buildOrder(
+        {
+          userId: user.id,
+          fulfillmentType: input.fulfillmentType,
+          paymentMethod: input.paymentMethod,
+          scheduledFor: input.scheduledFor ?? null,
+          notes: input.notes ?? null,
+          redeemPoints: input.redeemPoints,
+          items: enriched,
+        },
+        { discountEgp: discount, pointsAwarded },
+      );
       orders.set(order.id, order);
-      res.status(201).json({ order });
+
+      // Decrement points when redeemed
+      if (input.redeemPoints > 0) {
+        const balance = userPoints.get(user.id) ?? 0;
+        if (input.redeemPoints > balance) throw new Error('Not enough points to redeem.');
+        userPoints.set(user.id, balance - input.redeemPoints);
+      }
+
+      res.status(201).json({ order, timeline: trackingTimelineFor(order) });
     } catch (e) { next(e); }
   });
 
   app.get('/orders/:id', requireAuth, (req, res, next) => {
     try {
-      const order = orders.get(req.params.id);
-      if (!order) throw new Error('Order not found.');
+      const order = orders.get(req.params.id as string);
+      if (!order) {
+        const e = new Error('Order not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
       const user = getRequestUser(req);
       if (order.userId !== user.id && user.role !== 'owner' && user.role !== 'barista') {
-        throw new Error('Order not found.');
+        const e = new Error('Order not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
       }
-      res.json({ order });
+      res.json({ order, timeline: trackingTimelineFor(order) });
     } catch (e) { next(e); }
   });
 
@@ -310,7 +367,7 @@ export function createApp() {
     } catch (e) { next(e); }
   });
 
-  app.post('/webhooks/paymob', (req, res, next) => {
+  app.post('/webhooks/paymob', async (req, res, next) => {
     try {
       const payload = paymobCallbackSchema.parse(req.body);
       const hmac = String(req.header('x-paymob-hmac') ?? '');
@@ -319,12 +376,16 @@ export function createApp() {
       if (order) {
         order.paymentStatus = result.paymentStatus;
         if (result.paymentStatus === 'paid') {
-          // Award online points
           const earned = calculateEarnedPoints({
             amountEgp: order.totalEgp,
             source: 'online_paid',
           });
           userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
+          // Auto-advance to accepted on paid card orders
+          if (order.status === 'received') {
+            applyStatusTransition(order, 'accepted', 'auto-accept on payment');
+            await notifyOrderStatus(order, 'accepted');
+          }
         }
       }
       res.json(result);
@@ -387,24 +448,52 @@ export function createApp() {
   app.get('/admin/orders', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'orders:update_status');
-      res.json({ orders: Array.from(orders.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) });
+      res.json({
+        orders: Array.from(orders.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      });
     } catch (e) { next(e); }
   });
 
-  app.patch('/admin/orders/:id/status', requireAuth, requireAdmin, (req, res, next) => {
+  app.get('/admin/orders/:id', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'orders:update_status');
-      const { status } = updateOrderStatusSchema.parse(req.body);
-      const order = orders.get(req.params.id);
-      if (!order) throw new Error('Order not found.');
-      order.status = status;
-      // On cash 'completed', award cash points
+      const order = orders.get(req.params.id as string);
+      if (!order) {
+        const e = new Error('Order not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
+      res.json({ order, timeline: trackingTimelineFor(order) });
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/admin/orders/:id/status', requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'orders:update_status');
+      const { status, note } = updateOrderStatusSchema.parse(req.body);
+      const order = orders.get(req.params.id as string);
+      if (!order) {
+        const e = new Error('Order not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
+      const ok = applyStatusTransition(order, status, note);
+      if (!ok) {
+        const e = new Error(`Illegal status transition ${order.status} → ${status}`) as Error & { status?: number };
+        e.status = 409;
+        throw e;
+      }
+      // On cash 'completed', mark paid + award cash points
       if (status === 'completed' && order.paymentMethod === 'cash' && order.paymentStatus !== 'paid') {
         order.paymentStatus = 'paid';
         const earned = calculateEarnedPoints({ amountEgp: order.totalEgp, source: 'cash_in_app' });
         userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
       }
-      res.json({ order });
+      // Push notify the customer for visible transitions
+      if (['accepted', 'preparing', 'ready', 'out_for_delivery', 'completed', 'cancelled'].includes(status)) {
+        await notifyOrderStatus(order, status as Parameters<typeof statusNotificationCopy>[0]['status']);
+      }
+      res.json({ order, timeline: trackingTimelineFor(order) });
     } catch (e) { next(e); }
   });
 
@@ -429,8 +518,52 @@ export function createApp() {
       res.json({
         todayRevenueEgp: todayRevenue,
         activeOrders: all.filter((o) => !['completed', 'cancelled', 'refunded'].includes(o.status)).length,
+        kioskOpen: kioskState.is_open,
         fullReportsVisible: role === 'owner',
       });
+    } catch (e) { next(e); }
+  });
+
+  app.get('/admin/kiosk/status', requireAuth, requireAdmin, (_req, res) => {
+    res.json(kioskState);
+  });
+
+  app.patch('/admin/kiosk/status', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'kiosk:update_open_status');
+      const input = z
+        .object({
+          is_open: z.boolean().optional(),
+          message_en: z.string().min(1).max(200).nullable().optional(),
+          message_ar: z.string().min(1).max(200).nullable().optional(),
+          capacity_per_slot: z.number().int().positive().max(60).optional(),
+          slot_minutes: z.number().int().positive().max(60).optional(),
+          opens_at: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+          closes_at: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+        })
+        .parse(req.body);
+
+      // Owner-only fields
+      const role = getAdminRole(req);
+      const ownerOnly = ['capacity_per_slot', 'slot_minutes', 'opens_at', 'closes_at'] as const;
+      for (const key of ownerOnly) {
+        if (input[key] !== undefined && role !== 'owner') {
+          const e = new Error(`Owner-only setting: ${key}`) as Error & { status?: number };
+          e.status = 403;
+          throw e;
+        }
+      }
+      Object.assign(kioskState, input);
+      res.json(kioskState);
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/admin/menu/products/:id/availability', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
+      const input = z.object({ available: z.boolean() }).parse(req.body);
+      productAvailability.set(req.params.id as string, input.available);
+      res.json({ id: req.params.id, available: input.available });
     } catch (e) { next(e); }
   });
 
