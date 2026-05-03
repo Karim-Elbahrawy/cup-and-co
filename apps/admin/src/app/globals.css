@@ -2,21 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Cup & Co Admin — Espresso Sunrise palette */
 :root {
-  --cup-orange: #FF8B3D;
-  --cup-cream: #FFE2BD;
-  --cup-paper: #FFF1DC;
-  --cup-surface: #FFF8EE;
-  --cup-brown: #3D2914;
+  --cup-primary: #C2410C;
+  --cup-primary-hover: #9A3412;
+  --cup-accent: #0F766E;
+  --cup-cream: #FEF3C7;
+  --cup-paper: #FAF6F0;
+  --cup-surface: #FFFFFF;
+  --cup-espresso: #1C1917;
+  --cup-cocoa: #44403C;
+  --cup-muted: #78716C;
+  --cup-stroke: #E7E5E4;
+
+  --cup-orange: var(--cup-primary);
+  --cup-brown: var(--cup-espresso);
 }
 
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--cup-surface);
-  color: var(--cup-brown);
+  background: var(--cup-paper);
+  color: var(--cup-espresso);
   font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 * { box-sizing: border-box; }
 button { cursor: pointer; }
+
+::selection { background: #FED7AA; color: var(--cup-espresso); }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--cup-stroke); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }

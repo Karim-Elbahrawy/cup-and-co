@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Cup & Co">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F4A261"/>
+      <stop offset="100%" stop-color="#C2410C"/>
+    </linearGradient>
+    <linearGradient id="cup-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FAF6F0"/>
+      <stop offset="100%" stop-color="#FEF3C7"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background (Apple icon mask handles corner rounding, but we round here too) -->
+  <rect width="1024" height="1024" rx="225" fill="url(#bg-grad)"/>
+  <!-- Cup top-down view -->
+  <circle cx="512" cy="556" r="320" fill="url(#cup-grad)"/>
+  <circle cx="512" cy="556" r="320" fill="none" stroke="#9A3412" stroke-width="6"/>
+  <circle cx="512" cy="556" r="240" fill="#1C1917"/>
+  <ellipse cx="512" cy="520" rx="170" ry="38" fill="#FEF3C7" opacity="0.5"/>
+  <!-- Steam (teal) -->
+  <g stroke="#FEF3C7" stroke-width="22" stroke-linecap="round" fill="none">
+    <path d="M380 200 C 350 250, 410 300, 380 360"/>
+    <path d="M512 170 C 482 230, 542 290, 512 350"/>
+    <path d="M644 200 C 614 250, 674 300, 644 360"/>
+  </g>
+</svg>

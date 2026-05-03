@@ -40,7 +40,7 @@ if ($exists) {
     Write-Host ">> Repo $owner/$RepoName already exists. Linking remote..."
 } else {
     Write-Host ">> Creating repo $owner/$RepoName..."
-    & $gh repo create "$owner/$RepoName" --$Visibility --source=. --remote=origin --description="Cup & Co — campus coffee kiosk app (iOS + web + admin + API)"
+    & $gh repo create "$owner/$RepoName" --$Visibility --source=. --remote=origin --description="Cup & Co - campus coffee kiosk app (iOS + web + admin + API)"
 }
 
 # Ensure origin

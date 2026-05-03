@@ -4,16 +4,16 @@
   "private": true,
   "description": "Cup & Co — campus coffee kiosk ordering ecosystem",
   "scripts": {
-    "dev": "pnpm --parallel --filter './apps/*' run dev",
-    "build": "pnpm --filter './apps/*' run build",
-    "lint": "pnpm --filter './apps/*' --filter './packages/*' run lint",
-    "typecheck": "pnpm --filter './apps/*' --filter './packages/*' run typecheck",
-    "test": "pnpm --filter './apps/api' run test",
-    "test:web": "pnpm --filter './apps/customer-web' run test:e2e",
-    "test:visual": "pnpm --filter './apps/customer-web' run test:visual",
+    "dev": "pnpm --parallel --filter \"./apps/*\" run dev",
+    "build": "pnpm --filter \"./apps/*\" run build",
+    "lint": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" run lint",
+    "typecheck": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" run typecheck",
+    "test": "pnpm --filter \"./apps/api\" run test",
+    "test:web": "pnpm --filter \"./apps/customer-web\" run test:e2e",
+    "test:visual": "pnpm --filter \"./apps/customer-web\" run test:visual",
     "db:reset": "cd supabase && supabase db reset",
     "db:seed": "cd supabase && supabase db reset --seed-only",
-    "clean": "pnpm --parallel --filter './apps/*' --filter './packages/*' exec rm -rf dist .next node_modules"
+    "clean": "pnpm --parallel --filter \"./apps/*\" --filter \"./packages/*\" exec rm -rf dist .next node_modules"
   },
   "engines": {
     "node": ">=20",
