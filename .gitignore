@@ -47,3 +47,6 @@ apps/ios/CupAndCo/build/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# TS build info
+*.tsbuildinfo
