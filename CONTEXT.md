@@ -35,22 +35,19 @@ User-shared reference images (in chat history):
 ## Current status
 
 **Phase 0 — Foundation: ✅ COMPLETE**
+**Phase 1 — Auth + Catalog + Home: ✅ COMPLETE**
 
-Done:
-- Monorepo (pnpm workspaces, Node 20+)
-- Design tokens package (`packages/design-tokens`) with the exact Figma palette
-- i18n package (`packages/i18n`) with full EN + AR translations
-- Shared types package (`packages/types`)
-- Supabase migration + seed (22 menu items, 5 demo users, kiosk row, sample 70% offer, leaderboard week)
-- Express API with refactored services (loyalty, payments/Paymob HMAC, games, permissions, qrReceipts) and 42 passing Vitest tests
-- Customer web Next.js 15 shell with Tailwind theme + PWA manifest
-- Admin dashboard Next.js 15 shell on port 3001
-- iOS Xcode project structure (xcodegen `project.yml`), SwiftUI scaffold, design system, API client, Keychain auth, BiometricAuthManager, EN + AR `Localizable.strings`
-- GitHub Actions CI (lint + typecheck + Vitest + Playwright; iOS build job ready to enable in Phase 1)
-- README, brand guide, API contract reference, Figma mapping doc
+### Phase 1 highlights
+- **Design upgrade**: replaced source Figma's `#FF8B3D` candy orange with refined "Espresso Sunrise" palette — terracotta `#C2410C` primary + deep teal `#0F766E` accent
+- **Brand assets**: monogram, wordmark, app-icon, favicon (all SVG)
+- **22 product placeholders**: clean iconographic SVGs, no people/hands per user request
+- **Customer web**: 8 routes (auth: login/verify/role/verify-id, authed: home/profile + bottom nav), 12 components, Zustand session, EN/AR `useT()` hook, Phone-frame desktop shell, Playwright E2E
+- **Admin**: 7 routes (login, today overview, live kanban, menu, settings, qr), 16-permission RBAC, 5s polling, optimistic UI, QR generator
+- **iOS**: 29 new files — splash/onboarding/phoneOTP/otpVerify/roleSelect/verifyID/home/profile/tabs, custom BottomTabBar, ~70 new EN+AR i18n keys, strict concurrency
+- **API expansion**: PATCH /me, /me/verification, /push/register, /catalog, /products/:id — all backed by 62/62 Vitest tests
 
-Next phase:
-- **Phase 1 — Auth + Catalog (week 2)**. Phone OTP via Supabase, role selection, verification upload, real Home screen pixel-matched to Figma reference, Tailwind real Home page, admin login + today overview, full `/catalog` and `/me` endpoints wired to Supabase.
+### Next phase
+**Phase 2 — Ordering vertical slice (week 3-4)**. Product detail (pixel-faithful), cart, checkout, Paymob iframe + webhook with HMAC, order tracking, admin live status transitions, push notifications on status change, real Supabase auth, real-time orders.
 
 ## How to run locally
 
