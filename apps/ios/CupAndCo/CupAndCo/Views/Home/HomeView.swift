@@ -9,7 +9,6 @@ struct HomeView: View {
 
     @State private var query: String = ""
     @State private var selectedCategory: String? = nil
-    @State private var showProfile: Bool = false
     @State private var showUsual: Bool = false
 
     private var greetingName: String {
@@ -129,12 +128,6 @@ struct HomeView: View {
                 await catalog.load()
             }
         }
-        .sheet(isPresented: $showProfile) {
-            NavigationStack {
-                ProfileView()
-            }
-            .presentationDragIndicator(.visible)
-        }
         .sheet(isPresented: $showUsual) {
             NavigationStack {
                 OrderHistoryView()
@@ -148,31 +141,27 @@ struct HomeView: View {
 
     private var topBar: some View {
         HStack(alignment: .center, spacing: 12) {
-            Button {
-                showProfile = true
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(CupColors.cream)
+            ZStack {
+                Circle()
+                    .fill(CupColors.cream)
+                    .frame(width: 44, height: 44)
+                if let avatarId = session.user?.avatarId {
+                    Image("avatar_\(avatarId)")
+                        .resizable()
+                        .scaledToFill()
                         .frame(width: 44, height: 44)
-                    if let avatarId = session.user?.avatarId {
-                        Image("avatar_\(avatarId)")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 44, height: 44)
-                            .clipShape(Circle())
-                    } else if let initials = avatarInitials {
-                        Text(initials)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(CupColors.primary)
-                    } else {
-                        MonogramView()
-                            .frame(width: 30, height: 30)
-                    }
+                        .clipShape(Circle())
+                } else if let initials = avatarInitials {
+                    Text(initials)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(CupColors.primary)
+                } else {
+                    MonogramView()
+                        .frame(width: 30, height: 30)
                 }
-                .overlay(Circle().stroke(CupColors.stroke, lineWidth: 1))
             }
-            .accessibilityLabel(Text("home.open_profile"))
+            .overlay(Circle().stroke(CupColors.stroke, lineWidth: 1))
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
