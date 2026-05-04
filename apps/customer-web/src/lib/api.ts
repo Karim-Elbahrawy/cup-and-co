@@ -174,4 +174,13 @@ export const api = {
 
   prizes: () =>
     apiFetch<PrizesResponse>('/prizes'),
+
+  validateCoupon: (code: string) =>
+    apiFetch<{ ok: boolean; type?: string; value?: number; descriptionEn?: string; descriptionAr?: string; reason?: string }>('/coupons/validate', {
+      method: 'POST',
+      body: { code },
+    }),
+
+  searchProducts: (q: string) =>
+    apiFetch<CatalogResponse>(`/catalog?q=${encodeURIComponent(q)}`),
 };
