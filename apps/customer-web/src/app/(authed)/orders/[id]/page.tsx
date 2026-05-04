@@ -105,15 +105,26 @@ export default function OrderTrackingPage({
       }
     }
 
-    // Try SSE, fall back to polling
+    // SSE with exponential backoff reconnect, falling back to polling
     let pollInterval: ReturnType<typeof setInterval> | null = null;
-    connectSSE().then((sseWorked) => {
-      if (cancelled) return;
-      if (!sseWorked) {
-        // Fall back to polling
-        pollInterval = setInterval(refresh, POLL_MS);
+    let retryDelay = 1000;
+    const MAX_RETRY_DELAY = 30000;
+
+    async function connectWithBackoff() {
+      while (!cancelled) {
+        const worked = await connectSSE();
+        if (cancelled) return;
+        if (!worked) {
+          pollInterval = setInterval(refresh, POLL_MS);
+          return;
+        }
+        // SSE stream ended (server closed) — reconnect with backoff
+        await new Promise((r) => setTimeout(r, retryDelay));
+        retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
       }
-    });
+    }
+
+    connectWithBackoff();
 
     return () => {
       cancelled = true;
