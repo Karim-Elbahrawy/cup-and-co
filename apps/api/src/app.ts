@@ -32,6 +32,22 @@ const reviews = new Map<string, Array<{ id: string; userId: string; productId: s
 const favorites = new Map<string, Set<string>>();
 const loyaltyHistory = new Map<string, Array<{ id: string; source: string; orderId: string | null; points: number; balanceAfter: number; createdAt: string }>>();
 
+// Phase 4: prizes store keyed by userId
+interface Prize {
+  id: string;
+  userId: string;
+  weekKey: string;
+  rank: number;
+  type: 'free_combo' | 'free_drink' | 'percentage_off';
+  description: string;
+  code: string;
+  redeemedAt: string | null;
+  expiresAt: string;
+  createdAt: string;
+}
+const prizes = new Map<string, Prize[]>(); // userId → prizes[]
+const settledWeeks = new Set<string>(); // weekKeys already settled
+
 // SSE: order-level event bus for real-time updates
 const orderEvents = new EventEmitter();
 orderEvents.setMaxListeners(200);
@@ -548,6 +564,11 @@ export function createApp() {
       const user = getRequestUser(req);
       const input = submitScoreSchema.parse(req.body);
       const result = games.submitScore({ ...input, userId: user.id });
+      // Award loyalty points equal to game score
+      if (result.pointsAwarded > 0) {
+        userPoints.set(user.id, (userPoints.get(user.id) ?? 0) + result.pointsAwarded);
+        recordLoyaltyEvent(user.id, 'game_reward', result.pointsAwarded);
+      }
       res.status(201).json(result);
     } catch (e) { next(e); }
   });
@@ -559,6 +580,62 @@ export function createApp() {
   app.get('/leaderboard/me', requireAuth, (req, res) => {
     const user = getRequestUser(req);
     res.json(games.getMyRank(user.id));
+  });
+
+  // Phase 4: customer prize list
+  app.get('/prizes', requireAuth, (req, res) => {
+    const user = getRequestUser(req);
+    const myPrizes = (prizes.get(user.id) ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    res.json({ prizes: myPrizes });
+  });
+
+  // Phase 4: settle weekly leaderboard (also triggered by admin)
+  function settleLeaderboard(weekKey: string): { settled: boolean; prizes: Prize[]; weekKey: string } {
+    if (settledWeeks.has(weekKey)) return { settled: false, prizes: [], weekKey };
+    settledWeeks.add(weekKey);
+
+    const board = games.getCurrentLeaderboard().filter((e) => e.weekKey === weekKey);
+    const issued: Prize[] = [];
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const prizeRules: Array<{ rank: number; type: Prize['type']; description: string }> = [
+      { rank: 1, type: 'free_combo',      description: '1 free drink + 1 dessert' },
+      { rank: 2, type: 'free_drink',      description: '1 free drink of your choice' },
+      { rank: 3, type: 'percentage_off',  description: '50% off your next order' },
+    ];
+
+    for (const rule of prizeRules) {
+      const entry = board.find((e) => e.rank === rule.rank);
+      if (!entry) continue;
+      const prize: Prize = {
+        id: randomUUID(),
+        userId: entry.userId,
+        weekKey,
+        rank: rule.rank,
+        type: rule.type,
+        description: rule.description,
+        code: `PRIZE-${weekKey}-${rule.rank}-${randomUUID().slice(0, 6).toUpperCase()}`,
+        redeemedAt: null,
+        expiresAt,
+        createdAt: new Date().toISOString(),
+      };
+      const list = prizes.get(entry.userId) ?? [];
+      list.push(prize);
+      prizes.set(entry.userId, list);
+      issued.push(prize);
+    }
+
+    return { settled: true, prizes: issued, weekKey };
+  }
+
+  app.post('/admin/leaderboard/settle', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'orders:update_status'); // owner check via permission matrix
+      const { weekKey } = z.object({ weekKey: z.string().min(1).optional() }).parse(req.body);
+      const targetWeek = weekKey ?? games.getCurrentLeaderboard()[0]?.weekKey ?? new Date().toISOString().slice(0, 10);
+      const result = settleLeaderboard(targetWeek);
+      res.status(201).json(result);
+    } catch (e) { next(e); }
   });
 
   // -------- Admin --------
