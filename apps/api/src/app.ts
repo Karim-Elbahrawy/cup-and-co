@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
+import { EventEmitter } from 'node:events';
 import { errorHandler } from './http/errors.js';
 import { requireAuth, requireAdmin, getRequestUser, getAdminRole, signSession } from './http/auth.js';
 import { assertAdminPermission } from './services/permissions.js';
@@ -20,14 +21,22 @@ import { catalogRouter } from './routes/catalog.js';
 import { getProductDetail } from './db/catalogRepo.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
-// if configured, fixture otherwise). Phase 3 will move orders/loyalty/games
-// to Supabase too; the public surface stays stable.
+// if configured, fixture otherwise).
 const orders = new Map<string, Order>();
 const userPoints = new Map<string, number>();
 const userProfiles = new Map<string, Record<string, unknown>>();
 const pushDevices = new Map<string, Array<{ platform: 'ios' | 'web'; token: string; last_seen_at: string }>>();
 
-// Admin-mutable kiosk state. Phase 3 promotes to a Supabase row.
+// Phase 3: in-memory stores for reviews, favorites, loyalty history
+const reviews = new Map<string, Array<{ id: string; userId: string; productId: string; orderId: string | null; rating: number; comment: string; hidden: boolean; createdAt: string }>>();
+const favorites = new Map<string, Set<string>>();
+const loyaltyHistory = new Map<string, Array<{ id: string; source: string; orderId: string | null; points: number; balanceAfter: number; createdAt: string }>>();
+
+// SSE: order-level event bus for real-time updates
+const orderEvents = new EventEmitter();
+orderEvents.setMaxListeners(200);
+
+// Admin-mutable kiosk state.
 const kioskState = {
   is_open: true,
   message_en: 'We are open — your morning is handled' as string | null,
@@ -97,6 +106,25 @@ const submitScoreSchema = z.object({
 });
 
 // -------------- Helpers --------------
+
+function recordLoyaltyEvent(userId: string, source: string, points: number, orderId: string | null = null) {
+  const balance = userPoints.get(userId) ?? 0;
+  const history = loyaltyHistory.get(userId) ?? [];
+  history.push({
+    id: randomUUID(),
+    source,
+    orderId,
+    points,
+    balanceAfter: balance,
+    createdAt: new Date().toISOString(),
+  });
+  loyaltyHistory.set(userId, history);
+}
+
+function emitOrderUpdate(order: Order) {
+  orderEvents.emit(`order:${order.id}`, { order, timeline: trackingTimelineFor(order) });
+  orderEvents.emit('orders:all', { order, timeline: trackingTimelineFor(order) });
+}
 
 async function notifyOrderStatus(order: Order, status: Parameters<typeof statusNotificationCopy>[0]['status']) {
   const profile = userProfiles.get(order.userId) ?? {};
@@ -321,8 +349,10 @@ export function createApp() {
         const balance = userPoints.get(user.id) ?? 0;
         if (input.redeemPoints > balance) throw new Error('Not enough points to redeem.');
         userPoints.set(user.id, balance - input.redeemPoints);
+        recordLoyaltyEvent(user.id, 'redeemed', -input.redeemPoints, order.id);
       }
 
+      emitOrderUpdate(order);
       res.status(201).json({ order, timeline: trackingTimelineFor(order) });
     } catch (e) { next(e); }
   });
@@ -349,6 +379,89 @@ export function createApp() {
     const user = getRequestUser(req);
     const own = Array.from(orders.values()).filter((o) => o.userId === user.id);
     res.json({ orders: own.sort((a, b) => b.createdAt.localeCompare(a.createdAt)) });
+  });
+
+  // Phase 3: SSE stream for a single order (replaces 5s polling on customer tracking)
+  app.get('/orders/:id/events', requireAuth, (req, res) => {
+    const order = orders.get(req.params.id as string);
+    if (!order) { res.status(404).json({ error: 'Order not found.' }); return; }
+    const user = getRequestUser(req);
+    if (order.userId !== user.id && user.role !== 'owner' && user.role !== 'barista') {
+      res.status(404).json({ error: 'Order not found.' }); return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.write(`data: ${JSON.stringify({ order, timeline: trackingTimelineFor(order) })}\n\n`);
+    const handler = (data: unknown) => { res.write(`data: ${JSON.stringify(data)}\n\n`); };
+    orderEvents.on(`order:${order.id}`, handler);
+    req.on('close', () => { orderEvents.off(`order:${order.id}`, handler); });
+  });
+
+  // Phase 3: customer cancel order
+  app.post('/orders/:id/cancel', requireAuth, async (req, res, next) => {
+    try {
+      const user = getRequestUser(req);
+      const order = orders.get(req.params.id as string);
+      if (!order) { const e = new Error('Order not found.') as Error & { status?: number }; e.status = 404; throw e; }
+      if (order.userId !== user.id) { const e = new Error('Order not found.') as Error & { status?: number }; e.status = 404; throw e; }
+      const ok = applyStatusTransition(order, 'cancelled', 'Cancelled by customer');
+      if (!ok) { const e = new Error(`Cannot cancel order in status: ${order.status}`) as Error & { status?: number }; e.status = 409; throw e; }
+      emitOrderUpdate(order);
+      res.json({ order, timeline: trackingTimelineFor(order) });
+    } catch (e) { next(e); }
+  });
+
+  // Phase 3: favorites
+  app.post('/favorites/:productId', requireAuth, (req, res) => {
+    const user = getRequestUser(req);
+    const set = favorites.get(user.id) ?? new Set<string>();
+    set.add(req.params.productId as string);
+    favorites.set(user.id, set);
+    res.status(201).json({ ok: true, productId: req.params.productId });
+  });
+
+  app.delete('/favorites/:productId', requireAuth, (req, res) => {
+    const user = getRequestUser(req);
+    const set = favorites.get(user.id);
+    if (set) set.delete(req.params.productId as string);
+    res.json({ ok: true, productId: req.params.productId });
+  });
+
+  app.get('/favorites', requireAuth, (req, res) => {
+    const user = getRequestUser(req);
+    const set = favorites.get(user.id) ?? new Set<string>();
+    res.json({ productIds: Array.from(set) });
+  });
+
+  // Phase 3: reviews
+  app.post('/reviews', requireAuth, (req, res, next) => {
+    try {
+      const user = getRequestUser(req);
+      const input = z.object({
+        productId: z.string().min(1),
+        orderId: z.string().min(1).nullable().optional(),
+        rating: z.number().int().min(1).max(5),
+        comment: z.string().max(500).default(''),
+      }).parse(req.body);
+      const productReviews = reviews.get(input.productId) ?? [];
+      const review = {
+        id: randomUUID(),
+        userId: user.id,
+        productId: input.productId,
+        orderId: input.orderId ?? null,
+        rating: input.rating,
+        comment: input.comment,
+        hidden: false,
+        createdAt: new Date().toISOString(),
+      };
+      productReviews.push(review);
+      reviews.set(input.productId, productReviews);
+      res.status(201).json(review);
+    } catch (e) { next(e); }
   });
 
   // -------- Payments --------
@@ -381,11 +494,12 @@ export function createApp() {
             source: 'online_paid',
           });
           userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
-          // Auto-advance to accepted on paid card orders
+          recordLoyaltyEvent(order.userId, 'online_paid', earned, order.id);
           if (order.status === 'received') {
             applyStatusTransition(order, 'accepted', 'auto-accept on payment');
             await notifyOrderStatus(order, 'accepted');
           }
+          emitOrderUpdate(order);
         }
       }
       res.json(result);
@@ -396,7 +510,8 @@ export function createApp() {
   app.get('/loyalty', requireAuth, (req, res) => {
     const user = getRequestUser(req);
     const balance = userPoints.get(user.id) ?? 0;
-    res.json({ balance, discountAvailableEgp: calculateDiscountEgp(balance) });
+    const history = (loyaltyHistory.get(user.id) ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    res.json({ balance, discountAvailableEgp: calculateDiscountEgp(balance), history });
   });
 
   app.post('/loyalty/redeem-qr', requireAuth, (req, res, next) => {
@@ -408,7 +523,9 @@ export function createApp() {
         userId: user.id,
         phoneVerified: user.phoneVerified,
       });
-      userPoints.set(user.id, (userPoints.get(user.id) ?? 0) + result.pointsAwarded);
+      const newBalance = (userPoints.get(user.id) ?? 0) + result.pointsAwarded;
+      userPoints.set(user.id, newBalance);
+      recordLoyaltyEvent(user.id, 'qr_receipt', result.pointsAwarded);
       res.status(201).json(result);
     } catch (e) { next(e); }
   });
@@ -454,6 +571,22 @@ export function createApp() {
     } catch (e) { next(e); }
   });
 
+  // Phase 3: SSE stream for all orders (admin kanban real-time)
+  app.get('/admin/orders/events', requireAuth, requireAdmin, (req, res) => {
+    try { assertAdminPermission(getAdminRole(req), 'orders:update_status'); } catch { res.status(403).end(); return; }
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    const allOrders = Array.from(orders.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    res.write(`data: ${JSON.stringify({ orders: allOrders })}\n\n`);
+    const handler = (data: unknown) => { res.write(`data: ${JSON.stringify(data)}\n\n`); };
+    orderEvents.on('orders:all', handler);
+    req.on('close', () => { orderEvents.off('orders:all', handler); });
+  });
+
   app.get('/admin/orders/:id', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'orders:update_status');
@@ -488,11 +621,12 @@ export function createApp() {
         order.paymentStatus = 'paid';
         const earned = calculateEarnedPoints({ amountEgp: order.totalEgp, source: 'cash_in_app' });
         userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
+        recordLoyaltyEvent(order.userId, 'cash_in_app', earned, order.id);
       }
-      // Push notify the customer for visible transitions
       if (['accepted', 'preparing', 'ready', 'out_for_delivery', 'completed', 'cancelled'].includes(status)) {
         await notifyOrderStatus(order, status as Parameters<typeof statusNotificationCopy>[0]['status']);
       }
+      emitOrderUpdate(order);
       res.json({ order, timeline: trackingTimelineFor(order) });
     } catch (e) { next(e); }
   });
