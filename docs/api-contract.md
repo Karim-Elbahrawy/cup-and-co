@@ -44,8 +44,18 @@ All admin routes require `role` in `{ owner, barista }`. Specific permissions en
 | PATCH | `/admin/orders/:id/status` | `orders:update_status` |
 | POST | `/admin/qr-receipts` | `qr_receipts:create` |
 | GET | `/admin/summary` | `reports:view_today` |
-
-(Phase 1 expands this with menu, offers, users, loyalty, leaderboard, staff, settings, reports endpoints.)
+| GET | `/admin/reviews` | `reviews:manage` (owner only) |
+| PATCH | `/admin/reviews/:id/visibility` | `reviews:manage` (owner only) |
+| GET | `/admin/users` | `users:verify` (owner only) |
+| PATCH | `/admin/users/:id/verify` | `users:verify` (owner only) |
+| PATCH | `/admin/users/:id/block` | `users:block` (owner only) |
+| GET | `/admin/offers` | `offers:manage` (owner only) |
+| POST | `/admin/offers` | `offers:manage` (owner only) |
+| PATCH | `/admin/offers/:id` | `offers:manage` (owner only) |
+| GET | `/admin/reports/revenue` | `reports:view_full` (owner only) |
+| GET | `/admin/reports/top-items` | `reports:view_full` (owner only) |
+| GET | `/admin/reports/role-breakdown` | `reports:view_full` (owner only) |
+| POST | `/admin/leaderboard/settle` | `leaderboard:settle` (owner only) |
 
 ## Health
 
@@ -57,4 +67,4 @@ All admin routes require `role` in `{ owner, barista }`. Specific permissions en
 { "error": "<message>", "details": { /* optional Zod flat */ } }
 ```
 
-HTTP status codes: 400 (validation/business), 401 (auth), 403 (forbidden), 404 (not found), 500 (server).
+HTTP status codes: 400 (validation/business), 401 (auth), 403 (forbidden), 404 (not found), 409 (conflict), 500 (server).

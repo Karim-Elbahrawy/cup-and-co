@@ -39,6 +39,13 @@ User-shared reference images (in chat history):
 **Phase 2 — Ordering Vertical Slice: ✅ COMPLETE**
 **Phase 3 — Loyalty + QR + iOS Catch-up + SSE Real-time: ✅ COMPLETE**
 **Phase 4 — Games + Leaderboard: ✅ COMPLETE**
+**Phase 5 — Reviews + Offers + Admin Polish: ✅ COMPLETE**
+
+### Phase 5 highlights
+- **API**: 11 new admin endpoints — reviews (list, toggle hidden), users (list, verify, block), offers (CRUD, role targeting, coupon codes), reports (revenue, top items, role breakdown). Shared `adminOffers` store merged into catalog response. `usersRegistry` for admin user management. **117/117 Vitest tests passing.**
+- **Admin Dashboard**: 4 new pages — Reviews (visibility toggle), Users (verification queue + block), Offers (CRUD with schedule/roles/coupon), Reports (revenue cards + top items + role breakdown). Owner-only nav items hidden from barista.
+- **Customer Web**: Active offers displayed on home page as gradient pills. Coupon code input at checkout with discount display.
+- **Infrastructure**: `assertAdminPermission` now returns proper 403 status codes.
 
 ### Phase 4 highlights
 - **API**: Game sessions (`POST /games/sessions`) with server-calculated `serverMaxScore` anti-cheat. Score submission (`POST /games/scores`) rejects impossible scores. Weekly leaderboard (`GET /leaderboard/current`, `/leaderboard/me`). Prize issuance (`GET /prizes`, `POST /admin/leaderboard/settle`). **102/102 Vitest tests passing.**
@@ -53,7 +60,7 @@ User-shared reference images (in chat history):
 - **Admin**: SSE replaces 5s polling on kanban + order detail. `useOrdersSSE` hook with exponential backoff reconnect + polling fallback. Live/reconnecting/polling status indicator.
 
 ### Next phase
-**Phase 5 — Reviews + Offers + Admin polish**. Admin reviews page, users verification queue, offers CRUD with role targeting, reports (revenue/top-items/role-breakdown). Web + iOS: offer display on home, coupon redemption at checkout.
+**Phase 6 — i18n + Accessibility + Polish**. Full Arabic translations audit, accessibility (VoiceOver, large-text, contrast), loading skeletons, empty states, error states, offline mode, onboarding, splash, App Store assets.
 
 ## How to run locally
 
