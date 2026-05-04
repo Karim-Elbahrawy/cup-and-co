@@ -16,6 +16,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Cup & Co',
   },
+  icons: {
+    apple: '/brand/app-icon-180.png',
+  },
 };
 
 export const viewport: Viewport = {
