@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   CatalogResponse,
   CreateOrderRequest,
+  LoyaltyHistoryResponse,
   LoyaltyResponse,
   MeResponse,
   OrderResponse,
@@ -10,9 +11,11 @@ import type {
   OtpSendResponse,
   PaymobIntentionResponse,
   ProductDetailResponse,
+  ReviewInput,
+  ReviewResponse,
 } from './types';
 
-const BASE_URL =
+export const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'http://localhost:4000';
 
 export class ApiError extends Error {
@@ -114,4 +117,25 @@ export const api = {
     }),
 
   loyalty: () => apiFetch<LoyaltyResponse>('/loyalty'),
+
+  // -- Phase 3 rewards / reviews / favorites --
+  loyaltyHistory: () => apiFetch<LoyaltyHistoryResponse>('/loyalty'),
+
+  redeemQr: (code: string) =>
+    apiFetch<{ pointsAwarded: number }>('/loyalty/redeem-qr', {
+      method: 'POST',
+      body: { code },
+    }),
+
+  cancelOrder: (id: string) =>
+    apiFetch<OrderResponse>(`/orders/${id}/cancel`, { method: 'POST' }),
+
+  submitReview: (input: ReviewInput) =>
+    apiFetch<ReviewResponse>('/reviews', { method: 'POST', body: input }),
+
+  addFavorite: (productId: string) =>
+    apiFetch<{ ok: boolean }>(`/favorites/${productId}`, { method: 'POST' }),
+
+  removeFavorite: (productId: string) =>
+    apiFetch<{ ok: boolean }>(`/favorites/${productId}`, { method: 'DELETE' }),
 };

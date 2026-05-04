@@ -1,15 +1,18 @@
 'use client';
 
-import { use, useCallback, useEffect, useState } from 'react';
+import { use, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
-import { ChevronLeft, Check } from 'lucide-react';
-import { api, ApiError } from '@/lib/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, Check, XCircle } from 'lucide-react';
+import { api, ApiError, BASE_URL } from '@/lib/api';
+import { getToken } from '@/lib/session';
 import { useT } from '@/lib/i18n';
 import type { ApiOrder, TimelineStep } from '@/lib/types';
 
 const POLL_MS = 5000;
+const TERMINAL_STATUSES = ['completed', 'cancelled', 'refunded'];
+const CANCELLABLE_STATUSES = ['received', 'accepted', 'preparing'];
 
 export default function OrderTrackingPage({
   params,
@@ -22,6 +25,9 @@ export default function OrderTrackingPage({
   const [timeline, setTimeline] = useState<TimelineStep[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showItems, setShowItems] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const sseActive = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -38,13 +44,99 @@ export default function OrderTrackingPage({
     refresh();
   }, [refresh]);
 
-  // Poll while non-terminal
+  // SSE real-time updates with fetch-based stream, falling back to polling
   useEffect(() => {
     if (!order) return;
-    if (['completed', 'cancelled', 'refunded'].includes(order.status)) return;
-    const interval = setInterval(refresh, POLL_MS);
-    return () => clearInterval(interval);
-  }, [order, refresh]);
+    if (TERMINAL_STATUSES.includes(order.status)) return;
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    async function connectSSE() {
+      const token = getToken();
+      if (!token) return;
+
+      try {
+        const response = await fetch(`${BASE_URL}/orders/${id}/events`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+
+        if (!response.ok || !response.body) {
+          // SSE endpoint not available, fall back to polling
+          return false;
+        }
+
+        sseActive.current = true;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (!cancelled) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          // Keep the last (potentially incomplete) line in the buffer
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              const jsonStr = line.slice(5).trim();
+              if (!jsonStr) continue;
+              try {
+                const evt = JSON.parse(jsonStr);
+                if (evt.order) setOrder(evt.order);
+                if (evt.timeline) setTimeline(evt.timeline);
+              } catch {
+                // Malformed SSE data, skip
+              }
+            }
+          }
+        }
+
+        return true;
+      } catch {
+        // SSE failed (network, abort, not supported)
+        return false;
+      } finally {
+        sseActive.current = false;
+      }
+    }
+
+    // Try SSE, fall back to polling
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    connectSSE().then((sseWorked) => {
+      if (cancelled) return;
+      if (!sseWorked) {
+        // Fall back to polling
+        pollInterval = setInterval(refresh, POLL_MS);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [order?.status, id, refresh]);
+
+  // Cancel order handler
+  async function handleCancel() {
+    if (cancelling) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      const res = await api.cancelOrder(id);
+      setOrder(res.order);
+      setTimeline(res.timeline);
+    } catch (e) {
+      setCancelError(e instanceof ApiError ? e.message : 'Failed to cancel order');
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   if (error && !order) {
     return (
@@ -104,6 +196,31 @@ export default function OrderTrackingPage({
           </p>
         </div>
       </section>
+
+      {/* Cancel order */}
+      <AnimatePresence>
+        {order && CANCELLABLE_STATUSES.includes(order.status) && (
+          <motion.section
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mx-auto mt-4 max-w-md px-5"
+          >
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cup-error/30 bg-white px-5 py-3 font-heading text-sm font-semibold text-cup-error shadow-subtle transition active:scale-[0.98] disabled:opacity-60"
+            >
+              <XCircle className="h-4 w-4" />
+              {cancelling ? 'Cancelling...' : 'Cancel Order'}
+            </button>
+            {cancelError && (
+              <p className="mt-2 text-center text-xs text-cup-error">{cancelError}</p>
+            )}
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* Vertical timeline */}
       <section className="mx-auto mt-5 max-w-md px-5">

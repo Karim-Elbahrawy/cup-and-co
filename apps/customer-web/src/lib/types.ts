@@ -142,3 +142,38 @@ export interface LoyaltyResponse {
   balance: number;
   discountAvailableEgp: number;
 }
+
+// -- Phase 3 types -----------------------------------------------------------
+
+export interface LoyaltyEntry {
+  id: string;
+  source: string;
+  orderId: string | null;
+  points: number;
+  balanceAfter: number;
+  createdAt: string;
+}
+
+export interface LoyaltyHistoryResponse {
+  balance: number;
+  discountAvailableEgp: number;
+  history: LoyaltyEntry[];
+}
+
+export interface ReviewInput {
+  productId: string;
+  orderId?: string | null;
+  rating: number;
+  comment: string;
+}
+
+export interface ReviewResponse {
+  id: string;
+  userId: string;
+  productId: string;
+  orderId: string | null;
+  rating: number;
+  comment: string;
+  hidden: boolean;
+  createdAt: string;
+}
