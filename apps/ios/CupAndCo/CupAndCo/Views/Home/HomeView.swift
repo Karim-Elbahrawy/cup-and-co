@@ -41,91 +41,85 @@ struct HomeView: View {
                 topBar
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
-
                 SearchBarView(query: $query)
                     .padding(.horizontal, 20)
-
                 PromoBannerView(percent: heroPercent)
                     .padding(.horizontal, 20)
-
-                // Active offers pills
-                if !catalog.offers.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(catalog.offers, id: \.id) { offer in
-                                Text(offer.localizedName(language: session.user?.languagePref ?? .en))
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        LinearGradient(
-                                            colors: [Color(hex: "#F4A261"), Color(hex: "#C2410C")],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .clipShape(Capsule())
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                    }
-                }
-
+                offersPills
                 CategoryChipRow(
                     categories: catalog.categories,
                     selected: $selectedCategory,
                     language: session.user?.languagePref ?? .en
                 )
                 .padding(.horizontal, 20)
-
                 sectionHeader
                     .padding(.horizontal, 20)
-
-                if catalog.isLoading && catalog.products.isEmpty {
-                    ProgressView()
-                        .tint(CupColors.primary)
-                        .frame(maxWidth: .infinity, minHeight: 160)
-                } else if let err = catalog.error, catalog.products.isEmpty {
-                    errorView(message: err)
-                        .padding(.horizontal, 20)
-                } else {
-                    LazyVGrid(columns: columns, spacing: 14) {
-                        ForEach(catalog.popular) { product in
-                            NavigationLink(value: product) {
-                                ProductCardView(
-                                    product: product,
-                                    language: session.user?.languagePref ?? .en
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .navigationDestination(for: Product.self) { product in
-                        ProductDetailView(product: product)
-                    }
-                }
-
-                Color.clear.frame(height: 90) // tab-bar safe area
+                productGrid
+                Color.clear.frame(height: 90)
             }
             .padding(.bottom, 12)
         }
         .background(CupColors.paper.ignoresSafeArea())
-        .refreshable {
-            await catalog.load()
-        }
+        .refreshable { await catalog.load() }
         .task {
-            // Only fetch once per session; pull-to-refresh handles re-fetches.
-            if catalog.products.isEmpty {
-                await catalog.load()
-            }
+            if catalog.products.isEmpty { await catalog.load() }
         }
         .sheet(isPresented: $showProfile) {
-            NavigationStack {
-                ProfileView()
+            NavigationStack { ProfileView() }
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    @ViewBuilder
+    private var offersPills: some View {
+        if !catalog.offers.isEmpty {
+            let lang = session.user?.languagePref ?? .en
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(catalog.offers, id: \.id) { offer in
+                        Text(offer.localizedName(language: lang))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(hex: "#F4A261"), Color(hex: "#C2410C")],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(Capsule())
+                    }
+                }
+                .padding(.horizontal, 20)
             }
-            .presentationDragIndicator(.visible)
+        }
+    }
+
+    @ViewBuilder
+    private var productGrid: some View {
+        if catalog.isLoading && catalog.products.isEmpty {
+            ProgressView()
+                .tint(CupColors.primary)
+                .frame(maxWidth: .infinity, minHeight: 160)
+        } else if let err = catalog.error, catalog.products.isEmpty {
+            errorView(message: err)
+                .padding(.horizontal, 20)
+        } else {
+            let lang = session.user?.languagePref ?? .en
+            LazyVGrid(columns: columns, spacing: 14) {
+                ForEach(catalog.popular) { product in
+                    NavigationLink(value: product) {
+                        ProductCardView(product: product, language: lang)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 20)
+            .navigationDestination(for: Product.self) { product in
+                ProductDetailView(product: product)
+            }
         }
     }
 
