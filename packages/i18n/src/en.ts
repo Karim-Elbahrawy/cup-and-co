@@ -56,6 +56,9 @@ export const en: Translations = {
     profile: 'Profile',
   },
   home: {
+    goodMorning: 'Good Morning',
+    goodAfternoon: 'Good Afternoon',
+    goodEvening: 'Good Evening',
     todayOnly: 'Today Only',
     superDiscount: 'Super Discount',
     offPercent: '% OFF',
@@ -81,6 +84,14 @@ export const en: Translations = {
     no: 'No',
     prepTime: 'Prep time',
     minutes: 'min',
+    reviews: {
+      header: 'Reviews',
+      writeAReview: 'Write a Review',
+      placeholder: 'Share your thoughts about this drink...',
+      submitButton: 'Submit Review',
+      submittedThankYou: 'Thanks for your review!',
+      noReviewsYet: 'No reviews yet — be the first!',
+    },
   },
   cart: {
     myCart: 'My Cart',

@@ -47,6 +47,9 @@ export interface Translations {
     };
   };
   home: {
+    goodMorning: string;
+    goodAfternoon: string;
+    goodEvening: string;
     todayOnly: string;
     superDiscount: string;
     offPercent: string;
@@ -72,6 +75,14 @@ export interface Translations {
     no: string;
     prepTime: string;
     minutes: string;
+    reviews: {
+      header: string;
+      writeAReview: string;
+      placeholder: string;
+      submitButton: string;
+      submittedThankYou: string;
+      noReviewsYet: string;
+    };
   };
   cart: {
     myCart: string;

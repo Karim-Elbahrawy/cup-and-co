@@ -56,6 +56,9 @@ export const ar: Translations = {
     profile: 'حسابي',
   },
   home: {
+    goodMorning: 'صباح الخير',
+    goodAfternoon: 'مساء الخير',
+    goodEvening: 'مساء الخير',
     todayOnly: 'اليوم فقط',
     superDiscount: 'خصم خاص',
     offPercent: '% خصم',
@@ -81,6 +84,14 @@ export const ar: Translations = {
     no: 'بدون',
     prepTime: 'وقت التحضير',
     minutes: 'دقيقة',
+    reviews: {
+      header: 'التقييمات',
+      writeAReview: 'اكتب تقييم',
+      placeholder: 'شاركنا رأيك عن هذا المشروب...',
+      submitButton: 'إرسال التقييم',
+      submittedThankYou: 'شكراً لتقييمك!',
+      noReviewsYet: 'لا توجد تقييمات بعد — كن أول من يقيّم!',
+    },
   },
   cart: {
     myCart: 'سلتي',

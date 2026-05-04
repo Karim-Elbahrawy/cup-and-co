@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Bell } from 'lucide-react';
+import {} from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PromoCard } from '@/components/PromoCard';
 import { ProductCard } from '@/components/ProductCard';
@@ -18,6 +18,13 @@ import { useT } from '@/lib/i18n';
 import type { CatalogResponse } from '@/lib/types';
 
 
+
+function greetingKey(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'home.goodMorning';
+  if (h < 17) return 'home.goodAfternoon';
+  return 'home.goodEvening';
+}
 
 export default function HomePage() {
   const { t, language } = useT();
@@ -108,24 +115,13 @@ export default function HomePage() {
             />
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--cup-muted)]">
-                {t('common.goodMorning')}
+                {t(greetingKey())}
               </p>
               <h1 className="font-heading text-lg font-bold leading-tight text-[var(--cup-espresso)]">
                 {firstName}
               </h1>
             </div>
           </div>
-          <button
-            type="button"
-            aria-label={t('common.notifications')}
-            className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-subtle text-[var(--cup-cocoa)] transition-colors hover:text-[var(--cup-primary)]"
-          >
-            <Bell size={18} aria-hidden="true" />
-            <span
-              aria-hidden="true"
-              className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--cup-primary)] ring-2 ring-white"
-            />
-          </button>
         </header>
 
         {/* Daily habit / quick-order bar */}

@@ -137,41 +137,11 @@ export default function ProfilePage() {
         <div>
           <SectionLabel>{t('profile.myProfile')}</SectionLabel>
           <div className="rounded-card bg-white shadow-card overflow-hidden">
-            <NavRow icon={<User size={16} />} label={t('profile.personalInfo')} />
-            <NavRow icon={<CreditCard size={16} />} label={t('profile.cardsAndPayments')} />
-            <NavRow icon={<History size={16} />} label={t('profile.transactionHistory')} />
-            <NavRow icon={<Shield size={16} />} label={t('profile.privacyAndData')} />
             <NavRow icon={<Tag size={16} />} label={t('profile.accountId')} last />
           </div>
         </div>
 
-        {/* Security section */}
-        <div>
-          <SectionLabel>{t('profile.security')}</SectionLabel>
-          <div className="rounded-card bg-white shadow-card overflow-hidden">
-            <ToggleRow
-              icon={<ShieldCheck size={16} />}
-              label={t('profile.twoFactor')}
-              checked={twoFactor}
-              onChange={setTwoFactor}
-            />
-            <ToggleRow
-              icon={<Fingerprint size={16} />}
-              label={t('profile.faceId')}
-              sublabel={t('profile.iOSOnly')}
-              checked={false}
-              onChange={() => {}}
-              disabled
-            />
-            <ToggleRow
-              icon={<KeyRound size={16} />}
-              label={t('profile.passcode')}
-              checked={passcode}
-              onChange={setPasscode}
-              last
-            />
-          </div>
-        </div>
+        {/* Security section — hidden until APNs + biometric impl */}
 
         {/* Notification Preferences section */}
         <div>
