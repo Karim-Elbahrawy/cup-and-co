@@ -36,18 +36,16 @@ User-shared reference images (in chat history):
 
 **Phase 0 — Foundation: ✅ COMPLETE**
 **Phase 1 — Auth + Catalog + Home: ✅ COMPLETE**
+**Phase 2 — Ordering Vertical Slice: ✅ COMPLETE on web + admin / 🔜 iOS pending**
 
-### Phase 1 highlights
-- **Design upgrade**: replaced source Figma's `#FF8B3D` candy orange with refined "Espresso Sunrise" palette — terracotta `#C2410C` primary + deep teal `#0F766E` accent
-- **Brand assets**: monogram, wordmark, app-icon, favicon (all SVG)
-- **22 product placeholders**: clean iconographic SVGs, no people/hands per user request
-- **Customer web**: 8 routes (auth: login/verify/role/verify-id, authed: home/profile + bottom nav), 12 components, Zustand session, EN/AR `useT()` hook, Phone-frame desktop shell, Playwright E2E
-- **Admin**: 7 routes (login, today overview, live kanban, menu, settings, qr), 16-permission RBAC, 5s polling, optimistic UI, QR generator
-- **iOS**: 29 new files — splash/onboarding/phoneOTP/otpVerify/roleSelect/verifyID/home/profile/tabs, custom BottomTabBar, ~70 new EN+AR i18n keys, strict concurrency
-- **API expansion**: PATCH /me, /me/verification, /push/register, /catalog, /products/:id — all backed by 62/62 Vitest tests
+### Phase 2 highlights
+- **API enrichment**: Order model with `items[]`, `statusHistory[]`, `pickupCode`, `scheduledFor`, `notes`. State machine validates transitions. New endpoints: GET `/admin/orders/:id`, GET/PATCH `/admin/kiosk/status`, PATCH `/admin/menu/products/:id/availability`. Push helper logs in dev (real APNs/Web Push lands Phase 3). EN/AR notification copy. **102/102 Vitest tests passing** (was 62; +19 orders + 4 push + 17 routes).
+- **Customer Web**: Product detail (pixel-faithful to Figma + upgraded — circular hero, warm glow, heart, qty stepper, Size/Sugar/Ice spring chips, sticky add-to-cart with animated total), Cart (line items, qty, swipe-delete, points-redeem slider), Checkout (Pickup/Delivery, time slots, 3 payment cards, notes, Paymob `checkoutUrl` redirect), Order Tracking (massive 64px pickup code, vertical timeline with active-pulse + done-check, 5s polling), Order History.
+- **Admin**: Order detail page with 64px pickup code + horizontal timeline + items table + summary panel + advance/cancel/refund actions + ←/→/c keyboard shortcuts + window.print() receipt. ToastHost for optimistic-revert errors. OrderCard upgraded with real line item summaries.
+- **iOS Phase 2**: deferred — agent hit Anthropic rate limit before completing. Resume after limit reset.
 
 ### Next phase
-**Phase 2 — Ordering vertical slice (week 3-4)**. Product detail (pixel-faithful), cart, checkout, Paymob iframe + webhook with HMAC, order tracking, admin live status transitions, push notifications on status change, real Supabase auth, real-time orders.
+**Phase 3 — Loyalty + QR + iOS Phase 2 catch-up**. Real APNs/Web Push wiring, points-history UI, QR scanner, admin QR receipt printable, kiosk-status realtime via Supabase Realtime (replaces 5s polling), iOS ordering flow.
 
 ## How to run locally
 
