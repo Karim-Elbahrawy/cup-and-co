@@ -176,7 +176,7 @@ struct HomeView: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    Text("common.good_morning")
+                    Text(Self.greetingKey())
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                     Text(verbatim: ", \(greetingName)")
@@ -189,28 +189,14 @@ struct HomeView: View {
             }
 
             Spacer()
-
-            Button {
-                // Notifications screen wires up in Phase 2.
-            } label: {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: "bell.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(CupColors.espresso)
-                        .frame(width: 44, height: 44)
-                        .background(CupColors.surface)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(CupColors.stroke, lineWidth: 1))
-
-                    Circle()
-                        .fill(CupColors.error)
-                        .frame(width: 10, height: 10)
-                        .overlay(Circle().stroke(CupColors.surface, lineWidth: 2))
-                        .offset(x: -4, y: 4)
-                }
-            }
-            .accessibilityLabel(Text("home.notifications"))
         }
+    }
+
+    private static func greetingKey() -> String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 12 { return "home.good_morning" }
+        if hour < 17 { return "home.good_afternoon" }
+        return "home.good_evening"
     }
 
     private var avatarInitials: String? {
