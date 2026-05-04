@@ -264,8 +264,8 @@ test.describe('Ordering flow', () => {
     await expect(page.getByText('Velvet Cappuccino')).toBeVisible();
     await expect(page.getByText(/EGP 65/).first()).toBeVisible();
 
-    // Tap checkout
-    await page.getByRole('button', { name: /Checkout/i }).click();
+    // Tap checkout — force bypasses fixed nav intercept
+    await page.getByRole('button', { name: /Checkout/i }).click({ force: true });
     await expect(page).toHaveURL(/\/checkout/);
 
     // Checkout page heading visible

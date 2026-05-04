@@ -59,11 +59,11 @@ const STUB_ORDERS = [
 ];
 
 async function stubAdminOrders(page: import('@playwright/test').Page) {
-  // Stub both the polling endpoint and the SSE endpoint
+  // Stub both the SSE endpoint (/admin/orders/events) and polling (/admin/orders)
   await page.route('**/admin/orders**', (route) => {
     const url = route.request().url();
-    if (url.includes('stream=true') || url.includes('/stream')) {
-      // SSE — return an empty stream that immediately closes
+    if (url.includes('/events')) {
+      // SSE snapshot — body must end with \n\n so the SSE parser emits the event
       route.fulfill({
         status: 200,
         headers: {
