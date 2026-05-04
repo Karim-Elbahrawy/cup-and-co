@@ -177,3 +177,49 @@ export interface ReviewResponse {
   hidden: boolean;
   createdAt: string;
 }
+
+// -- Phase 4 game types -------------------------------------------------------
+
+export interface GameSession {
+  id: string;
+  serverMaxScore: number;
+  startedAt: string;
+  weekKey: string;
+}
+
+export interface GameScoreResponse {
+  accepted: boolean;
+  pointsAwarded: number;
+  weekKey: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  totalScore: number;
+  weekKey: string;
+}
+
+export interface LeaderboardCurrentResponse {
+  entries: LeaderboardEntry[];
+}
+
+export interface LeaderboardMeResponse {
+  rank: number;
+  totalScore: number;
+  weekKey: string;
+}
+
+export interface Prize {
+  id: string;
+  rank: number;
+  type: string;
+  description: string;
+  code: string;
+  redeemedAt: string | null;
+  expiresAt: string;
+}
+
+export interface PrizesResponse {
+  prizes: Prize[];
+}

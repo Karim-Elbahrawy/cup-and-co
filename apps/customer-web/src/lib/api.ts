@@ -3,6 +3,10 @@ import type {
   AuthResponse,
   CatalogResponse,
   CreateOrderRequest,
+  GameScoreResponse,
+  GameSession,
+  LeaderboardCurrentResponse,
+  LeaderboardMeResponse,
   LoyaltyHistoryResponse,
   LoyaltyResponse,
   MeResponse,
@@ -10,6 +14,7 @@ import type {
   OrdersListResponse,
   OtpSendResponse,
   PaymobIntentionResponse,
+  PrizesResponse,
   ProductDetailResponse,
   ReviewInput,
   ReviewResponse,
@@ -138,4 +143,23 @@ export const api = {
 
   removeFavorite: (productId: string) =>
     apiFetch<{ ok: boolean }>(`/favorites/${productId}`, { method: 'DELETE' }),
+
+  // -- Phase 4 game endpoints --
+  createGameSession: () =>
+    apiFetch<GameSession>('/games/sessions', { method: 'POST' }),
+
+  submitGameScore: (sessionId: string, score: number, durationSeconds: number) =>
+    apiFetch<GameScoreResponse>('/games/scores', {
+      method: 'POST',
+      body: { sessionId, score, durationSeconds },
+    }),
+
+  leaderboardCurrent: () =>
+    apiFetch<LeaderboardCurrentResponse>('/leaderboard/current'),
+
+  leaderboardMe: () =>
+    apiFetch<LeaderboardMeResponse>('/leaderboard/me'),
+
+  prizes: () =>
+    apiFetch<PrizesResponse>('/prizes'),
 };

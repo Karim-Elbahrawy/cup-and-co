@@ -13,10 +13,24 @@ import {
   ArrowDownLeft,
   Gamepad2,
   Sparkles,
+  Trophy,
+  Medal,
+  Ticket,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { useT } from '@/lib/i18n';
-import type { LoyaltyEntry, LoyaltyHistoryResponse } from '@/lib/types';
+import type {
+  LeaderboardCurrentResponse,
+  LeaderboardEntry,
+  LeaderboardMeResponse,
+  LoyaltyEntry,
+  LoyaltyHistoryResponse,
+  Prize,
+  PrizesResponse,
+} from '@/lib/types';
 import { QRScanner } from './QRScanner';
 
 const SOURCE_CONFIG: Record<string, { label: string; icon: typeof Gift; color: string }> = {
@@ -33,9 +47,16 @@ function getSourceConfig(source: string) {
 
 export default function RewardsPage() {
   const { t } = useT();
+  const user = useSession((s) => s.user);
+  const isStudent = user?.role === 'student';
+
   const [data, setData] = useState<LoyaltyHistoryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+
+  const [leaderboard, setLeaderboard] = useState<LeaderboardCurrentResponse | null>(null);
+  const [leaderboardMe, setLeaderboardMe] = useState<LeaderboardMeResponse | null>(null);
+  const [prizes, setPrizes] = useState<PrizesResponse | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -45,6 +66,13 @@ export default function RewardsPage() {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load rewards');
     }
+  }, []);
+
+  // Load leaderboard + prizes in parallel (non-blocking — don't fail the page)
+  useEffect(() => {
+    void api.leaderboardCurrent().then(setLeaderboard).catch(() => null);
+    void api.leaderboardMe().then(setLeaderboardMe).catch(() => null);
+    void api.prizes().then(setPrizes).catch(() => null);
   }, []);
 
   useEffect(() => {
@@ -129,12 +157,42 @@ export default function RewardsPage() {
             </div>
           </motion.section>
 
+          {/* Play Game button — students only */}
+          {isStudent && (
+            <motion.section
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.04 }}
+              className="mt-4"
+            >
+              <Link
+                href="/game"
+                className="flex w-full items-center gap-3 rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle transition active:scale-[0.98]"
+              >
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-purple-50">
+                  <Gamepad2 className="h-5 w-5 text-purple-600" />
+                </span>
+                <div className="flex-1 text-left">
+                  <p className="font-heading text-sm font-semibold text-cup-brown-900">
+                    Play Coffee Collector
+                  </p>
+                  <p className="text-xs text-cup-muted">
+                    Catch beans, earn loyalty points
+                  </p>
+                </div>
+                <span className="rounded-full bg-purple-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-600">
+                  Play
+                </span>
+              </Link>
+            </motion.section>
+          )}
+
           {/* QR Scan button */}
           <motion.section
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.06 }}
-            className="mt-4"
+            className="mt-3"
           >
             <button
               type="button"
@@ -190,6 +248,16 @@ export default function RewardsPage() {
               </motion.ul>
             )}
           </section>
+
+          {/* Leaderboard */}
+          <LeaderboardSection
+            leaderboard={leaderboard}
+            me={leaderboardMe}
+            userId={user?.id}
+          />
+
+          {/* Prizes */}
+          <PrizesSection prizes={prizes} />
         </div>
       )}
 
@@ -202,6 +270,8 @@ export default function RewardsPage() {
     </main>
   );
 }
+
+// ─── HistoryItem ─────────────────────────────────────────────────────────────
 
 function HistoryItem({ entry }: { entry: LoyaltyEntry }) {
   const config = getSourceConfig(entry.source);
@@ -247,6 +317,244 @@ function HistoryItem({ entry }: { entry: LoyaltyEntry }) {
         </p>
         <p className="text-[10px] text-cup-muted">bal {entry.balanceAfter}</p>
       </div>
+    </motion.li>
+  );
+}
+
+// ─── LeaderboardSection ───────────────────────────────────────────────────────
+
+const RANK_PRIZE: Record<number, string> = {
+  1: '1st: Free combo meal',
+  2: '2nd: Free drink',
+  3: '3rd: 50% off',
+};
+
+function rankBadgeClass(rank: number) {
+  if (rank === 1) return 'bg-yellow-400 text-yellow-900';
+  if (rank === 2) return 'bg-gray-300 text-gray-800';
+  if (rank === 3) return 'bg-amber-600/80 text-white';
+  return 'bg-cup-paper text-cup-muted';
+}
+
+function LeaderboardSection({
+  leaderboard,
+  me,
+  userId,
+}: {
+  leaderboard: LeaderboardCurrentResponse | null;
+  me: LeaderboardMeResponse | null;
+  userId?: string;
+}) {
+  if (!leaderboard) return null;
+
+  const top10 = leaderboard.entries.slice(0, 10);
+
+  return (
+    <section className="mt-8">
+      <div className="flex items-center gap-2">
+        <Trophy className="h-5 w-5 text-cup-orange-600" />
+        <h2 className="font-heading text-base font-bold text-cup-brown-900">
+          Weekly Leaderboard
+        </h2>
+      </div>
+
+      {/* Prize key */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {Object.values(RANK_PRIZE).map((label) => (
+          <span
+            key={label}
+            className="rounded-full border border-cup-stroke bg-white px-3 py-1 text-[11px] font-medium text-cup-muted shadow-subtle"
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+
+      {top10.length === 0 ? (
+        <div className="mt-3 rounded-2xl border border-cup-stroke bg-white p-6 text-center shadow-subtle">
+          <p className="text-sm text-cup-muted">No scores yet this week. Be the first!</p>
+        </div>
+      ) : (
+        <motion.ul
+          className="mt-3 space-y-2"
+          initial="hidden"
+          animate="visible"
+          variants={{ visible: { transition: { staggerChildren: 0.03 } } }}
+        >
+          {top10.map((entry) => {
+            const isMe = entry.userId === userId;
+            return (
+              <motion.li
+                key={entry.userId}
+                variants={{ hidden: { opacity: 0, x: -8 }, visible: { opacity: 1, x: 0 } }}
+                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                className={`flex items-center gap-3 rounded-2xl border p-3.5 shadow-subtle ${
+                  isMe
+                    ? 'border-cup-orange-500/40 bg-cup-orange-500/5'
+                    : 'border-cup-stroke bg-white'
+                }`}
+              >
+                <span
+                  className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl text-xs font-bold ${rankBadgeClass(entry.rank)}`}
+                >
+                  {entry.rank <= 3 ? <Medal className="h-4 w-4" /> : `#${entry.rank}`}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate font-heading text-sm font-semibold text-cup-brown-900">
+                    {isMe ? 'You' : `…${entry.userId.slice(-6)}`}
+                  </p>
+                  {RANK_PRIZE[entry.rank] && (
+                    <p className="text-[10px] text-cup-muted">{RANK_PRIZE[entry.rank]}</p>
+                  )}
+                </div>
+                <span className="font-heading text-sm font-bold text-cup-brown-900">
+                  {entry.totalScore} pts
+                </span>
+              </motion.li>
+            );
+          })}
+        </motion.ul>
+      )}
+
+      {/* My rank if not in top 10 */}
+      {me && !top10.some((e) => e.userId === userId) && (
+        <div className="mt-2 flex items-center gap-3 rounded-2xl border border-cup-orange-500/40 bg-cup-orange-500/5 p-3.5 shadow-subtle">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cup-paper text-xs font-bold text-cup-muted">
+            #{me.rank}
+          </span>
+          <p className="flex-1 font-heading text-sm font-semibold text-cup-brown-900">
+            You
+          </p>
+          <span className="font-heading text-sm font-bold text-cup-brown-900">
+            {me.totalScore} pts
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── PrizesSection ────────────────────────────────────────────────────────────
+
+function PrizesSection({ prizes }: { prizes: PrizesResponse | null }) {
+  if (!prizes) return null;
+
+  return (
+    <section className="mt-8 mb-4">
+      <div className="flex items-center gap-2">
+        <Ticket className="h-5 w-5 text-cup-orange-600" />
+        <h2 className="font-heading text-base font-bold text-cup-brown-900">
+          Your Prizes
+        </h2>
+      </div>
+
+      {prizes.prizes.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mt-3 rounded-2xl border border-cup-stroke bg-white p-8 text-center shadow-subtle"
+        >
+          <Ticket className="mx-auto h-10 w-10 text-cup-muted" />
+          <p className="mt-3 font-heading text-sm font-semibold text-cup-brown-900">
+            No prizes yet
+          </p>
+          <p className="mt-1 text-xs text-cup-muted">
+            Top-ranked players at the end of each week earn prizes. Keep playing!
+          </p>
+        </motion.div>
+      ) : (
+        <motion.ul
+          className="mt-3 space-y-3"
+          initial="hidden"
+          animate="visible"
+          variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+        >
+          {prizes.prizes.map((prize) => (
+            <PrizeCard key={prize.id} prize={prize} />
+          ))}
+        </motion.ul>
+      )}
+    </section>
+  );
+}
+
+function PrizeCard({ prize }: { prize: Prize }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    void navigator.clipboard.writeText(prize.code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const isRedeemed = Boolean(prize.redeemedAt);
+  const isExpired = new Date(prize.expiresAt) < new Date();
+
+  return (
+    <motion.li
+      variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      className={`rounded-2xl border p-4 shadow-subtle ${
+        isRedeemed || isExpired
+          ? 'border-cup-stroke bg-cup-paper opacity-60'
+          : 'border-cup-orange-500/30 bg-white'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cup-orange-500/10">
+            <Trophy className="h-5 w-5 text-cup-orange-600" />
+          </span>
+          <div>
+            <p className="font-heading text-sm font-semibold text-cup-brown-900">
+              Rank #{prize.rank} Prize
+            </p>
+            <p className="text-xs text-cup-muted">{prize.description}</p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {isRedeemed && (
+            <span className="rounded-full bg-cup-teal-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cup-teal-700">
+              Redeemed
+            </span>
+          )}
+          {!isRedeemed && isExpired && (
+            <span className="rounded-full bg-cup-paper px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cup-muted">
+              Expired
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Coupon code */}
+      <button
+        type="button"
+        onClick={handleCopy}
+        disabled={isRedeemed || isExpired}
+        className="mt-3 flex w-full items-center justify-between rounded-xl border border-dashed border-cup-stroke bg-cup-paper px-4 py-2.5 transition active:scale-[0.98] disabled:cursor-not-allowed"
+      >
+        <span className="font-mono text-sm font-bold tracking-widest text-cup-brown-900">
+          {prize.code}
+        </span>
+        <span className="ml-3 shrink-0 text-cup-muted">
+          {copied ? (
+            <Check className="h-4 w-4 text-cup-teal-600" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
+        </span>
+      </button>
+
+      <p className="mt-2 text-[10px] text-cup-muted">
+        Expires{' '}
+        {new Date(prize.expiresAt).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}
+      </p>
     </motion.li>
   );
 }
