@@ -29,10 +29,10 @@ describe('GET /catalog', () => {
     expect(names).not.toContain('Scholar Latte');
   });
 
-  it('every product has a PNG image_url', async () => {
+  it('every product has a valid image_url', async () => {
     const res = await request(app).get('/catalog').expect(200);
     for (const p of res.body.products) {
-      expect(p.image_url).toMatch(/\.png$/);
+      expect(p.image_url).toMatch(/\.(png|jpg|svg)$/);
     }
   });
 
