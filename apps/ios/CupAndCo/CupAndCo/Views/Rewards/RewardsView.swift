@@ -1,17 +1,23 @@
 import SwiftUI
 
 struct RewardsView: View {
+    @Environment(SessionStore.self) private var session
     @State private var loyalty: LoyaltyResponse?
     @State private var isLoading = true
     @State private var error: String?
     @State private var showScanner = false
     @State private var scanResult: String?
+    @State private var showGame = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 balanceCard
+                if session.user?.role == .student {
+                    gameSection
+                }
                 qrSection
+                leaderboardSection
                 historySection
             }
             .padding(.horizontal, 20)
@@ -27,6 +33,19 @@ struct RewardsView: View {
             QRScannerView { code in
                 showScanner = false
                 Task { await redeemCode(code) }
+            }
+        }
+        .sheet(isPresented: $showGame) {
+            NavigationStack {
+                GameView()
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { showGame = false }
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundStyle(CupColors.primary)
+                        }
+                    }
             }
         }
         .overlay {
@@ -77,6 +96,82 @@ struct RewardsView: View {
                 errorView(error)
             }
         }
+    }
+
+    // MARK: - Game Section (students only)
+
+    private var gameSection: some View {
+        Button {
+            showGame = true
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(CupColors.primaryTint)
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "gamecontroller.fill")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(CupColors.primary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Play Coffee Collector")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(CupColors.espresso)
+                    Text("Earn loyalty points by playing")
+                        .font(.system(size: 13, design: .rounded))
+                        .foregroundStyle(CupColors.muted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(CupColors.muted)
+            }
+            .padding(16)
+            .background(CupColors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(CupColors.stroke, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Leaderboard Section
+
+    private var leaderboardSection: some View {
+        NavigationLink(destination: LeaderboardView()) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(CupColors.accentTint)
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "list.number")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(CupColors.accent)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Leaderboard")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(CupColors.espresso)
+                    Text("Weekly top players & prizes")
+                        .font(.system(size: 13, design: .rounded))
+                        .foregroundStyle(CupColors.muted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(CupColors.muted)
+            }
+            .padding(16)
+            .background(CupColors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(CupColors.stroke, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - QR Section
