@@ -35,7 +35,7 @@ describe('payments', () => {
       transactionId: 'tx_1',
       amountEgp: 120,
     };
-    const hmac = signPaymobPayload(payload, 'local-dev-secret');
+    const hmac = signPaymobPayload(payload, process.env.PAYMOB_HMAC_SECRET!);
     const result = svc.handleCallback(payload, hmac);
     expect(result.verified).toBe(true);
     expect(result.paymentStatus).toBe('paid');
@@ -49,7 +49,7 @@ describe('payments', () => {
       transactionId: 'tx_2',
       amountEgp: 120,
     };
-    const hmac = signPaymobPayload(payload, 'local-dev-secret');
+    const hmac = signPaymobPayload(payload, process.env.PAYMOB_HMAC_SECRET!);
     const result = svc.handleCallback(payload, hmac);
     expect(result.paymentStatus).toBe('failed');
   });
@@ -73,7 +73,7 @@ describe('payments', () => {
       transactionId: 'tx_1',
       amountEgp: 120,
     };
-    const hmac = signPaymobPayload(payload, 'local-dev-secret');
+    const hmac = signPaymobPayload(payload, process.env.PAYMOB_HMAC_SECRET!);
     const tampered = { ...payload, amountEgp: 1 };
     expect(() => svc.handleCallback(tampered, hmac)).toThrow(/HMAC/);
   });
