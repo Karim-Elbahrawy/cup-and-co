@@ -19,6 +19,7 @@ import {
 import { createPushService, statusNotificationCopy } from './services/push.js';
 import { catalogRouter } from './routes/catalog.js';
 import { getProductDetail } from './db/catalogRepo.js';
+import { adminOffers } from './db/offersStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
 // if configured, fixture otherwise).
@@ -31,6 +32,9 @@ const pushDevices = new Map<string, Array<{ platform: 'ios' | 'web'; token: stri
 const reviews = new Map<string, Array<{ id: string; userId: string; productId: string; orderId: string | null; rating: number; comment: string; hidden: boolean; createdAt: string }>>();
 const favorites = new Map<string, Set<string>>();
 const loyaltyHistory = new Map<string, Array<{ id: string; source: string; orderId: string | null; points: number; balanceAfter: number; createdAt: string }>>();
+
+// Phase 5: users registry for admin user management, and mutable offers store
+const usersRegistry = new Map<string, { id: string; phone: string; full_name: string | null; role: string; verification_status: string; blocked: boolean; created_at: string }>();
 
 // Phase 4: prizes store keyed by userId
 interface Prize {
@@ -161,7 +165,7 @@ async function notifyOrderStatus(order: Order, status: Parameters<typeof statusN
 
 // -------------- App --------------
 
-export function createApp() {
+export function createApp(): express.Express {
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
@@ -193,6 +197,16 @@ export function createApp() {
         verificationStatus: 'approved' as const,
         phoneVerified: true,
       };
+      // Register user for admin management
+      usersRegistry.set(user.id, {
+        id: user.id,
+        phone: user.phone,
+        full_name: null,
+        role: user.role,
+        verification_status: user.verificationStatus,
+        blocked: false,
+        created_at: new Date().toISOString(),
+      });
       const token = signSession(user);
       res.json({ token, user });
     } catch (e) { next(e); }
@@ -775,6 +789,219 @@ export function createApp() {
       const input = z.object({ available: z.boolean() }).parse(req.body);
       productAvailability.set(req.params.id as string, input.available);
       res.json({ id: req.params.id, available: input.available });
+    } catch (e) { next(e); }
+  });
+
+  // -------- Phase 5: Admin Reviews --------
+  app.get('/admin/reviews', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reviews:manage');
+      const all: Array<{
+        id: string;
+        userId: string;
+        productId: string;
+        orderId: string | null;
+        rating: number;
+        comment: string;
+        hidden: boolean;
+        createdAt: string;
+        userName?: string;
+      }> = [];
+      for (const [, list] of reviews) {
+        for (const r of list) {
+          const profile = userProfiles.get(r.userId);
+          all.push({
+            ...r,
+            userName: (profile?.full_name as string) ?? r.userId.slice(0, 8),
+          });
+        }
+      }
+      all.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      res.json({ reviews: all });
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/admin/reviews/:id/visibility', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reviews:manage');
+      const { hidden } = z.object({ hidden: z.boolean() }).parse(req.body);
+      let found = false;
+      for (const [, list] of reviews) {
+        const review = list.find((r) => r.id === req.params.id);
+        if (review) {
+          review.hidden = hidden;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        const e = new Error('Review not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
+      res.json({ id: req.params.id, hidden });
+    } catch (e) { next(e); }
+  });
+
+  // -------- Phase 5: Admin Users --------
+  app.get('/admin/users', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'users:verify');
+      const statusFilter = req.query.status as string | undefined;
+      let all = Array.from(usersRegistry.values());
+      if (statusFilter) {
+        all = all.filter((u) => u.verification_status === statusFilter);
+      }
+      res.json({ users: all.sort((a, b) => b.created_at.localeCompare(a.created_at)) });
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/admin/users/:id/verify', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'users:verify');
+      const { status } = z.object({ status: z.enum(['approved', 'rejected']) }).parse(req.body);
+      const user = usersRegistry.get(req.params.id as string);
+      if (!user) {
+        const e = new Error('User not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
+      user.verification_status = status;
+      res.json({ id: user.id, verification_status: status });
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/admin/users/:id/block', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'users:block');
+      const { blocked } = z.object({ blocked: z.boolean() }).parse(req.body);
+      const user = usersRegistry.get(req.params.id as string);
+      if (!user) {
+        const e = new Error('User not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
+      user.blocked = blocked;
+      res.json({ id: user.id, blocked });
+    } catch (e) { next(e); }
+  });
+
+  // -------- Phase 5: Admin Offers --------
+  app.get('/admin/offers', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'offers:manage');
+      const now = new Date().toISOString();
+      const scope = req.query.scope as string | undefined;
+      let list = [...adminOffers];
+      if (scope === 'active') {
+        list = list.filter((o) => o.starts_at <= now && o.ends_at >= now);
+      } else if (scope === 'upcoming') {
+        list = list.filter((o) => o.starts_at > now);
+      } else if (scope === 'expired') {
+        list = list.filter((o) => o.ends_at < now);
+      }
+      res.json({ offers: list.sort((a, b) => b.starts_at.localeCompare(a.starts_at)) });
+    } catch (e) { next(e); }
+  });
+
+  app.post('/admin/offers', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'offers:manage');
+      const input = z.object({
+        name_en: z.string().min(1).max(120),
+        name_ar: z.string().min(1).max(120),
+        type: z.enum(['percentage', 'fixed', 'free_item']),
+        value: z.number().nonnegative(),
+        starts_at: z.string().datetime(),
+        ends_at: z.string().datetime(),
+        target_roles: z.array(z.enum(['student', 'faculty', 'office', 'owner', 'barista'])),
+        code: z.string().min(1).max(40).nullable().optional(),
+        usage_limit: z.number().int().nonnegative().nullable().optional(),
+      }).parse(req.body);
+      const offer = {
+        id: randomUUID(),
+        ...input,
+        code: input.code ?? null,
+        usage_limit: input.usage_limit ?? null,
+        usage_count: 0,
+      };
+      adminOffers.push(offer);
+      res.status(201).json(offer);
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/admin/offers/:id', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'offers:manage');
+      const idx = adminOffers.findIndex((o) => o.id === req.params.id);
+      if (idx === -1) {
+        const e = new Error('Offer not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
+      const input = z.object({
+        name_en: z.string().min(1).max(120).optional(),
+        name_ar: z.string().min(1).max(120).optional(),
+        type: z.enum(['percentage', 'fixed', 'free_item']).optional(),
+        value: z.number().nonnegative().optional(),
+        starts_at: z.string().datetime().optional(),
+        ends_at: z.string().datetime().optional(),
+        target_roles: z.array(z.enum(['student', 'faculty', 'office', 'owner', 'barista'])).optional(),
+        code: z.string().min(1).max(40).nullable().optional(),
+        usage_limit: z.number().int().nonnegative().nullable().optional(),
+      }).parse(req.body);
+      adminOffers[idx] = { ...adminOffers[idx], ...input };
+      res.json(adminOffers[idx]);
+    } catch (e) { next(e); }
+  });
+
+  // -------- Phase 5: Admin Reports --------
+  app.get('/admin/reports/revenue', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const all = Array.from(orders.values());
+      const paid = all.filter((o) => o.paymentStatus === 'paid');
+      const today = new Date().toISOString().slice(0, 10);
+      const todayRevenue = paid
+        .filter((o) => o.createdAt.startsWith(today))
+        .reduce((s, o) => s + o.totalEgp, 0);
+      const totalRevenue = paid.reduce((s, o) => s + o.totalEgp, 0);
+      res.json({ todayRevenueEgp: todayRevenue, totalRevenueEgp: totalRevenue, paidOrders: paid.length });
+    } catch (e) { next(e); }
+  });
+
+  app.get('/admin/reports/top-items', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const counts = new Map<string, { name_en: string; count: number; revenue: number }>();
+      for (const order of orders.values()) {
+        for (const item of order.items) {
+          const existing = counts.get(item.productId) ?? { name_en: item.productNameEn, count: 0, revenue: 0 };
+          existing.count += item.quantity;
+          existing.revenue += item.lineTotalEgp;
+          counts.set(item.productId, existing);
+        }
+      }
+      const top = Array.from(counts.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+      res.json({ topItems: top });
+    } catch (e) { next(e); }
+  });
+
+  app.get('/admin/reports/role-breakdown', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const roleCounts = new Map<string, { orders: number; revenue: number }>();
+      for (const order of orders.values()) {
+        const profile = userProfiles.get(order.userId);
+        const role = (profile?.role as string) ?? 'student';
+        const existing = roleCounts.get(role) ?? { orders: 0, revenue: 0 };
+        existing.orders += 1;
+        if (order.paymentStatus === 'paid') existing.revenue += order.totalEgp;
+        roleCounts.set(role, existing);
+      }
+      res.json({ breakdown: Object.fromEntries(roleCounts) });
     } catch (e) { next(e); }
   });
 

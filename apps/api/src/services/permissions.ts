@@ -50,7 +50,9 @@ const baristaPermissions = new Set<AdminPermission>([
 export function assertAdminPermission(role: AdminRole, permission: AdminPermission): void {
   const allowed = role === 'owner' ? ownerPermissions : baristaPermissions;
   if (!allowed.has(permission)) {
-    throw new Error(`This action requires owner permission: ${permission}`);
+    const e = new Error(`This action requires owner permission: ${permission}`) as Error & { status?: number };
+    e.status = 403;
+    throw e;
   }
 }
 
