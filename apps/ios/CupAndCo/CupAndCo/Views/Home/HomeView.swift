@@ -64,13 +64,19 @@ struct HomeView: View {
                 } else {
                     LazyVGrid(columns: columns, spacing: 14) {
                         ForEach(catalog.popular) { product in
-                            ProductCardView(
-                                product: product,
-                                language: session.user?.languagePref ?? .en
-                            )
+                            NavigationLink(value: product) {
+                                ProductCardView(
+                                    product: product,
+                                    language: session.user?.languagePref ?? .en
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 20)
+                    .navigationDestination(for: Product.self) { product in
+                        ProductDetailView(product: product)
+                    }
                 }
 
                 Color.clear.frame(height: 90) // tab-bar safe area
@@ -215,7 +221,10 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
-        .environment(SessionStore())
-        .environment(CatalogStore())
+    NavigationStack {
+        HomeView()
+    }
+    .environment(SessionStore())
+    .environment(CatalogStore())
+    .environment(CartStore())
 }

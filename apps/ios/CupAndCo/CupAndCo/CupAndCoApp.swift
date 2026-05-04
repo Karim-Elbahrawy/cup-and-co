@@ -4,12 +4,16 @@ import SwiftUI
 struct CupAndCoApp: App {
     @State private var session = SessionStore()
     @State private var catalog = CatalogStore()
+    @State private var cart = CartStore()
+    @State private var orderStore = OrderStore()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(session)
                 .environment(catalog)
+                .environment(cart)
+                .environment(orderStore)
                 .environment(\.locale, .init(identifier: AppLanguage.current.code))
                 .environment(\.layoutDirection,
                              AppLanguage.current == .arabic ? .rightToLeft : .leftToRight)
@@ -77,11 +81,11 @@ struct RootView: View {
     }
 }
 
-/// Bottom-tab shell shown once the user is authenticated.  All five tabs
-/// share the same chrome but only `Home` and `Profile` have real content
-/// in Phase 1; the others show a friendly "coming soon" state.
+/// Bottom-tab shell shown once the user is authenticated.  Phase 2 adds
+/// the cart, order history, and product detail navigation.
 struct MainTabShell: View {
     @State private var tab: AppTab = .home
+    @Environment(CartStore.self) private var cart
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -89,19 +93,17 @@ struct MainTabShell: View {
 
             Group {
                 switch tab {
-                case .home:    HomeView()
+                case .home:    NavigationStack { HomeView() }
                 case .search:  ComingSoonView(title: "tab.search",
                                               symbol: "magnifyingglass")
-                case .cart:    ComingSoonView(title: "tab.cart",
-                                              symbol: "bag")
-                case .rewards: ComingSoonView(title: "tab.rewards",
-                                              symbol: "gift")
+                case .cart:    NavigationStack { CartView() }
+                case .rewards: NavigationStack { RewardsView() }
                 case .profile: NavigationStack { ProfileView() }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            BottomTabBar(selection: $tab)
+            BottomTabBar(selection: $tab, cartBadge: cart.itemCount)
         }
     }
 }

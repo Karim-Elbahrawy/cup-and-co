@@ -33,6 +33,7 @@ enum AppTab: Hashable, CaseIterable {
 /// floating-pill aesthetic with a centered selected pill behind the icon).
 struct BottomTabBar: View {
     @Binding var selection: AppTab
+    var cartBadge: Int = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -67,16 +68,30 @@ struct BottomTabBar: View {
     private func tabButton(for tab: AppTab) -> some View {
         let isSelected = selection == tab
         VStack(spacing: 4) {
-            ZStack {
-                if isSelected {
-                    Circle()
-                        .fill(CupColors.primary.opacity(0.12))
-                        .frame(width: 38, height: 38)
+            ZStack(alignment: .topTrailing) {
+                ZStack {
+                    if isSelected {
+                        Circle()
+                            .fill(CupColors.primary.opacity(0.12))
+                            .frame(width: 38, height: 38)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                    Image(systemName: tab.sfSymbol)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(isSelected ? CupColors.primary : CupColors.muted)
+                }
+                .frame(width: 38, height: 38)
+
+                if tab == .cart && cartBadge > 0 {
+                    Text(verbatim: "\(cartBadge)")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(minWidth: 16, minHeight: 16)
+                        .background(CupColors.primary)
+                        .clipShape(Circle())
+                        .offset(x: 4, y: -2)
                         .transition(.scale.combined(with: .opacity))
                 }
-                Image(systemName: tab.sfSymbol)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(isSelected ? CupColors.primary : CupColors.muted)
             }
             .frame(height: 38)
         }

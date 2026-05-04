@@ -66,6 +66,10 @@ final class APIClient: @unchecked Sendable {
         try await send(path: path, method: "POST", body: Optional<EmptyBody>.none)
     }
 
+    func delete<T: Decodable>(_ path: String) async throws -> T {
+        try await send(path: path, method: "DELETE", body: Optional<EmptyBody>.none)
+    }
+
     // MARK: - Internal
 
     private func send<T: Decodable, B: Encodable>(path: String,
