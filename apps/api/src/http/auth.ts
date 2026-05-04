@@ -38,7 +38,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       return next();
     }
 
-    if (config.nodeEnv !== 'production') {
+    if (config.nodeEnv === 'development' || config.nodeEnv === 'test') {
       const id = req.header('x-user-id');
       const role = (req.header('x-user-role') ?? 'student') as UserRole;
       const verificationStatus = (req.header('x-verification-status') ?? 'approved') as VerificationStatus;

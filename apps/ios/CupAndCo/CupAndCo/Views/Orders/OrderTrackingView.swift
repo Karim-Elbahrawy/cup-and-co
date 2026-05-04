@@ -38,11 +38,11 @@ struct OrderTrackingView: View {
                     .padding(.top, 16)
                 }
             } else {
-                ProgressView("Loading order...")
+                ProgressView(String(localized: "orders.loading"))
                     .tint(CupColors.primary)
             }
         }
-        .navigationTitle(Text("Order Tracking"))
+        .navigationTitle(Text("orders.tracking_title"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if let initialResponse {
@@ -57,16 +57,16 @@ struct OrderTrackingView: View {
             pollingTask?.cancel()
         }
         .confirmationDialog(
-            Text("Cancel Order"),
+            Text("orders.cancel_order"),
             isPresented: $showCancelConfirm,
             titleVisibility: .visible
         ) {
-            Button("Cancel Order", role: .destructive) {
+            Button("orders.cancel_order", role: .destructive) {
                 Task { await performCancel() }
             }
-            Button("Keep Order", role: .cancel) {}
+            Button("orders.keep_order", role: .cancel) {}
         } message: {
-            Text("Are you sure you want to cancel this order? This cannot be undone.")
+            Text("orders.cancel_confirm_message")
         }
     }
 
@@ -76,7 +76,7 @@ struct OrderTrackingView: View {
     private func pickupCodeSection(order: Order) -> some View {
         if let code = order.pickupCode, !code.isEmpty {
             VStack(spacing: 8) {
-                Text("Pickup Code")
+                Text("orders.pickup_code")
                     .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(CupColors.muted)
 
@@ -85,7 +85,7 @@ struct OrderTrackingView: View {
                     .foregroundStyle(CupColors.primary)
                     .tracking(4)
 
-                Text("Show this code at the counter")
+                Text("orders.show_code")
                     .font(.system(size: 13, design: .rounded))
                     .foregroundStyle(CupColors.cocoa)
             }
@@ -99,7 +99,7 @@ struct OrderTrackingView: View {
             )
             .shadow(color: CupColors.espresso.opacity(0.06), radius: 12, x: 0, y: 4)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(Text("Pickup code: \(code)"))
+            .accessibilityLabel(Text(verbatim: "Pickup code: \(code)"))
         }
     }
 
@@ -107,7 +107,7 @@ struct OrderTrackingView: View {
 
     private var timelineSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Status")
+            Text("orders.status")
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(CupColors.espresso)
                 .padding(.bottom, 16)
@@ -211,7 +211,7 @@ struct OrderTrackingView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(Text("Toggle items list"))
+            .accessibilityLabel(Text("orders.toggle_items_a11y"))
 
             if isItemsExpanded {
                 VStack(spacing: 10) {
@@ -296,16 +296,17 @@ struct OrderTrackingView: View {
     @ViewBuilder
     private func orderInfoSection(order: Order) -> some View {
         VStack(spacing: 8) {
-            infoRow(label: "Order Date", value: order.formattedDate)
-            infoRow(label: "Fulfillment", value: order.fulfillmentType == .pickup ? "Pickup" : "Delivery")
-            infoRow(label: "Payment", value: order.paymentMethod.label)
+            infoRow(label: "orders.order_date", value: order.formattedDate)
+            infoRow(label: "orders.fulfillment_label",
+                    value: String(localized: order.fulfillmentType == .pickup ? "orders.pickup" : "orders.delivery"))
+            infoRow(label: "orders.payment_label", value: order.paymentMethod.label)
             Rectangle().fill(CupColors.stroke).frame(height: 1)
-            infoRow(label: "Subtotal", value: "EGP \(Int(order.subtotalEgp.rounded()))")
+            infoRow(label: "orders.subtotal", value: "EGP \(Int(order.subtotalEgp.rounded()))")
             if order.discountEgp > 0 {
-                infoRow(label: "Discount", value: "-EGP \(Int(order.discountEgp.rounded()))",
+                infoRow(label: "orders.discount", value: "-EGP \(Int(order.discountEgp.rounded()))",
                         valueColor: CupColors.success)
             }
-            infoRow(label: "Total", value: "EGP \(Int(order.totalEgp.rounded()))", isBold: true)
+            infoRow(label: "orders.total", value: "EGP \(Int(order.totalEgp.rounded()))", isBold: true)
         }
         .padding(16)
         .background(CupColors.surface)
@@ -316,7 +317,7 @@ struct OrderTrackingView: View {
         )
     }
 
-    private func infoRow(label: String, value: String,
+    private func infoRow(label: LocalizedStringKey, value: String,
                          valueColor: Color = CupColors.espresso,
                          isBold: Bool = false) -> some View {
         HStack {
@@ -347,7 +348,7 @@ struct OrderTrackingView: View {
                     Image(systemName: "xmark.circle")
                         .font(.system(size: 16, weight: .semibold))
                 }
-                Text("Cancel Order")
+                Text("orders.cancel_order")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
             }
             .foregroundStyle(CupColors.error)
@@ -361,7 +362,7 @@ struct OrderTrackingView: View {
             )
         }
         .disabled(isCancelling)
-        .accessibilityLabel(Text("Cancel order"))
+        .accessibilityLabel(Text("orders.cancel_order"))
     }
 
     // MARK: - Actions

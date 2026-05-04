@@ -1,12 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CheckCircle, XCircle, Shield, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/components/Toast';
+import { useSession } from '@/lib/useSession';
 import { adminApi, type AdminUser } from '@/lib/api';
 
 export default function UsersPage() {
   const toast = useToast();
+  const session = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (session && session.role !== 'owner') router.replace('/');
+  }, [session, router]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');

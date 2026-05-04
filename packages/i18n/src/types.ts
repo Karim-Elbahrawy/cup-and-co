@@ -100,6 +100,13 @@ export interface Translations {
     apply: string;
     couponDiscount: string;
   };
+  nav: {
+    home: string;
+    usual: string;
+    cart: string;
+    rewards: string;
+    profile: string;
+  };
   orders: {
     myOrders: string;
     orderTracking: string;
@@ -113,6 +120,12 @@ export interface Translations {
     pickupCode: string;
     noOrders: string;
     noOrdersMessage: string;
+    cancelOrder: string;
+    cancelling: string;
+    hideItems: string;
+    viewItems: string;
+    pickupInstruction: string;
+    deliveryInstruction: string;
   };
   loyalty: {
     rewards: string;
@@ -127,6 +140,10 @@ export interface Translations {
     noScores: string;
     redeeming: string;
     noPrizes: string;
+    yourPoints: string;
+    discountAvailable: string;
+    noHistory: string;
+    noHistoryMessage: string;
   };
   games: {
     play: string;
@@ -144,13 +161,29 @@ export interface Translations {
     catchBeans: string;
     missBean: string;
     timeAndLives: string;
+    playCoffeeCollector: string;
+    earnPoints: string;
+    you: string;
+    expired: string;
   };
   profile: {
     myProfile: string;
+    account: string;
     personalInfo: string;
+    cardsAndPayments: string;
+    transactionHistory: string;
+    privacyAndData: string;
+    accountId: string;
     language: string;
+    security: string;
     faceId: string;
+    twoFactor: string;
+    passcode: string;
+    notificationPreferences: string;
     notifications: string;
+    orderUpdates: string;
+    promotions: string;
+    pointsAndRewards: string;
     support: string;
     about: string;
     iOSOnly: string;

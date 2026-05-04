@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { errorHandler } from './http/errors.js';
+import { config } from './config.js';
 import { requireAuth, requireAdmin, getRequestUser, getAdminRole, signSession } from './http/auth.js';
 import { assertAdminPermission } from './services/permissions.js';
 import { calculateDiscountEgp, calculateEarnedPoints } from './services/loyalty.js';
@@ -35,6 +36,9 @@ const loyaltyHistory = new Map<string, Array<{ id: string; source: string; order
 
 // Phase 5: users registry for admin user management, and mutable offers store
 const usersRegistry = new Map<string, { id: string; phone: string; full_name: string | null; role: string; verification_status: string; blocked: boolean; created_at: string }>();
+
+// Reverse-lookup: phone → userId (so returning users keep their data across verify calls)
+const phoneToUserId = new Map<string, string>();
 
 // Phase 4: prizes store keyed by userId
 interface Prize {
@@ -167,7 +171,38 @@ async function notifyOrderStatus(order: Order, status: Parameters<typeof statusN
 
 export function createApp(): express.Express {
   const app = express();
-  app.use(cors());
+  app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*' }));
+
+  // Simple sliding-window rate limiter for OTP endpoints (per source IP)
+  const otpHits = new Map<string, number[]>();
+  const OTP_WINDOW_MS = 60_000;
+  const OTP_MAX = 5;
+  function otpRateLimit(req: express.Request, res: express.Response, next: express.NextFunction): void {
+    const ip = req.ip ?? 'unknown';
+    const now = Date.now();
+    const hits = (otpHits.get(ip) ?? []).filter((t) => now - t < OTP_WINDOW_MS);
+    if (hits.length >= OTP_MAX) {
+      res.status(429).json({ error: 'Too many OTP requests. Please wait before trying again.' });
+      return;
+    }
+    hits.push(now);
+    otpHits.set(ip, hits);
+    next();
+  }
+
+  /** requireAuth + blocked-account check in one step. */
+  function requireActiveUser(req: express.Request, res: express.Response, next: express.NextFunction): void {
+    requireAuth(req, res, () => {
+      const user = req.user;
+      if (!user) return;
+      const reg = usersRegistry.get(user.id);
+      if (reg?.blocked) {
+        res.status(403).json({ error: 'Your account has been blocked. Please contact support.' });
+        return;
+      }
+      next();
+    });
+  }
   app.use(express.json({ limit: '1mb' }));
 
   app.get('/health', (_req, res) => {
@@ -178,35 +213,55 @@ export function createApp(): express.Express {
   app.use(catalogRouter());
 
   // -------- Auth (phone OTP) --------
-  app.post('/auth/otp/send', (req, res, next) => {
+  app.post('/auth/otp/send', otpRateLimit, (req, res, next) => {
     try {
+      if (config.nodeEnv === 'production') {
+        const e = new Error('OTP via Supabase not yet configured for production.') as Error & { status?: number };
+        e.status = 503;
+        throw e;
+      }
       const { phone } = otpSendSchema.parse(req.body);
-      // TODO Phase 3: supabase.auth.signInWithOtp({ phone })
+      // TODO: replace with supabase.auth.signInWithOtp({ phone }) when Supabase phone auth is enabled
       res.json({ ok: true, phone, devCode: '000000', message: 'OTP sent (dev stub).' });
     } catch (e) { next(e); }
   });
 
-  app.post('/auth/otp/verify', (req, res, next) => {
+  app.post('/auth/otp/verify', otpRateLimit, (req, res, next) => {
     try {
+      if (config.nodeEnv === 'production') {
+        const e = new Error('OTP via Supabase not yet configured for production.') as Error & { status?: number };
+        e.status = 503;
+        throw e;
+      }
       const { phone, code } = otpVerifySchema.parse(req.body);
-      if (code !== '000000') throw new Error('Invalid OTP');
+      if (code !== '000000') {
+        const e = new Error('Invalid OTP') as Error & { status?: number };
+        e.status = 401;
+        throw e;
+      }
+      // Reuse existing userId for this phone so returning users keep their data
+      const existingId = phoneToUserId.get(phone);
+      const userId = existingId ?? randomUUID();
+      if (!existingId) phoneToUserId.set(phone, userId);
+
       const user = {
-        id: randomUUID(),
+        id: userId,
         phone,
         role: 'student' as const,
         verificationStatus: 'approved' as const,
         phoneVerified: true,
       };
-      // Register user for admin management
-      usersRegistry.set(user.id, {
-        id: user.id,
-        phone: user.phone,
-        full_name: null,
-        role: user.role,
-        verification_status: user.verificationStatus,
-        blocked: false,
-        created_at: new Date().toISOString(),
-      });
+      if (!usersRegistry.has(userId)) {
+        usersRegistry.set(userId, {
+          id: userId,
+          phone,
+          full_name: null,
+          role: user.role,
+          verification_status: user.verificationStatus,
+          blocked: false,
+          created_at: new Date().toISOString(),
+        });
+      }
       const token = signSession(user);
       res.json({ token, user });
     } catch (e) { next(e); }
@@ -379,7 +434,11 @@ export function createApp(): express.Express {
       // Decrement points when redeemed
       if (input.redeemPoints > 0) {
         const balance = userPoints.get(user.id) ?? 0;
-        if (input.redeemPoints > balance) throw new Error('Not enough points to redeem.');
+        if (input.redeemPoints > balance) {
+          const e = new Error('Not enough points to redeem.') as Error & { status?: number };
+          e.status = 400;
+          throw e;
+        }
         userPoints.set(user.id, balance - input.redeemPoints);
         recordLoyaltyEvent(user.id, 'redeemed', -input.redeemPoints, order.id);
       }
@@ -430,7 +489,8 @@ export function createApp(): express.Express {
     res.write(`data: ${JSON.stringify({ order, timeline: trackingTimelineFor(order) })}\n\n`);
     const handler = (data: unknown) => { res.write(`data: ${JSON.stringify(data)}\n\n`); };
     orderEvents.on(`order:${order.id}`, handler);
-    req.on('close', () => { orderEvents.off(`order:${order.id}`, handler); });
+    const heartbeat = setInterval(() => { res.write(': ping\n\n'); }, 25_000);
+    req.on('close', () => { orderEvents.off(`order:${order.id}`, handler); clearInterval(heartbeat); });
   });
 
   // Phase 3: customer cancel order
@@ -442,6 +502,12 @@ export function createApp(): express.Express {
       if (order.userId !== user.id) { const e = new Error('Order not found.') as Error & { status?: number }; e.status = 404; throw e; }
       const ok = applyStatusTransition(order, 'cancelled', 'Cancelled by customer');
       if (!ok) { const e = new Error(`Cannot cancel order in status: ${order.status}`) as Error & { status?: number }; e.status = 409; throw e; }
+      // Refund redeemed points
+      if (order.pointsRedeemed > 0) {
+        const restored = (userPoints.get(order.userId) ?? 0) + order.pointsRedeemed;
+        userPoints.set(order.userId, restored);
+        recordLoyaltyEvent(order.userId, 'refund', order.pointsRedeemed, order.id);
+      }
       emitOrderUpdate(order);
       res.json({ order, timeline: trackingTimelineFor(order) });
     } catch (e) { next(e); }
@@ -519,6 +585,11 @@ export function createApp(): express.Express {
       const result = paymob.handleCallback(payload, hmac);
       const order = orders.get(result.orderId);
       if (order) {
+        // Idempotency: skip if already processed
+        if (order.paymentStatus === 'paid') {
+          res.json({ already_processed: true });
+          return;
+        }
         order.paymentStatus = result.paymentStatus;
         if (result.paymentStatus === 'paid') {
           const earned = calculateEarnedPoints({
@@ -677,7 +748,8 @@ export function createApp(): express.Express {
     res.write(`data: ${JSON.stringify({ orders: allOrders })}\n\n`);
     const handler = (data: unknown) => { res.write(`data: ${JSON.stringify(data)}\n\n`); };
     orderEvents.on('orders:all', handler);
-    req.on('close', () => { orderEvents.off('orders:all', handler); });
+    const heartbeat = setInterval(() => { res.write(': ping\n\n'); }, 25_000);
+    req.on('close', () => { orderEvents.off('orders:all', handler); clearInterval(heartbeat); });
   });
 
   app.get('/admin/orders/:id', requireAuth, requireAdmin, (req, res, next) => {
@@ -715,6 +787,14 @@ export function createApp(): express.Express {
         const earned = calculateEarnedPoints({ amountEgp: order.totalEgp, source: 'cash_in_app' });
         userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
         recordLoyaltyEvent(order.userId, 'cash_in_app', earned, order.id);
+      }
+      // On cancel/refund: refund redeemed points and reverse any awarded points
+      if (status === 'cancelled' || status === 'refunded') {
+        if (order.pointsRedeemed > 0) {
+          const restored = (userPoints.get(order.userId) ?? 0) + order.pointsRedeemed;
+          userPoints.set(order.userId, restored);
+          recordLoyaltyEvent(order.userId, 'refund', order.pointsRedeemed, order.id);
+        }
       }
       if (['accepted', 'preparing', 'ready', 'out_for_delivery', 'completed', 'cancelled'].includes(status)) {
         await notifyOrderStatus(order, status as Parameters<typeof statusNotificationCopy>[0]['status']);

@@ -125,3 +125,104 @@
 "error.decoding" = "Something looked off in the response. Please try again.";
 "error.unauthorized" = "Your session expired. Please sign in again.";
 "error.offline" = "You're offline. We'll retry when you're back.";
+
+/* Cart */
+"cart.title" = "Cart";
+"cart.empty" = "Your cart is empty";
+"cart.empty_subtitle" = "Browse the menu and add your favorites";
+"cart.redeem_points" = "Redeem Points";
+"cart.redeem_slider_a11y" = "Redeem points slider";
+"cart.subtotal" = "Subtotal";
+"cart.points_discount" = "Points Discount";
+"cart.total" = "Total";
+"cart.continue" = "Continue to Checkout";
+"cart.remove_item" = "Remove item";
+"cart.decrease_qty" = "Decrease quantity";
+"cart.increase_qty" = "Increase quantity";
+
+/* Checkout */
+"checkout.title" = "Checkout";
+"checkout.fulfillment" = "Fulfillment";
+"checkout.pickup" = "Pickup";
+"checkout.delivery" = "Delivery";
+"checkout.asap" = "ASAP";
+"checkout.time" = "Time";
+"checkout.payment_method" = "Payment Method";
+"checkout.notes" = "Notes";
+"checkout.notes_placeholder" = "Any special requests?";
+"checkout.order_summary" = "Order Summary";
+"checkout.place_order" = "Place Order";
+
+/* Orders */
+"orders.title" = "My Orders";
+"orders.empty" = "No orders yet";
+"orders.empty_subtitle" = "Your order history will appear here";
+"orders.tracking_title" = "Order Tracking";
+"orders.loading" = "Loading order…";
+"orders.pickup_code" = "Pickup Code";
+"orders.show_code" = "Show this code at the counter";
+"orders.status" = "Status";
+"orders.toggle_items_a11y" = "Toggle items list";
+"orders.order_date" = "Order Date";
+"orders.fulfillment_label" = "Fulfillment";
+"orders.pickup" = "Pickup";
+"orders.delivery" = "Delivery";
+"orders.payment_label" = "Payment";
+"orders.subtotal" = "Subtotal";
+"orders.discount" = "Discount";
+"orders.total" = "Total";
+"orders.cancel_order" = "Cancel Order";
+"orders.keep_order" = "Keep Order";
+"orders.cancel_confirm_message" = "Are you sure you want to cancel this order? This cannot be undone.";
+
+/* Game */
+"game.loading" = "Preparing your game…";
+"game.title" = "Coffee Collector";
+"game.tagline" = "Catch the falling beans!\nEach catch earns +10 points.";
+"game.rule1" = "Drag or tap to move the cup";
+"game.rule2" = "Catch a bean → +10 points";
+"game.rule3" = "Miss a bean → lose 1 life";
+"game.rule4" = "60 seconds per round";
+"game.score_label" = "SCORE";
+"game.time_label" = "TIME";
+"game.lives_label" = "LIVES";
+"game.over_title" = "Game Over!";
+"game.you_scored" = "You scored %d points";
+"game.points_earned" = "+%d loyalty points earned!";
+"game.play" = "Play";
+"game.play_again" = "Play Again";
+"game.back_to_rewards" = "Back to Rewards";
+"game.error_students" = "Games are for students only";
+"game.error_daily_limit" = "Daily session limit reached. Come back tomorrow!";
+"game.error_submit" = "Score could not be submitted.";
+
+/* Leaderboard */
+"leaderboard.title" = "Leaderboard";
+"leaderboard.your_rank" = "Your Rank";
+"leaderboard.score" = "Score";
+"leaderboard.this_week" = "This Week's Top Players";
+"leaderboard.no_scores" = "No scores yet this week";
+"leaderboard.no_scores_sub" = "Play a game to appear on the leaderboard!";
+"leaderboard.prizes_title" = "Weekly Prizes";
+"leaderboard.resets_sunday" = "Resets Sunday";
+"leaderboard.rank_1st" = "1st Place";
+"leaderboard.rank_2nd" = "2nd Place";
+"leaderboard.rank_3rd" = "3rd Place";
+"leaderboard.prize_combo" = "Free combo meal";
+"leaderboard.prize_drink" = "Free drink";
+"leaderboard.prize_discount" = "50% off your order";
+"leaderboard.your_prizes" = "Your Prizes";
+"leaderboard.no_prizes" = "No prizes yet";
+"leaderboard.no_prizes_sub" = "Reach the top 3 this week to earn a prize!";
+"leaderboard.redeemed" = "Redeemed";
+"leaderboard.expires" = "Expires %@";
+"leaderboard.retry" = "Retry";
+
+/* QR Scanner */
+"qr.title" = "Scan QR Code";
+"qr.close" = "Close";
+"qr.scanned" = "Code scanned!";
+"qr.point_camera" = "Point your camera at the QR receipt";
+"qr.camera_required" = "Camera Access Required";
+"qr.camera_subtitle" = "Open Settings to allow camera access for scanning QR receipts.";
+"qr.open_settings" = "Open Settings";

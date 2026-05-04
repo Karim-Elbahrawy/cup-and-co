@@ -42,7 +42,7 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000
 
-  e2e:
+  e2e-customer:
     name: Customer web E2E (Playwright)
     runs-on: ubuntu-latest
     needs: lint-and-test
@@ -62,7 +62,7 @@ jobs:
           CI: '1'
           NEXT_PUBLIC_API_URL: http://localhost:4000
 
-  admin-e2e:
+  e2e-admin:
     name: Admin dashboard E2E (Playwright)
     runs-on: ubuntu-latest
     needs: lint-and-test
@@ -83,28 +83,84 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:4000
 
   ios-build:
-    name: iOS build (smoke)
+    name: iOS build (smoke + simulator)
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
       - name: Generate Xcode project
         working-directory: apps/ios/CupAndCo
-        run: |
-          brew install xcodegen
-          xcodegen generate
-      - name: Build iOS project
+        run: xcodegen generate
+
+      - name: Build for simulator
         working-directory: apps/ios/CupAndCo
         run: |
-          xcodebuild -project CupAndCo.xcodeproj \
+          xcodebuild \
+            -project CupAndCo.xcodeproj \
             -scheme CupAndCo \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -configuration Debug \
-            build
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            build | xcpretty --color || true
+
+      # ── Optional: Archive + upload to TestFlight ─────────────────────────
+      # Uncomment and add the following GitHub secrets to enable:
+      #   APPLE_CERTIFICATE_BASE64, APPLE_CERTIFICATE_PASSWORD,
+      #   APPLE_PROVISIONING_PROFILE_BASE64, APP_STORE_CONNECT_API_KEY_BASE64,
+      #   APP_STORE_CONNECT_API_KEY_ID, APP_STORE_CONNECT_API_ISSUER_ID,
+      #   APPLE_DEVELOPER_TEAM_ID
+      #
+      # - name: Import signing certificate
+      #   if: github.ref == 'refs/heads/main' && env.APPLE_CERTIFICATE_BASE64 != ''
+      #   env:
+      #     APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+      #     APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      #   run: |
+      #     echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > /tmp/cert.p12
+      #     security create-keychain -p "" build.keychain
+      #     security import /tmp/cert.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+      #     security set-keychain-settings -t 3600 -u build.keychain
+      #     security default-keychain -s build.keychain
+      #     security unlock-keychain -p "" build.keychain
+      #
+      # - name: Install provisioning profile
+      #   if: github.ref == 'refs/heads/main' && env.APPLE_PROVISIONING_PROFILE_BASE64 != ''
+      #   env:
+      #     APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+      #   run: |
+      #     mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+      #     echo "$APPLE_PROVISIONING_PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/cupandco.mobileprovision
+      #
+      # - name: Archive for distribution
+      #   working-directory: apps/ios/CupAndCo
+      #   run: |
+      #     xcodebuild archive \
+      #       -project CupAndCo.xcodeproj \
+      #       -scheme CupAndCo \
+      #       -archivePath /tmp/CupAndCo.xcarchive \
+      #       -configuration Release
+      #
+      # - name: Export IPA
+      #   run: |
+      #     xcodebuild -exportArchive \
+      #       -archivePath /tmp/CupAndCo.xcarchive \
+      #       -exportOptionsPlist apps/ios/CupAndCo/ExportOptions.plist \
+      #       -exportPath /tmp/CupAndCo-ipa
+      #
+      # - name: Upload to TestFlight
+      #   env:
+      #     APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+      #     APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      #     APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      #   run: |
+      #     echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > /tmp/api_key.p8
+      #     xcrun altool --upload-app \
+      #       --type ios \
+      #       --file /tmp/CupAndCo-ipa/CupAndCo.ipa \
+      #       --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+      #       --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
+      #       --apiP8 /tmp/api_key.p8

@@ -31,12 +31,12 @@ struct QRScannerView: View {
                         .tint(.white)
                 }
             }
-            .navigationTitle("Scan QR Code")
+            .navigationTitle("qr.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button("qr.close") { dismiss() }
                         .foregroundStyle(.white)
                 }
             }
@@ -70,7 +70,7 @@ struct QRScannerView: View {
 
             Spacer()
 
-            Text(scannedCode != nil ? "Code scanned!" : "Point your camera at the QR receipt")
+            Text(scannedCode != nil ? "qr.scanned" : "qr.point_camera")
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.85))
                 .padding(.bottom, 40)
@@ -82,14 +82,14 @@ struct QRScannerView: View {
             Image(systemName: "camera.fill")
                 .font(.system(size: 40))
                 .foregroundStyle(CupColors.primary)
-            Text("Camera Access Required")
+            Text("qr.camera_required")
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
-            Text("Open Settings to allow camera access for scanning QR receipts.")
+            Text("qr.camera_subtitle")
                 .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(.white.opacity(0.7))
                 .multilineTextAlignment(.center)
-            Button("Open Settings") {
+            Button("qr.open_settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
                 }

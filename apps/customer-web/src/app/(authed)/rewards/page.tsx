@@ -96,7 +96,7 @@ export default function RewardsPage() {
           <ChevronLeft className="h-5 w-5 text-cup-brown-900" />
         </Link>
         <p className="font-heading text-base font-semibold text-cup-brown-900">
-          Rewards
+          {t('loyalty.rewards')}
         </p>
         <span className="w-10" aria-hidden="true" />
       </header>
@@ -136,7 +136,7 @@ export default function RewardsPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">
-                  Your Points
+                  {t('loyalty.yourPoints')}
                 </p>
                 <p className="mt-1 font-heading text-[56px] font-bold leading-none">
                   {data.balance}
@@ -149,7 +149,7 @@ export default function RewardsPage() {
 
             <div className="mt-4 rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
               <p className="text-sm font-medium text-white/90">
-                Discount available:{' '}
+                {t('loyalty.discountAvailable')}:{' '}
                 <span className="font-heading font-bold text-white">
                   EGP {data.discountAvailableEgp}
                 </span>
@@ -172,16 +172,16 @@ export default function RewardsPage() {
                 <span className="grid h-11 w-11 place-items-center rounded-xl bg-purple-50">
                   <Gamepad2 className="h-5 w-5 text-purple-600" />
                 </span>
-                <div className="flex-1 text-left">
+                <div className="flex-1 text-start">
                   <p className="font-heading text-sm font-semibold text-cup-brown-900">
-                    Play Coffee Collector
+                    {t('games.playCoffeeCollector')}
                   </p>
                   <p className="text-xs text-cup-muted">
-                    Catch beans, earn loyalty points
+                    {t('games.earnPoints')}
                   </p>
                 </div>
                 <span className="rounded-full bg-purple-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-600">
-                  Play
+                  {t('games.play')}
                 </span>
               </Link>
             </motion.section>
@@ -202,12 +202,12 @@ export default function RewardsPage() {
               <span className="grid h-11 w-11 place-items-center rounded-xl bg-cup-orange-500/10">
                 <QrCode className="h-5 w-5 text-cup-orange-600" />
               </span>
-              <div className="flex-1 text-left">
+              <div className="flex-1 text-start">
                 <p className="font-heading text-sm font-semibold text-cup-brown-900">
-                  Scan Receipt QR
+                  {t('loyalty.scanQr')}
                 </p>
                 <p className="text-xs text-cup-muted">
-                  Earn points from in-store purchases
+                  {t('loyalty.scanQrMessage')}
                 </p>
               </div>
             </button>
@@ -216,7 +216,7 @@ export default function RewardsPage() {
           {/* Points history */}
           <section className="mt-6">
             <h2 className="font-heading text-base font-bold text-cup-brown-900">
-              Points History
+              {t('loyalty.history')}
             </h2>
 
             {data.history.length === 0 ? (
@@ -227,10 +227,10 @@ export default function RewardsPage() {
               >
                 <Gift className="mx-auto h-10 w-10 text-cup-muted" />
                 <p className="mt-3 font-heading text-sm font-semibold text-cup-brown-900">
-                  No points yet
+                  {t('loyalty.noHistory')}
                 </p>
                 <p className="mt-1 text-xs text-cup-muted">
-                  Place an order or scan a receipt QR to start earning points.
+                  {t('loyalty.noHistoryMessage')}
                 </p>
               </motion.div>
             ) : (
@@ -307,7 +307,7 @@ function HistoryItem({ entry }: { entry: LoyaltyEntry }) {
           })}
         </p>
       </div>
-      <div className="text-right">
+      <div className="text-end">
         <p
           className={`font-heading text-sm font-bold ${
             isPositive ? 'text-cup-teal-600' : 'text-cup-error'
@@ -345,7 +345,7 @@ function LeaderboardSection({
   me: LeaderboardMeResponse | null;
   userId?: string;
 }) {
-  const { t, language } = useT();
+  const { t } = useT();
   if (!leaderboard) return null;
 
   const top10 = leaderboard.entries.slice(0, 10);
@@ -355,7 +355,7 @@ function LeaderboardSection({
       <div className="flex items-center gap-2">
         <Trophy className="h-5 w-5 text-cup-orange-600" />
         <h2 className="font-heading text-base font-bold text-cup-brown-900">
-          {language === 'ar' ? 'لوحة المتصدرين الأسبوعية' : 'Weekly Leaderboard'}
+          {t('games.leaderboard')}
         </h2>
       </div>
 
@@ -402,7 +402,7 @@ function LeaderboardSection({
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-heading text-sm font-semibold text-cup-brown-900">
-                    {isMe ? (language === 'ar' ? 'أنت' : 'You') : `…${entry.userId.slice(-6)}`}
+                    {isMe ? t('games.you') : `…${entry.userId.slice(-6)}`}
                   </p>
                   {RANK_PRIZE[entry.rank] && (
                     <p className="text-[10px] text-cup-muted">{RANK_PRIZE[entry.rank]}</p>
@@ -424,7 +424,7 @@ function LeaderboardSection({
             #{me.rank}
           </span>
           <p className="flex-1 font-heading text-sm font-semibold text-cup-brown-900">
-            You
+            {t('games.you')}
           </p>
           <span className="font-heading text-sm font-bold text-cup-brown-900">
             {me.totalScore} pts
@@ -438,6 +438,7 @@ function LeaderboardSection({
 // ─── PrizesSection ────────────────────────────────────────────────────────────
 
 function PrizesSection({ prizes }: { prizes: PrizesResponse | null }) {
+  const { t } = useT();
   if (!prizes) return null;
 
   return (
@@ -445,7 +446,7 @@ function PrizesSection({ prizes }: { prizes: PrizesResponse | null }) {
       <div className="flex items-center gap-2">
         <Ticket className="h-5 w-5 text-cup-orange-600" />
         <h2 className="font-heading text-base font-bold text-cup-brown-900">
-          Your Prizes
+          {t('games.prizes')}
         </h2>
       </div>
 
@@ -457,10 +458,10 @@ function PrizesSection({ prizes }: { prizes: PrizesResponse | null }) {
         >
           <Ticket className="mx-auto h-10 w-10 text-cup-muted" />
           <p className="mt-3 font-heading text-sm font-semibold text-cup-brown-900">
-            No prizes yet
+            {t('loyalty.noPrizes')}
           </p>
           <p className="mt-1 text-xs text-cup-muted">
-            Top-ranked players at the end of each week earn prizes. Keep playing!
+            {t('games.weeklyReset')}
           </p>
         </motion.div>
       ) : (
@@ -480,6 +481,7 @@ function PrizesSection({ prizes }: { prizes: PrizesResponse | null }) {
 }
 
 function PrizeCard({ prize }: { prize: Prize }) {
+  const { t } = useT();
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -518,12 +520,12 @@ function PrizeCard({ prize }: { prize: Prize }) {
         <div className="flex shrink-0 flex-col items-end gap-1">
           {isRedeemed && (
             <span className="rounded-full bg-cup-teal-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cup-teal-700">
-              Redeemed
+              {t('loyalty.redeemed')}
             </span>
           )}
           {!isRedeemed && isExpired && (
             <span className="rounded-full bg-cup-paper px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cup-muted">
-              Expired
+              {t('games.expired')}
             </span>
           )}
         </div>

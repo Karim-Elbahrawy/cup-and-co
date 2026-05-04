@@ -125,3 +125,104 @@
 "error.decoding" = "في حاجة غريبة في الرد. حاول تاني.";
 "error.unauthorized" = "انتهت جلستك. سجّل دخول مرة أخرى.";
 "error.offline" = "إنت مش متصل بالإنترنت. هنعيد المحاولة لما تتصل.";
+
+/* Cart */
+"cart.title" = "السلة";
+"cart.empty" = "سلتك فارغة";
+"cart.empty_subtitle" = "تصفح القائمة وأضف مفضلاتك";
+"cart.redeem_points" = "صرف النقاط";
+"cart.redeem_slider_a11y" = "شريط صرف النقاط";
+"cart.subtotal" = "المجموع الجزئي";
+"cart.points_discount" = "خصم النقاط";
+"cart.total" = "الإجمالي";
+"cart.continue" = "متابعة للدفع";
+"cart.remove_item" = "إزالة العنصر";
+"cart.decrease_qty" = "تقليل الكمية";
+"cart.increase_qty" = "زيادة الكمية";
+
+/* Checkout */
+"checkout.title" = "إتمام الطلب";
+"checkout.fulfillment" = "طريقة الاستلام";
+"checkout.pickup" = "استلام";
+"checkout.delivery" = "توصيل";
+"checkout.asap" = "الآن";
+"checkout.time" = "الوقت";
+"checkout.payment_method" = "طريقة الدفع";
+"checkout.notes" = "ملاحظات";
+"checkout.notes_placeholder" = "أي طلبات خاصة؟";
+"checkout.order_summary" = "ملخص الطلب";
+"checkout.place_order" = "تأكيد الطلب";
+
+/* Orders */
+"orders.title" = "طلباتي";
+"orders.empty" = "لا يوجد طلبات بعد";
+"orders.empty_subtitle" = "سجل طلباتك سيظهر هنا";
+"orders.tracking_title" = "تتبع الطلب";
+"orders.loading" = "جاري تحميل الطلب…";
+"orders.pickup_code" = "كود الاستلام";
+"orders.show_code" = "أرِ هذا الكود عند الكاونتر";
+"orders.status" = "الحالة";
+"orders.toggle_items_a11y" = "عرض/إخفاء العناصر";
+"orders.order_date" = "تاريخ الطلب";
+"orders.fulfillment_label" = "طريقة الاستلام";
+"orders.pickup" = "استلام";
+"orders.delivery" = "توصيل";
+"orders.payment_label" = "الدفع";
+"orders.subtotal" = "المجموع الجزئي";
+"orders.discount" = "الخصم";
+"orders.total" = "الإجمالي";
+"orders.cancel_order" = "إلغاء الطلب";
+"orders.keep_order" = "الإبقاء على الطلب";
+"orders.cancel_confirm_message" = "هل أنت متأكد من إلغاء هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.";
+
+/* Game */
+"game.loading" = "جارٍ تحضير لعبتك…";
+"game.title" = "Coffee Collector";
+"game.tagline" = "اصطد الحبوب المتساقطة!\nكل صطادة تكسبك +10 نقطة.";
+"game.rule1" = "اسحب أو انقر للتحريك";
+"game.rule2" = "اصطد حبة ← +10 نقطة";
+"game.rule3" = "فوّت حبة ← تخسر حياة";
+"game.rule4" = "60 ثانية للجولة";
+"game.score_label" = "النتيجة";
+"game.time_label" = "الوقت";
+"game.lives_label" = "الأرواح";
+"game.over_title" = "انتهت اللعبة!";
+"game.you_scored" = "حصلت على %d نقطة";
+"game.points_earned" = "+%d نقطة ولاء مكتسبة!";
+"game.play" = "العب";
+"game.play_again" = "العب مجدداً";
+"game.back_to_rewards" = "العودة للمكافآت";
+"game.error_students" = "اللعب للطلاب فقط";
+"game.error_daily_limit" = "وصلت للحد اليومي. تعال تاني بكره!";
+"game.error_submit" = "تعذر إرسال النتيجة.";
+
+/* Leaderboard */
+"leaderboard.title" = "لوحة المتصدرين";
+"leaderboard.your_rank" = "ترتيبك";
+"leaderboard.score" = "النتيجة";
+"leaderboard.this_week" = "أبطال هذا الأسبوع";
+"leaderboard.no_scores" = "لا نتائج هذا الأسبوع";
+"leaderboard.no_scores_sub" = "العب لكي تظهر في اللوحة!";
+"leaderboard.prizes_title" = "جوائز أسبوعية";
+"leaderboard.resets_sunday" = "يُصفَّر الأحد";
+"leaderboard.rank_1st" = "المركز الأول";
+"leaderboard.rank_2nd" = "المركز الثاني";
+"leaderboard.rank_3rd" = "المركز الثالث";
+"leaderboard.prize_combo" = "وجبة كومبو مجانية";
+"leaderboard.prize_drink" = "مشروب مجاني";
+"leaderboard.prize_discount" = "خصم 50% على طلبك";
+"leaderboard.your_prizes" = "جوائزك";
+"leaderboard.no_prizes" = "لا جوائز بعد";
+"leaderboard.no_prizes_sub" = "احتل أحد المراكز الثلاثة هذا الأسبوع!";
+"leaderboard.redeemed" = "تم الاسترداد";
+"leaderboard.expires" = "تنتهي %@";
+"leaderboard.retry" = "أعد المحاولة";
+
+/* QR Scanner */
+"qr.title" = "مسح رمز QR";
+"qr.close" = "إغلاق";
+"qr.scanned" = "تم المسح!";
+"qr.point_camera" = "وجّه الكاميرا نحو الإيصال";
+"qr.camera_required" = "مطلوب إذن الكاميرا";
+"qr.camera_subtitle" = "افتح الإعدادات للسماح بالكاميرا لمسح الإيصالات.";
+"qr.open_settings" = "فتح الإعدادات";

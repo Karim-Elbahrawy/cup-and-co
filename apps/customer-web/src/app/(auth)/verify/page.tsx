@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { OtpInput } from '@/components/OtpInput';
@@ -14,7 +14,7 @@ import { useT } from '@/lib/i18n';
 
 const RESEND_SECONDS = 30;
 
-export default function VerifyPage() {
+function VerifyPageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const { t } = useT();
@@ -48,9 +48,6 @@ export default function VerifyPage() {
       try {
         const { token, user } = await api.verifyOtp(phone, next);
         setSession(token, user);
-        // First-time users land on role selection. The API stub always
-        // returns role=student, so we route everyone through role selection
-        // until /me is wired up properly in Phase 2.
         router.replace('/role');
       } catch (err) {
         const message = err instanceof ApiError ? err.message : t('common.error');
@@ -160,5 +157,13 @@ export default function VerifyPage() {
         </section>
       </main>
     </PageTransition>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense>
+      <VerifyPageInner />
+    </Suspense>
   );
 }

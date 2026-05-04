@@ -83,7 +83,7 @@ export default function RolePage() {
                   whileTap={reduce ? undefined : { scale: 0.985 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 24 }}
                   className={[
-                    'flex w-full items-center gap-4 rounded-card border-2 bg-white p-4 text-left transition-all',
+                    'flex w-full items-center gap-4 rounded-card border-2 bg-white p-4 text-start transition-all',
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cup-primary)] focus-visible:ring-offset-2',
                     active
                       ? 'border-[var(--cup-primary)] shadow-[0_8px_24px_rgba(194,65,12,0.14)]'

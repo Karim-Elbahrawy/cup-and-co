@@ -157,7 +157,7 @@ export default function HomePage() {
                 >
                   {language === 'ar' ? offer.name_ar : offer.name_en}
                   {offer.code && (
-                    <span className="ml-2 rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px]">
+                    <span className="ms-2 rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px]">
                       {offer.code}
                     </span>
                   )}

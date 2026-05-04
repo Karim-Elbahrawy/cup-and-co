@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -28,12 +28,13 @@ export default function CheckoutPage() {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const orderPlacedRef = useRef(false);
 
   // Generate next 4 quarter-hour slots
   const slots = useMemo(() => generateSlots(), []);
 
   useEffect(() => {
-    if (items.length === 0) router.replace('/cart');
+    if (items.length === 0 && !orderPlacedRef.current) router.replace('/cart');
   }, [items.length, router]);
 
   const subtotal = cartSubtotal(items);
@@ -58,6 +59,7 @@ export default function CheckoutPage() {
       });
 
       if (payment === 'cash') {
+        orderPlacedRef.current = true;
         clear();
         router.push(`/orders/${res.order.id}`);
         return;
@@ -65,6 +67,7 @@ export default function CheckoutPage() {
 
       // Card / Wallet — fetch Paymob intention then open checkout
       const intention = await api.paymobIntention(res.order.id, payment);
+      orderPlacedRef.current = true;
       clear();
       // Open in same window; on return the webhook will mark it paid.
       window.location.href = intention.checkoutUrl;
@@ -211,7 +214,7 @@ export default function CheckoutPage() {
 
       {/* Sticky place-order */}
       <div
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-cup-stroke bg-white/95 px-6 py-4 backdrop-blur"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-cup-stroke bg-white/95 px-6 py-4 backdrop-blur"
         style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       >
         <button
@@ -330,7 +333,7 @@ function PaymentCard({
       type="button"
       onClick={onClick}
       whileTap={{ scale: 0.99 }}
-      className={`flex w-full items-center gap-3 rounded-card border-2 p-4 text-left text-sm font-semibold transition ${
+      className={`flex w-full items-center gap-3 rounded-card border-2 p-4 text-start text-sm font-semibold transition ${
         selected
           ? 'border-cup-orange-600 bg-[var(--cup-cream)] text-cup-brown-900 shadow-card'
           : 'border-cup-stroke bg-white text-cup-brown-700 hover:border-cup-orange-600/40'
