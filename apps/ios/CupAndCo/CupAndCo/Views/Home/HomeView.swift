@@ -48,7 +48,31 @@ struct HomeView: View {
                 PromoBannerView(percent: heroPercent)
                     .padding(.horizontal, 20)
 
-                RoleChipRow(selected: $roleFilter)
+                // Active offers pills
+                if !catalog.offers.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(catalog.offers, id: \.id) { offer in
+                                Text(offer.localizedName(language: session.user?.languagePref ?? .en))
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        LinearGradient(
+                                            colors: [Color(hex: "#F4A261"), Color(hex: "#C2410C")],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
+
+                CategoryChipRow(selected: $roleFilter)
                     .padding(.horizontal, 20)
 
                 sectionHeader

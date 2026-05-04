@@ -26,6 +26,10 @@ struct Offer: Codable, Identifiable, Equatable, Sendable {
     let type: String
     let value: Double
 
+    func localizedName(language: LanguagePref) -> String {
+        language == .ar ? nameAr : nameEn
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, type, value
         case nameEn = "name_en"
