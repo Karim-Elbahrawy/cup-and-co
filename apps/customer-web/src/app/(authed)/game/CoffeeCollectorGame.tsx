@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Trophy, Clock, Gamepad2, ChevronLeft } from 'lucide-react';
+import { Heart, Trophy, Clock, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
+import { Logo } from '@/components/Logo';
 import { api, ApiError } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import type { GameSession } from '@/lib/types';
@@ -403,7 +404,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
             className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-cup-paper px-6 text-center"
           >
             <span className="mb-4 grid h-20 w-20 place-items-center rounded-3xl bg-cup-orange-600/10">
-              <Gamepad2 className="h-10 w-10 text-cup-orange-600" />
+              <Logo size={48} />
             </span>
             <h1 className="font-heading text-2xl font-bold text-cup-brown-900">
               {language === 'ar' ? 'جامع القهوة' : 'Coffee Collector'}
