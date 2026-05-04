@@ -110,6 +110,16 @@ export default function ProfilePage() {
                 type="text"
                 value={user.fullName ?? ''}
                 onChange={(e) => setFullName(e.target.value)}
+                onBlur={async (e) => {
+                  const trimmed = e.target.value.trim();
+                  if (!trimmed || trimmed === user.fullName) return;
+                  try {
+                    const res = await api.patchMe({ full_name: trimmed });
+                    if (res.user) setUser(res.user);
+                  } catch {
+                    // Keep local edit; user can retry on next blur
+                  }
+                }}
                 placeholder="Add your name"
                 aria-label="Full name"
                 className="w-full bg-transparent font-heading text-lg font-bold text-[var(--cup-espresso)] placeholder:text-[var(--cup-muted)] outline-none focus:underline focus:decoration-[var(--cup-primary)] focus:underline-offset-4"
