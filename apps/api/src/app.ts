@@ -613,9 +613,12 @@ export function createApp(): express.Express {
       const result = paymob.handleCallback(payload, hmac);
       const order = orders.get(result.orderId);
       if (order) {
-        // Idempotency: skip if already processed
         if (order.paymentStatus === 'paid') {
           res.json({ already_processed: true });
+          return;
+        }
+        if (Number(payload.amountEgp) !== order.totalEgp) {
+          res.status(422).json({ error: 'Amount mismatch.' });
           return;
         }
         order.paymentStatus = result.paymentStatus;
