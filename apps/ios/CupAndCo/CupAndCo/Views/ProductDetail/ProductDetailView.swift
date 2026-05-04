@@ -21,6 +21,16 @@ struct ProductDetailView: View {
     private let sugarOptions = ["None", "Less", "Normal", "Extra"]
     private let iceOptions = ["None", "Less", "Normal", "Extra"]
 
+    private static let arLabels: [String: String] = [
+        "Size": "الحجم", "Sugar": "السكر", "Ice": "الثلج", "Quantity": "الكمية",
+        "Small": "صغير", "Medium": "وسط", "Large": "كبير",
+        "None": "بدون", "Less": "أقل", "Normal": "عادي", "Extra": "إضافي",
+    ]
+
+    private func localized(_ key: String) -> String {
+        language == .ar ? (Self.arLabels[key] ?? key) : key
+    }
+
     private var language: LanguagePref {
         session.user?.languagePref ?? .en
     }
@@ -165,10 +175,10 @@ struct ProductDetailView: View {
             quantityStepper
 
             // Option groups
-            optionSection(title: "Size", options: sizes, selection: $selectedSize,
+            optionSection(title: localized("Size"), options: sizes, selection: $selectedSize,
                           deltas: sizeDeltas)
-            optionSection(title: "Sugar", options: sugarOptions, selection: $selectedSugar)
-            optionSection(title: "Ice", options: iceOptions, selection: $selectedIce)
+            optionSection(title: localized("Sugar"), options: sugarOptions, selection: $selectedSugar)
+            optionSection(title: localized("Ice"), options: iceOptions, selection: $selectedIce)
         }
         .padding(.horizontal, 20)
         .padding(.top, 16)
@@ -178,7 +188,7 @@ struct ProductDetailView: View {
 
     private var quantityStepper: some View {
         HStack(spacing: 0) {
-            Text("Quantity")
+            Text(localized("Quantity"))
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(CupColors.espresso)
 
@@ -252,7 +262,7 @@ struct ProductDetailView: View {
                         }
                     } label: {
                         VStack(spacing: 2) {
-                            Text(option)
+                            Text(localized(option))
                                 .font(.system(size: 14, weight: isSelected ? .bold : .medium, design: .rounded))
 
                             if let deltas, let d = deltas[option], d != 0 {
