@@ -17,6 +17,8 @@ interface SessionState {
   setRole: (role: SessionUser['role']) => void;
   setLanguage: (language: Language) => void;
   setFullName: (name: string) => void;
+  setAvatarId: (id: number) => void;
+  setGender: (gender: 'male' | 'female' | 'prefer_not_to_say') => void;
   logout: () => void;
   setHydrated: () => void;
 }
@@ -40,6 +42,10 @@ export const useSession = create<SessionState>()(
       setLanguage: (language) => set({ language }),
       setFullName: (fullName) =>
         set((s) => (s.user ? { user: { ...s.user, fullName } } : s)),
+      setAvatarId: (avatarId) =>
+        set((s) => (s.user ? { user: { ...s.user, avatarId } } : s)),
+      setGender: (gender) =>
+        set((s) => (s.user ? { user: { ...s.user, gender } } : s)),
       logout: () => set({ token: null, user: null }),
       setHydrated: () => set({ hydrated: true }),
     }),

@@ -19,6 +19,7 @@ final class SessionStore {
         case phone           // collecting phone number
         case otp(phone: String)
         case roleSelect      // signed in but missing role
+        case profileSetup    // pick gender + personality avatar (first-time only)
         case home            // fully authed
     }
 
@@ -97,26 +98,36 @@ final class SessionStore {
     // MARK: - Role
 
     func selectRole(_ role: UserRole) {
-        // Phase 1: we persist the role locally and move on. Phase 2 will
-        // wire `PATCH /me` to write it server-side.
         UserDefaults.standard.set(role.rawValue, forKey: Keys.lastRole)
         if var u = user {
             u = User(
-                id: u.id,
-                phone: u.phone,
-                fullName: u.fullName,
-                role: role,
-                verificationStatus: u.verificationStatus,
-                universityId: u.universityId,
-                major: u.major,
-                department: u.department,
-                languagePref: u.languagePref,
-                biometricEnabled: u.biometricEnabled,
-                blocked: u.blocked,
-                createdAt: u.createdAt
+                id: u.id, phone: u.phone, fullName: u.fullName,
+                role: role, verificationStatus: u.verificationStatus,
+                universityId: u.universityId, major: u.major,
+                department: u.department, languagePref: u.languagePref,
+                biometricEnabled: u.biometricEnabled, blocked: u.blocked,
+                createdAt: u.createdAt, avatarId: u.avatarId, gender: u.gender
             )
             user = u
         }
+        // First-time users still need to pick their gender + avatar.
+        phase = .profileSetup
+    }
+
+    func completeProfileSetup(gender: Gender, avatarId: Int) {
+        if var u = user {
+            u = User(
+                id: u.id, phone: u.phone, fullName: u.fullName,
+                role: u.role, verificationStatus: u.verificationStatus,
+                universityId: u.universityId, major: u.major,
+                department: u.department, languagePref: u.languagePref,
+                biometricEnabled: u.biometricEnabled, blocked: u.blocked,
+                createdAt: u.createdAt, avatarId: avatarId, gender: gender
+            )
+            user = u
+        }
+        UserDefaults.standard.set(avatarId, forKey: Keys.avatarId)
+        UserDefaults.standard.set(gender.rawValue, forKey: Keys.gender)
         phase = .home
     }
 
@@ -141,5 +152,7 @@ final class SessionStore {
     private enum Keys {
         static let seenOnboarding = "seen_onboarding"
         static let lastRole       = "last_role"
+        static let avatarId       = "avatar_id"
+        static let gender         = "gender"
     }
 }

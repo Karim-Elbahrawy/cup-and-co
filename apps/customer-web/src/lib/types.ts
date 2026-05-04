@@ -40,6 +40,10 @@ export interface SessionUser {
   avatarUrl?: string | null;
   /** Preferred display language. Defaults to `'en'`. */
   languagePref?: 'en' | 'ar';
+  /** Personality avatar index 1–7 chosen during profile setup. */
+  avatarId?: number | null;
+  /** Gender selected during profile setup. */
+  gender?: 'male' | 'female' | 'prefer_not_to_say' | null;
 }
 
 export interface AuthResponse {

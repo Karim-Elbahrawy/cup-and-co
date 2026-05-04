@@ -52,7 +52,7 @@ export default function RolePage() {
     // small delay so the user perceives the action — feels intentional
     // without being annoying.
     await new Promise((r) => setTimeout(r, 200));
-    router.push('/verify-id');
+    router.push('/profile-setup');
   };
 
   return (

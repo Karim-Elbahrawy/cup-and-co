@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: cup-and-co-api
+    env: node
+    plan: standard
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @cup-and-co/api build
+    startCommand: pnpm --filter @cup-and-co/api start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PAYMOB_API_KEY
+        sync: false
+      - key: PAYMOB_HMAC_SECRET
+        sync: false
+      - key: PAYMOB_INTEGRATION_ID_CARD
+        sync: false
+      - key: PAYMOB_INTEGRATION_ID_WALLET
+        sync: false
+      - key: PAYMOB_IFRAME_ID
+        sync: false
+      - key: LOYALTY_ONLINE_MULTIPLIER
+        value: "1.0"
+      - key: LOYALTY_CASH_MULTIPLIER
+        value: "0.5"
+      - key: LOYALTY_QR_MULTIPLIER
+        value: "0.25"
+      - key: LOYALTY_POINTS_PER_DISCOUNT_BLOCK
+        value: "100"
+      - key: LOYALTY_DISCOUNT_EGP_PER_BLOCK
+        value: "5"
+      - key: GAME_DURATION_SECONDS
+        value: "60"
+      - key: GAME_MAX_SCORE
+        value: "300"
+      - key: GAME_DAILY_SESSIONS_PER_USER
+        value: "3"
+    disk:
+      name: tmp
+      mountPath: /tmp
+      sizeGB: 1

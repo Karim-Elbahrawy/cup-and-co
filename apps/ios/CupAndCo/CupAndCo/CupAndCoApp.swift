@@ -47,6 +47,9 @@ struct RootView: View {
             case .roleSelect:
                 NavigationStack { RoleSelectView() }
                     .transition(.opacity)
+            case .profileSetup:
+                NavigationStack { ProfileSetupView() }
+                    .transition(.opacity)
             case .home:
                 MainTabShell()
                     .transition(.opacity)
@@ -76,6 +79,7 @@ struct RootView: View {
         case .phone:            return "phone"
         case .otp(let p):       return "otp:\(p)"
         case .roleSelect:       return "role"
+        case .profileSetup:     return "profileSetup"
         case .home:             return "home"
         }
     }

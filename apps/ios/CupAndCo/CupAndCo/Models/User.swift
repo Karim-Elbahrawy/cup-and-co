@@ -46,6 +46,12 @@ enum LanguagePref: String, Codable, Sendable {
 /// Mirrors `User` from `packages/types`.  All fields except `id`, `phone`
 /// and `role` are optional from the iOS perspective — a user may have just
 /// signed up and not yet supplied a name, university id, etc.
+enum Gender: String, Codable, Sendable, CaseIterable {
+    case male
+    case female
+    case preferNotToSay = "prefer_not_to_say"
+}
+
 struct User: Codable, Identifiable, Equatable, Sendable {
     let id: String
     let phone: String
@@ -59,6 +65,9 @@ struct User: Codable, Identifiable, Equatable, Sendable {
     let biometricEnabled: Bool
     let blocked: Bool
     let createdAt: String?
+    /// Personality avatar index 1–7 (nil = not yet chosen).
+    let avatarId: Int?
+    let gender: Gender?
 
     /// Best-effort first name for the home greeting.
     var firstName: String {
@@ -67,12 +76,13 @@ struct User: Codable, Identifiable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, phone, role, blocked, major, department
+        case id, phone, role, blocked, major, department, gender
         case fullName = "full_name"
         case verificationStatus = "verification_status"
         case universityId = "university_id"
         case languagePref = "language_pref"
         case biometricEnabled = "biometric_enabled"
         case createdAt = "created_at"
+        case avatarId = "avatar_id"
     }
 }

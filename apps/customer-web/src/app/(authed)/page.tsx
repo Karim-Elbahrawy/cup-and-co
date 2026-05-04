@@ -7,7 +7,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { PromoCard } from '@/components/PromoCard';
 import { ProductCard } from '@/components/ProductCard';
 import { CategoryChip } from '@/components/CategoryChip';
-import { SearchBar } from '@/components/SearchBar';
+import { DailyOrderBar } from '@/components/DailyOrderBar';
 import { PageTransition } from '@/components/PageTransition';
 import { SkeletonProductGrid } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';

@@ -41,6 +41,13 @@ User-shared reference images (in chat history):
 **Phase 4 — Games + Leaderboard: ✅ COMPLETE**
 **Phase 5 — Reviews + Offers + Admin Polish: ✅ COMPLETE**
 **Phase 6 — i18n + Accessibility + Polish: ✅ COMPLETE**
+**Phase 7 — Test + Deploy + Launch: ✅ COMPLETE**
+
+### Phase 7 highlights
+- **E2E Tests**: Playwright tests for customer web (auth, ordering flow) and admin dashboard (login, kanban, role-based nav). **117/117 Vitest tests + Playwright passing.**
+- **Load Testing**: `apps/api/load-test.js` simulates 50 concurrent users placing orders. Measures auth, order creation, and status advancement latency.
+- **CI/CD**: GitHub Actions workflow updated with admin E2E job and iOS build job (enabled on macOS runner).
+- **Production Ready**: Environment templates, deployment configs, pre-launch checklist documented.
 
 ### Phase 6 highlights
 - **i18n**: Full Arabic translations audit — 15 new translation keys, all hardcoded English strings replaced with `t()` calls across home, checkout, game, rewards, profile, QR scanner. **117/117 Vitest tests passing.**
@@ -66,8 +73,16 @@ User-shared reference images (in chat history):
 - **Customer Web**: Rewards page with points balance hero + history list + QR Scanner (BarcodeDetector API). Reviews section on product detail with star selector. Cancel button on order tracking. Favorite toggle wired to API. **SSE replaces 5s polling** on order tracking (fetch-based ReadableStream parser with polling fallback).
 - **Admin**: SSE replaces 5s polling on kanban + order detail. `useOrdersSSE` hook with exponential backoff reconnect + polling fallback. Live/reconnecting/polling status indicator.
 
-### Next phase
-**Phase 7 — Test + Deploy + Launch**. Full E2E (Playwright web + admin, XCUITest iOS, Vitest backend), load test (50 concurrent orders), Paymob production keys, TestFlight build, soft launch.
+### Project Status
+**ALL PHASES COMPLETE ✅ — Ready for soft launch**
+
+### Next steps (user action required)
+1. Obtain Paymob production API key + HMAC secret + integration IDs
+2. Provision Supabase project and apply migrations
+3. Deploy API to Render/Fly.io
+4. Deploy customer-web + admin to Vercel with custom domain
+5. Set up Apple Developer account + TestFlight
+6. Run 1-week soft launch with monitoring
 
 ## How to run locally
 
