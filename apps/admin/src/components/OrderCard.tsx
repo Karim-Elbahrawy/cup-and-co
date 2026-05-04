@@ -54,7 +54,7 @@ export function OrderCard({
   const summary =
     items.length === 0
       ? null
-      : items.map((it) => `${it.quantity}× ${it.name}`).join(', ');
+      : items.map((it) => `${it.quantity}× ${it.productNameEn}`).join(', ');
 
   return (
     <article
@@ -85,7 +85,7 @@ export function OrderCard({
       )}
 
       {!compact && !summary && (
-        <p className="mt-3 text-xs italic text-cup-muted">Items load with realtime in Phase 2</p>
+        <p className="mt-3 text-xs italic text-cup-muted">No items</p>
       )}
 
       <footer className="mt-3 flex items-center gap-2">
