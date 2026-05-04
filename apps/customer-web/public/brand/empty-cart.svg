@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Empty cart illustration">
+  <defs>
+    <linearGradient id="cup-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F4A261"/>
+      <stop offset="100%" stop-color="#C2410C"/>
+    </linearGradient>
+    <linearGradient id="steam-grad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#0F766E" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0F766E" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="100" cy="108" r="72" fill="#FAF6F0"/>
+  <circle cx="100" cy="108" r="72" fill="none" stroke="#E7E5E4" stroke-width="1.5"/>
+  <!-- Cup body -->
+  <path d="M58 90 Q56 150, 80 158 L120 158 Q144 150, 142 90 Z" fill="url(#cup-grad)"/>
+  <!-- Cup rim highlight -->
+  <ellipse cx="100" cy="90" rx="42" ry="10" fill="#F4A261" opacity="0.4"/>
+  <!-- Coffee surface -->
+  <ellipse cx="100" cy="94" rx="36" ry="8" fill="#1C1917"/>
+  <!-- Cream latte art -->
+  <ellipse cx="100" cy="92" rx="24" ry="4" fill="#FEF3C7" opacity="0.5"/>
+  <!-- Handle -->
+  <path d="M142 100 Q162 100, 162 120 Q162 140, 142 140" fill="none" stroke="#C2410C" stroke-width="5" stroke-linecap="round"/>
+  <!-- Saucer -->
+  <ellipse cx="100" cy="162" rx="56" ry="10" fill="#FAF6F0" stroke="#E7E5E4" stroke-width="1.5"/>
+  <!-- Steam strands -->
+  <path d="M82 72 C79 62, 85 52, 82 38" fill="none" stroke="url(#steam-grad)" stroke-width="3" stroke-linecap="round">
+    <animate attributeName="d" values="M82 72 C79 62, 85 52, 82 38;M82 72 C85 62, 79 52, 82 38;M82 72 C79 62, 85 52, 82 38" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0.3;0.6" dur="3s" repeatCount="indefinite"/>
+  </path>
+  <path d="M100 68 C97 56, 103 46, 100 30" fill="none" stroke="url(#steam-grad)" stroke-width="3" stroke-linecap="round">
+    <animate attributeName="d" values="M100 68 C103 56, 97 46, 100 30;M100 68 C97 56, 103 46, 100 30;M100 68 C103 56, 97 46, 100 30" dur="2.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.7;0.35;0.7" dur="2.5s" repeatCount="indefinite"/>
+  </path>
+  <path d="M118 72 C121 62, 115 52, 118 38" fill="none" stroke="url(#steam-grad)" stroke-width="3" stroke-linecap="round">
+    <animate attributeName="d" values="M118 72 C115 62, 121 52, 118 38;M118 72 C121 62, 115 52, 118 38;M118 72 C115 62, 121 52, 118 38" dur="3.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.5;0.25;0.5" dur="3.5s" repeatCount="indefinite"/>
+  </path>
+</svg>
