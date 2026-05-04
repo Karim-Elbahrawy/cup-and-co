@@ -585,6 +585,32 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  // -------- Coupons --------
+  interface CouponDefinition {
+    code: string;
+    type: 'percentage' | 'fixed';
+    value: number;
+    descriptionEn: string;
+    descriptionAr: string;
+  }
+  const couponStore = new Map<string, CouponDefinition>([
+    ['WELCOME10', { code: 'WELCOME10', type: 'percentage', value: 10, descriptionEn: '10% off your first order', descriptionAr: '١٠٪ خصم على أول طلب' }],
+    ['STUDENT15', { code: 'STUDENT15', type: 'percentage', value: 15, descriptionEn: '15% student discount', descriptionAr: '١٥٪ خصم الطلاب' }],
+    ['COFFEE20', { code: 'COFFEE20', type: 'fixed', value: 20, descriptionEn: 'EGP 20 off', descriptionAr: '٢٠ جنيه خصم' }],
+  ]);
+
+  app.post('/coupons/validate', requireAuth, (req, res, next) => {
+    try {
+      const { code } = z.object({ code: z.string().min(1).max(40) }).parse(req.body);
+      const coupon = couponStore.get(code.toUpperCase());
+      if (!coupon) {
+        res.json({ ok: false, reason: 'Invalid or expired coupon code.' });
+        return;
+      }
+      res.json({ ok: true, type: coupon.type, value: coupon.value, descriptionEn: coupon.descriptionEn, descriptionAr: coupon.descriptionAr });
+    } catch (e) { next(e); }
+  });
+
   // -------- Payments --------
   app.post('/payments/paymob/intention', requireAuth, (req, res, next) => {
     try {
