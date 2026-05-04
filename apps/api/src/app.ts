@@ -557,16 +557,23 @@ export function createApp(): express.Express {
       const user = getRequestUser(req);
       const input = z.object({
         productId: z.string().min(1),
-        orderId: z.string().min(1).nullable().optional(),
+        orderId: z.string().min(1),
         rating: z.number().int().min(1).max(5),
         comment: z.string().max(500).default(''),
       }).parse(req.body);
+      const order = orders.get(input.orderId);
+      if (!order || order.userId !== user.id || order.status !== 'completed' ||
+          !order.items.some((i) => i.productId === input.productId)) {
+        const e = new Error('You can only review products from your completed orders.') as Error & { status?: number };
+        e.status = 403;
+        throw e;
+      }
       const productReviews = reviews.get(input.productId) ?? [];
       const review = {
         id: randomUUID(),
         userId: user.id,
         productId: input.productId,
-        orderId: input.orderId ?? null,
+        orderId: input.orderId,
         rating: input.rating,
         comment: input.comment,
         hidden: false,

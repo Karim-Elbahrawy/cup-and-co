@@ -23,14 +23,31 @@ const customerHeaders = (id: string) => ({
   'x-user-phone': `+2010000000${id.slice(-1)}`,
 });
 
+async function createCompletedOrder(app: ReturnType<typeof createApp>, custId: string) {
+  const created = await request(app)
+    .post('/orders')
+    .set(customerHeaders(custId))
+    .send({
+      fulfillmentType: 'pickup',
+      paymentMethod: 'cash',
+      redeemPoints: 0,
+      items: [{ productId: '22222222-0000-0000-0000-000000000001', quantity: 1, options: { size: 'Medium', sugar: 'Normal' } }],
+    });
+  const id = created.body.order.id;
+  for (const status of ['accepted', 'preparing', 'ready', 'completed']) {
+    await request(app).patch(`/admin/orders/${id}/status`).set(ownerHeaders).send({ status });
+  }
+  return id;
+}
+
 describe('GET /admin/reviews', () => {
   it('owner can list all reviews', async () => {
     const app = createApp();
-    // Seed a review
+    const orderId = await createCompletedOrder(app, 'review-cust-1');
     await request(app)
       .post('/reviews')
       .set(customerHeaders('review-cust-1'))
-      .send({ productId: '22222222-0000-0000-0000-000000000001', rating: 5, comment: 'Great coffee!' });
+      .send({ productId: '22222222-0000-0000-0000-000000000001', orderId, rating: 5, comment: 'Great coffee!' });
 
     const res = await request(app).get('/admin/reviews').set(ownerHeaders).expect(200);
     expect(Array.isArray(res.body.reviews)).toBe(true);
@@ -48,10 +65,11 @@ describe('GET /admin/reviews', () => {
 describe('PATCH /admin/reviews/:id/visibility', () => {
   it('owner can hide and unhide a review', async () => {
     const app = createApp();
+    const orderId = await createCompletedOrder(app, 'review-cust-2');
     const created = await request(app)
       .post('/reviews')
       .set(customerHeaders('review-cust-2'))
-      .send({ productId: '22222222-0000-0000-0000-000000000001', rating: 4, comment: 'Good' });
+      .send({ productId: '22222222-0000-0000-0000-000000000001', orderId, rating: 4, comment: 'Good' });
     const reviewId = created.body.id;
 
     await request(app)
