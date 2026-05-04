@@ -29,10 +29,10 @@ describe('GET /catalog', () => {
     expect(names).not.toContain('Scholar Latte');
   });
 
-  it('every product has an SVG image_url', async () => {
+  it('every product has a PNG image_url', async () => {
     const res = await request(app).get('/catalog').expect(200);
     for (const p of res.body.products) {
-      expect(p.image_url).toMatch(/\.svg$/);
+      expect(p.image_url).toMatch(/\.png$/);
     }
   });
 
@@ -49,7 +49,7 @@ describe('GET /products/:id', () => {
   const app = createApp();
 
   it('returns Velvet Cappuccino with size/sugar options', async () => {
-    const res = await request(app).get('/products/velvet-cappuccino').expect(200);
+    const res = await request(app).get('/products/22222222-0000-0000-0000-000000000001').expect(200);
     expect(res.body.product.name_en).toBe('Velvet Cappuccino');
     const groups = new Set(res.body.options.map((o: { group_name: string }) => o.group_name));
     expect(groups).toContain('size');
@@ -57,13 +57,13 @@ describe('GET /products/:id', () => {
   });
 
   it('cold drinks include ice options', async () => {
-    const res = await request(app).get('/products/iced-americano').expect(200);
+    const res = await request(app).get('/products/22222222-0000-0000-0000-000000000006').expect(200);
     const groups = new Set(res.body.options.map((o: { group_name: string }) => o.group_name));
     expect(groups).toContain('ice');
   });
 
   it('non-coffee items have no size/sugar options', async () => {
-    const res = await request(app).get('/products/tiramisu-cup').expect(200);
+    const res = await request(app).get('/products/22222222-0000-0000-0000-00000000000B').expect(200);
     expect(res.body.options).toHaveLength(0);
   });
 

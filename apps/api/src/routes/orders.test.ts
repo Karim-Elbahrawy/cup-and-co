@@ -24,7 +24,7 @@ const baristaHeaders = {
 };
 
 const cappuccinoMedium = {
-  productId: 'velvet-cappuccino',
+  productId: '22222222-0000-0000-0000-000000000001',
   quantity: 2,
   options: { size: 'Medium', sugar: 'Normal' },
 };
@@ -302,7 +302,7 @@ describe('PATCH /admin/menu/products/:id/availability', () => {
     await request(app).patch('/admin/kiosk/status').set(ownerHeaders).send({ is_open: true });
 
     await request(app)
-      .patch('/admin/menu/products/honey-latte/availability')
+      .patch('/admin/menu/products/22222222-0000-0000-0000-000000000003/availability')
       .set(baristaHeaders)
       .send({ available: false })
       .expect(200);
@@ -315,7 +315,7 @@ describe('PATCH /admin/menu/products/:id/availability', () => {
         paymentMethod: 'cash',
         redeemPoints: 0,
         items: [
-          { productId: 'honey-latte', quantity: 1, options: { size: 'Medium', sugar: 'Normal' } },
+          { productId: '22222222-0000-0000-0000-000000000003', quantity: 1, options: { size: 'Medium', sugar: 'Normal' } },
         ],
       });
     expect(res.status).toBe(409);
@@ -323,7 +323,7 @@ describe('PATCH /admin/menu/products/:id/availability', () => {
 
     // Re-enable so later tests aren't affected.
     await request(app)
-      .patch('/admin/menu/products/honey-latte/availability')
+      .patch('/admin/menu/products/22222222-0000-0000-0000-000000000003/availability')
       .set(baristaHeaders)
       .send({ available: true });
   });
