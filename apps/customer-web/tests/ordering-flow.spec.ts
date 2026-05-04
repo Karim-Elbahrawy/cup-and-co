@@ -163,7 +163,7 @@ test.describe('Ordering flow', () => {
 
     // Cart shows the item
     await expect(page.getByText('Velvet Cappuccino')).toBeVisible();
-    await expect(page.getByText(/EGP 65/)).toBeVisible();
+    await expect(page.getByText(/EGP 65/).first()).toBeVisible();
   });
 
   test('cart → checkout → place order → order tracking', async ({ page }) => {
@@ -262,7 +262,7 @@ test.describe('Ordering flow', () => {
     // Go directly to cart
     await page.goto('/cart');
     await expect(page.getByText('Velvet Cappuccino')).toBeVisible();
-    await expect(page.getByText(/EGP 65/)).toBeVisible();
+    await expect(page.getByText(/EGP 65/).first()).toBeVisible();
 
     // Tap checkout
     await page.getByRole('button', { name: /Checkout/i }).click();
@@ -320,7 +320,7 @@ test.describe('Ordering flow', () => {
 
     await page.getByRole('button', { name: 'Increase' }).click();
     await expect(page.getByText('2')).toBeVisible();
-    await expect(page.getByText(/EGP 130/)).toBeVisible();
+    await expect(page.getByText(/EGP 130/).first()).toBeVisible();
 
     await page.getByRole('button', { name: 'Decrease' }).click();
     await expect(page.getByText('1')).toBeVisible();

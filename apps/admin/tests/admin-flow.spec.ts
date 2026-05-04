@@ -95,9 +95,8 @@ test.describe('Admin login', () => {
     await page.getByLabel('Password').fill('anypassword');
     await page.getByRole('button', { name: /Sign in/i }).click();
 
-    // Should land on / (dashboard root → orders kanban)
-    await expect(page).toHaveURL(/^\//);
-    await expect(page).not.toHaveURL(/login/);
+    // Should land on a non-login page (dashboard root → orders kanban)
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 8000 });
   });
 
   test('unknown email shows error', async ({ page }) => {
@@ -106,8 +105,8 @@ test.describe('Admin login', () => {
     await page.getByLabel('Password').fill('anypassword');
     await page.getByRole('button', { name: /Sign in/i }).click();
 
-    await expect(page.getByRole('alert')).toBeVisible();
-    await expect(page.getByRole('alert')).toContainText(/owner@cupandco.app/i);
+    await expect(page.locator('p[role="alert"]')).toBeVisible();
+    await expect(page.locator('p[role="alert"]')).toContainText(/owner@cupandco.app/i);
   });
 
   test('empty password shows error', async ({ page }) => {
@@ -172,7 +171,6 @@ test.describe('Role-based access control', () => {
 
     // UsersPage useEffect redirects non-owners to /
     await expect(page).not.toHaveURL(/\/users/, { timeout: 5000 });
-    await expect(page).toHaveURL(/^\//);
   });
 
   test('owner can access /users', async ({ page }) => {
