@@ -2,8 +2,13 @@ import { getToken } from './session';
 import type {
   AuthResponse,
   CatalogResponse,
+  CreateOrderRequest,
+  LoyaltyResponse,
   MeResponse,
+  OrderResponse,
+  OrdersListResponse,
   OtpSendResponse,
+  PaymobIntentionResponse,
   ProductDetailResponse,
 } from './types';
 
@@ -93,4 +98,20 @@ export const api = {
   catalog: () => apiFetch<CatalogResponse>('/catalog'),
 
   product: (id: string) => apiFetch<ProductDetailResponse>(`/products/${id}`),
+
+  // -- Phase 2 ordering --
+  createOrder: (input: CreateOrderRequest) =>
+    apiFetch<OrderResponse>('/orders', { method: 'POST', body: input }),
+
+  getOrder: (id: string) => apiFetch<OrderResponse>(`/orders/${id}`),
+
+  listOrders: () => apiFetch<OrdersListResponse>('/orders'),
+
+  paymobIntention: (orderId: string, method: 'paymob_card' | 'paymob_wallet') =>
+    apiFetch<PaymobIntentionResponse>('/payments/paymob/intention', {
+      method: 'POST',
+      body: { orderId, method },
+    }),
+
+  loyalty: () => apiFetch<LoyaltyResponse>('/loyalty'),
 };

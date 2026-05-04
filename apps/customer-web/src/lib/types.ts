@@ -56,3 +56,89 @@ export interface MeResponse {
   user: SessionUser;
   points: number;
 }
+
+// -- Phase 2 ordering types (mirror apps/api/src/services/orders.ts) ----------
+
+export interface ApiOrderItem {
+  productId: string;
+  productNameEn: string;
+  productNameAr: string;
+  imageUrl: string;
+  quantity: number;
+  options: Record<string, string>;
+  unitPriceEgp: number;
+  lineTotalEgp: number;
+}
+
+export interface ApiStatusEvent {
+  status: import('@cup-and-co/types').OrderStatus;
+  at: string;
+  note?: string;
+}
+
+export interface ApiOrder {
+  id: string;
+  userId: string;
+  status: import('@cup-and-co/types').OrderStatus;
+  fulfillmentType: 'pickup' | 'delivery';
+  paymentMethod: 'paymob_card' | 'paymob_wallet' | 'cash';
+  paymentStatus: 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded';
+  subtotalEgp: number;
+  discountEgp: number;
+  pointsRedeemed: number;
+  totalEgp: number;
+  pointsAwarded: number;
+  pickupCode: string | null;
+  scheduledFor: string | null;
+  notes: string | null;
+  items: ApiOrderItem[];
+  statusHistory: ApiStatusEvent[];
+  createdAt: string;
+  pickedUpAt: string | null;
+}
+
+export interface TimelineStep {
+  status: import('@cup-and-co/types').OrderStatus;
+  label: string;
+  at: string | null;
+  active: boolean;
+  done: boolean;
+}
+
+export interface OrderResponse {
+  order: ApiOrder;
+  timeline: TimelineStep[];
+}
+
+export interface OrdersListResponse {
+  orders: ApiOrder[];
+}
+
+export interface CreateOrderRequest {
+  fulfillmentType: 'pickup' | 'delivery';
+  paymentMethod: 'paymob_card' | 'paymob_wallet' | 'cash';
+  scheduledFor?: string | null;
+  redeemPoints: number;
+  notes?: string;
+  items: Array<{
+    productId: string;
+    quantity: number;
+    options: Record<string, string>;
+  }>;
+}
+
+export interface PaymobIntentionResponse {
+  orderId: string;
+  userId: string;
+  amountEgp: number;
+  status: 'pending';
+  gateway: 'paymob';
+  gatewayReference: string;
+  checkoutUrl: string;
+  iframeId: string;
+}
+
+export interface LoyaltyResponse {
+  balance: number;
+  discountAvailableEgp: number;
+}
