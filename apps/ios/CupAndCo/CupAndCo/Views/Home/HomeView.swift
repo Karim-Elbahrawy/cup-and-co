@@ -8,7 +8,7 @@ struct HomeView: View {
     @Environment(CatalogStore.self) private var catalog
 
     @State private var query: String = ""
-    @State private var roleFilter: UserRole = .student
+    @State private var selectedCategory: String? = nil
     @State private var showProfile: Bool = false
 
     private var greetingName: String {
@@ -72,8 +72,12 @@ struct HomeView: View {
                     }
                 }
 
-                CategoryChipRow(selected: $roleFilter)
-                    .padding(.horizontal, 20)
+                CategoryChipRow(
+                    categories: catalog.categories,
+                    selected: $selectedCategory,
+                    language: session.user?.languagePref ?? .en
+                )
+                .padding(.horizontal, 20)
 
                 sectionHeader
                     .padding(.horizontal, 20)
