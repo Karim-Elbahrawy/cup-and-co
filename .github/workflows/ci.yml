@@ -62,16 +62,33 @@ jobs:
           CI: '1'
           NEXT_PUBLIC_API_URL: http://localhost:4000
 
+  admin-e2e:
+    name: Admin dashboard E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @cup-and-co/admin exec playwright install --with-deps chromium
+      - run: pnpm --filter @cup-and-co/admin test:e2e
+        env:
+          CI: '1'
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+
   ios-build:
     name: iOS build (smoke)
     runs-on: macos-14
-    if: false # Enabled in Phase 1 once Xcode project is generated
     steps:
       - uses: actions/checkout@v4
-      - run: brew install xcodegen
-      - working-directory: apps/ios/CupAndCo
-        run: xcodegen generate
-      - working-directory: apps/ios/CupAndCo
+      - name: Build iOS project
+        working-directory: apps/ios/CupAndCo
         run: |
           xcodebuild -project CupAndCo.xcodeproj \
             -scheme CupAndCo \
