@@ -148,11 +148,11 @@ export default function CheckoutPage() {
         </Section>
 
         {/* Notes */}
-        <Section label="Notes">
+        <Section label={language === 'ar' ? 'ملاحظات' : 'Notes'}>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Allergies, special requests…"
+            placeholder={language === 'ar' ? 'حساسية، طلبات خاصة…' : 'Allergies, special requests…'}
             rows={3}
             maxLength={500}
             className="w-full rounded-card border border-cup-stroke bg-white p-3 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
@@ -160,7 +160,7 @@ export default function CheckoutPage() {
         </Section>
 
         {/* Coupon */}
-        <Section label={language === 'ar' ? 'كوبون الخصم' : 'Coupon Code'}>
+        <Section label={t('checkout.couponCode')}>
           <div className="flex gap-2">
             <input
               value={couponCode}
@@ -168,7 +168,7 @@ export default function CheckoutPage() {
                 setCouponCode(e.target.value);
                 setCouponDiscount(0);
               }}
-              placeholder={language === 'ar' ? 'أدخل الكود' : 'Enter code'}
+              placeholder={t('checkout.enterCode')}
               className="flex-1 rounded-lg border border-cup-stroke bg-white px-3 py-2 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
             />
             <button
@@ -184,7 +184,7 @@ export default function CheckoutPage() {
               }}
               className="rounded-pill bg-cup-orange-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cup-orange-700"
             >
-              {language === 'ar' ? 'تطبيق' : 'Apply'}
+              {t('checkout.apply')}
             </button>
           </div>
         </Section>
@@ -196,7 +196,7 @@ export default function CheckoutPage() {
             <Row label={t('cart.discount')} value={`- EGP ${pointsDiscount}`} color="text-cup-success" />
           )}
           {couponDiscount > 0 && (
-            <Row label={language === 'ar' ? 'خصم الكوبون' : 'Coupon Discount'} value={`- EGP ${couponDiscount}`} color="text-cup-success" />
+            <Row label={t('checkout.couponDiscount')} value={`- EGP ${couponDiscount}`} color="text-cup-success" />
           )}
           <hr className="my-2 border-cup-stroke" />
           <Row label={t('cart.total')} value={`EGP ${total}`} bold />

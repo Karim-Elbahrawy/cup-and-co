@@ -180,7 +180,7 @@ export default function ProductDetailPage({
   if (error) {
     return (
       <main className="min-h-screen bg-cup-paper px-6 py-10">
-        <div className="mx-auto max-w-md rounded-card border border-cup-error bg-white p-6 text-cup-error">
+        <div className="mx-auto max-w-3xl rounded-card border border-cup-error bg-white p-6 text-cup-error">
           <p className="font-semibold">{t('common.error')}</p>
           <p className="mt-1 text-sm">{error}</p>
           <Link href="/" className="mt-3 inline-block text-sm underline">
@@ -243,7 +243,7 @@ export default function ProductDetailPage({
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', stiffness: 240, damping: 22 }}
-          className="relative mx-auto h-[260px] w-[260px] overflow-hidden rounded-full bg-cup-cream-100 shadow-elevated"
+          className="relative mx-auto h-[260px] w-[260px] overflow-hidden rounded-full bg-white shadow-elevated"
         >
           {product.image_url ? (
             <Image
@@ -252,7 +252,7 @@ export default function ProductDetailPage({
               fill
               priority
               sizes="260px"
-              className="object-cover"
+              className="rounded-full object-cover"
             />
           ) : null}
         </motion.div>
@@ -492,7 +492,7 @@ export default function ProductDetailPage({
           type="button"
           onClick={handleAddToCart}
           disabled={adding}
-          className="flex w-full items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.32)] transition active:scale-[0.98] disabled:opacity-70"
+          className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.32)] transition active:scale-[0.98] disabled:opacity-70"
         >
           <span>{t('common.addToCart')}</span>
           <span className="flex items-center gap-2">
@@ -525,7 +525,7 @@ function groupBy(options: ProductOption[]): Record<string, ProductOption[]> {
 function ProductDetailSkeleton() {
   return (
     <main className="min-h-screen bg-cup-paper px-6 pt-6 pb-32">
-      <div className="mx-auto max-w-md animate-pulse space-y-6">
+      <div className="mx-auto max-w-3xl animate-pulse space-y-6">
         <div className="flex items-center justify-between">
           <div className="h-10 w-10 rounded-full bg-cup-stroke" />
           <div className="h-4 w-20 rounded bg-cup-stroke" />

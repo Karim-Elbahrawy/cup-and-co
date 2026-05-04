@@ -79,7 +79,7 @@ export default function CartPage() {
     <main className="min-h-screen bg-cup-paper pb-32">
       <CartHeader t={t} />
 
-      <ul className="mx-auto max-w-md space-y-3 px-4">
+      <ul className="mx-auto max-w-7xl space-y-3 px-4">
         <AnimatePresence initial={false}>
           {items.map((item) => (
             <motion.li
@@ -91,9 +91,15 @@ export default function CartPage() {
               transition={{ type: 'spring', stiffness: 280, damping: 26 }}
               className="flex gap-3 rounded-card border border-cup-stroke bg-white p-3 shadow-subtle"
             >
-              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-card bg-cup-cream-100">
+              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-card bg-white">
                 {item.imageUrl ? (
-                  <Image src={item.imageUrl} alt={item.productNameEn} fill sizes="80px" className="object-cover" />
+                  <Image
+                    src={item.imageUrl}
+                    alt={item.productNameEn}
+                    fill
+                    sizes="80px"
+                    className="rounded-card object-cover"
+                  />
                 ) : null}
               </div>
               <div className="flex flex-1 flex-col">
@@ -133,7 +139,7 @@ export default function CartPage() {
       </ul>
 
       {showRedeem && (
-        <section className="mx-auto mt-5 max-w-md rounded-card border border-cup-stroke bg-white p-5 shadow-subtle">
+        <section className="mx-auto mt-5 max-w-7xl rounded-card border border-cup-stroke bg-white p-5 shadow-subtle">
           <div className="flex items-baseline justify-between">
             <p className="text-sm font-semibold text-cup-brown-900">
               {t('cart.redeemPoints')}
@@ -174,7 +180,7 @@ export default function CartPage() {
       )}
 
       {/* Totals */}
-      <section className="mx-auto mt-5 max-w-md rounded-card border border-cup-stroke bg-white p-5 shadow-subtle">
+      <section className="mx-auto mt-5 max-w-7xl rounded-card border border-cup-stroke bg-white p-5 shadow-subtle">
         <Row label={t('cart.subtotal')} value={`EGP ${subtotal}`} />
         {discount > 0 && (
           <Row
@@ -195,7 +201,7 @@ export default function CartPage() {
         <button
           type="button"
           onClick={() => router.push('/checkout')}
-          className="flex w-full items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98]"
+          className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98]"
         >
           <span>{t('common.checkout')}</span>
           <span>EGP {total}</span>

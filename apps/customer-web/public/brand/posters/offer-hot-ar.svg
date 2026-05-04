@@ -1,0 +1,48 @@
+<svg width="420" height="430" viewBox="0 0 420 430" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hotBgAr" x1="0" y1="0" x2="420" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8EFE5"/>
+      <stop offset="1" stop-color="#E8D5BE"/>
+    </linearGradient>
+    <radialGradient id="hotGlowAr" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(210 234) rotate(90) scale(116 120)">
+      <stop offset="0" stop-color="#FFF9F1" stop-opacity="1"/>
+      <stop offset="1" stop-color="#FFF9F1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="420" height="430" rx="30" fill="url(#hotBgAr)"/>
+  <rect x="12" y="12" width="396" height="406" rx="24" fill="#F5E8D8" stroke="#C19563" stroke-width="3"/>
+
+  <path d="M0 250C54 232 84 238 118 250C156 264 198 278 236 266C280 252 320 218 420 240V430H0V250Z" fill="#6A3D24"/>
+  <path d="M0 270C70 246 102 258 144 274C182 288 220 296 268 284C314 272 352 250 420 264V430H0V270Z" fill="#3A2014" fill-opacity="0.82"/>
+
+  <text x="392" y="46" text-anchor="end" fill="#5A3420" font-family="Cairo, Arial, sans-serif" font-size="16" font-weight="700">كَب آند كو</text>
+  <text x="392" y="84" text-anchor="end" fill="#30160F" font-family="Cairo, Arial, sans-serif" font-size="40" font-weight="800">خصم 15%</text>
+  <text x="392" y="112" text-anchor="end" fill="#6F4A33" font-family="Cairo, Arial, sans-serif" font-size="15" font-weight="600">على قهوة الصباح</text>
+
+  <text x="34" y="336" fill="#FFF7EE" font-family="Arial Black, Cairo, sans-serif" font-size="56" font-weight="900" letter-spacing="1">بداية</text>
+  <text x="34" y="390" fill="#FFF7EE" font-family="Arial Black, Cairo, sans-serif" font-size="56" font-weight="900" letter-spacing="1">أدفى</text>
+
+  <text x="42" y="80" fill="#7B5235" font-family="Arial Black, Cairo, sans-serif" font-size="30" font-weight="900">قهوة</text>
+  <text x="42" y="114" fill="#7B5235" font-family="Arial Black, Cairo, sans-serif" font-size="30" font-weight="900">ساخنة</text>
+
+  <ellipse cx="210" cy="236" rx="108" ry="110" fill="url(#hotGlowAr)"/>
+
+  <g fill="#7A4927">
+    <ellipse cx="56" cy="150" rx="15" ry="9.5" transform="rotate(-18 56 150)"/>
+    <ellipse cx="84" cy="214" rx="11.5" ry="7.3" transform="rotate(22 84 214)"/>
+    <ellipse cx="364" cy="136" rx="15" ry="9.5" transform="rotate(20 364 136)"/>
+    <ellipse cx="386" cy="214" rx="11.5" ry="7.3" transform="rotate(-28 386 214)"/>
+    <ellipse cx="348" cy="324" rx="13.5" ry="8.4" transform="rotate(18 348 324)"/>
+  </g>
+  <g stroke="#EBD0B1" stroke-width="1.5" stroke-linecap="round">
+    <path d="M56 144C58 148 58 152 56 156"/>
+    <path d="M84 208C86 212 86 216 84 220"/>
+    <path d="M364 130C366 134 366 138 364 142"/>
+    <path d="M386 208C388 212 388 216 386 220"/>
+    <path d="M348 318C350 322 350 326 348 330"/>
+  </g>
+
+  <rect x="248" y="356" width="146" height="34" rx="17" fill="#FFF7EE" fill-opacity="0.94"/>
+  <text x="321" y="378" text-anchor="middle" fill="#5D3923" font-family="Cairo, Arial, sans-serif" font-size="11" font-weight="800">لاتيه • ارت فوم</text>
+</svg>

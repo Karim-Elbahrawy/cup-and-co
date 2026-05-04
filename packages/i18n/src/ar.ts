@@ -23,6 +23,8 @@ export const ar: Translations = {
     retry: 'حاول مجدداً',
     noResults: 'لا توجد نتائج',
     seeAll: 'عرض الكل',
+    notifications: 'الإشعارات',
+    activeOffers: 'عروض حالية',
   },
   auth: {
     phoneNumber: 'رقم الهاتف',
@@ -51,6 +53,7 @@ export const ar: Translations = {
     superDiscount: 'خصم خاص',
     offPercent: '% خصم',
     categories: {
+      all: 'الكل',
       coffee: 'قهوة',
       desserts: 'حلويات',
       breakfast: 'فطور',
@@ -94,6 +97,10 @@ export const ar: Translations = {
     payWithWallet: 'محفظة إلكترونية',
     payWithCash: 'كاش عند الاستلام',
     placeOrder: 'تأكيد الطلب',
+    couponCode: 'كوبون الخصم',
+    enterCode: 'أدخل الكود',
+    apply: 'تطبيق',
+    couponDiscount: 'خصم الكوبون',
   },
   orders: {
     myOrders: 'طلباتي',
@@ -119,6 +126,9 @@ export const ar: Translations = {
     redeemed: 'مستبدلة',
     scanQr: 'مسح QR',
     scanQrMessage: 'امسح كود QR على الإيصال لكسب النقاط',
+    noScores: 'لا توجد نتائج هذا الأسبوع. كن الأول!',
+    redeeming: 'جاري الاستبدال…',
+    noPrizes: 'لا توجد جوائز بعد. العب لتفوز!',
   },
   games: {
     play: 'العب',
@@ -131,6 +141,11 @@ export const ar: Translations = {
     gameOver: 'انتهت اللعبة',
     score: 'النتيجة',
     highScore: 'أعلى نتيجة',
+    preparing: 'جاري تحضير اللعبة…',
+    instructions: 'كيفية اللعب',
+    catchBeans: 'اصطاد الحبات — +10 نقاط لكل حبة',
+    missBean: 'فوت حبة — تفقد قلب',
+    timeAndLives: '60 ثانية · 3 قلوب · اكسب نقاط الولاء!',
   },
   profile: {
     myProfile: 'حسابي',
@@ -140,5 +155,6 @@ export const ar: Translations = {
     notifications: 'الإشعارات',
     support: 'الدعم',
     about: 'عن التطبيق',
+    iOSOnly: 'iOS فقط',
   },
 };

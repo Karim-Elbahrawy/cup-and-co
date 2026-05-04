@@ -21,6 +21,8 @@ export interface Translations {
     retry: string;
     noResults: string;
     seeAll: string;
+    notifications: string;
+    activeOffers: string;
   };
   auth: {
     phoneNumber: string;
@@ -93,6 +95,10 @@ export interface Translations {
     payWithWallet: string;
     payWithCash: string;
     placeOrder: string;
+    couponCode: string;
+    enterCode: string;
+    apply: string;
+    couponDiscount: string;
   };
   orders: {
     myOrders: string;
@@ -118,6 +124,9 @@ export interface Translations {
     redeemed: string;
     scanQr: string;
     scanQrMessage: string;
+    noScores: string;
+    redeeming: string;
+    noPrizes: string;
   };
   games: {
     play: string;
@@ -130,6 +139,11 @@ export interface Translations {
     gameOver: string;
     score: string;
     highScore: string;
+    preparing: string;
+    instructions: string;
+    catchBeans: string;
+    missBean: string;
+    timeAndLives: string;
   };
   profile: {
     myProfile: string;
@@ -139,5 +153,6 @@ export interface Translations {
     notifications: string;
     support: string;
     about: string;
+    iOSOnly: string;
   };
 }

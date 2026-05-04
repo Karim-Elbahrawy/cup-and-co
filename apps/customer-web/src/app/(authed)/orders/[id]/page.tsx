@@ -141,7 +141,7 @@ export default function OrderTrackingPage({
   if (error && !order) {
     return (
       <main className="min-h-screen bg-cup-paper px-6 py-10">
-        <div className="mx-auto max-w-md rounded-card border border-cup-error bg-white p-6 text-cup-error">
+        <div className="mx-auto max-w-3xl rounded-card border border-cup-error bg-white p-6 text-cup-error">
           <p className="font-semibold">{t('common.error')}</p>
           <p className="mt-1 text-sm">{error}</p>
           <Link href="/" className="mt-3 inline-block text-sm underline">
@@ -155,7 +155,7 @@ export default function OrderTrackingPage({
   if (!order) {
     return (
       <main className="min-h-screen bg-cup-paper px-6 pt-6">
-        <div className="mx-auto max-w-md animate-pulse space-y-4">
+        <div className="mx-auto max-w-3xl animate-pulse space-y-4">
           <div className="h-12 rounded-card bg-cup-stroke" />
           <div className="h-32 rounded-card bg-cup-stroke" />
           <div className="h-64 rounded-card bg-cup-stroke" />
@@ -181,7 +181,7 @@ export default function OrderTrackingPage({
       </header>
 
       {/* Pickup code hero */}
-      <section className="mx-auto mt-2 max-w-md px-5">
+      <section className="mx-auto mt-2 max-w-3xl px-5">
         <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cup-muted">
             {t('orders.pickupCode')}
@@ -204,7 +204,7 @@ export default function OrderTrackingPage({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mx-auto mt-4 max-w-md px-5"
+            className="mx-auto mt-4 max-w-3xl px-5"
           >
             <button
               type="button"
@@ -223,7 +223,7 @@ export default function OrderTrackingPage({
       </AnimatePresence>
 
       {/* Vertical timeline */}
-      <section className="mx-auto mt-5 max-w-md px-5">
+      <section className="mx-auto mt-5 max-w-3xl px-5">
         <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
           <ol className="relative space-y-6 pl-2" aria-label="Order status">
             {timeline.map((step, idx) => {
@@ -265,7 +265,7 @@ export default function OrderTrackingPage({
       </section>
 
       {/* Items */}
-      <section className="mx-auto mt-5 max-w-md px-5">
+      <section className="mx-auto mt-5 max-w-3xl px-5">
         <button
           type="button"
           onClick={() => setShowItems((v) => !v)}
@@ -279,9 +279,15 @@ export default function OrderTrackingPage({
             <ul className="divide-y divide-cup-stroke">
               {order.items.map((it, i) => (
                 <li key={`${it.productId}-${i}`} className="flex gap-3 py-3">
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-card bg-cup-cream-100">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-card bg-white">
                     {it.imageUrl ? (
-                      <Image src={it.imageUrl} alt={it.productNameEn} fill sizes="48px" className="object-cover" />
+                      <Image
+                        src={it.imageUrl}
+                        alt={it.productNameEn}
+                        fill
+                        sizes="48px"
+                        className="rounded-card object-cover"
+                      />
                     ) : null}
                   </div>
                   <div className="flex flex-1 flex-col">

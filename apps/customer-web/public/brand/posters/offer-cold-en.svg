@@ -1,0 +1,69 @@
+<svg width="420" height="430" viewBox="0 0 420 430" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="coldBg" x1="0" y1="0" x2="420" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F7EEE1"/>
+      <stop offset="1" stop-color="#E9D3B4"/>
+    </linearGradient>
+    <linearGradient id="coldBand" x1="0" y1="0" x2="420" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2B170F"/>
+      <stop offset="0.52" stop-color="#5D341F"/>
+      <stop offset="1" stop-color="#24130C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(210 228) rotate(90) scale(122 138)">
+      <stop offset="0" stop-color="#FFF8EE" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#FFF8EE" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softShadow" x="98" y="164" width="224" height="124" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="18" result="effect1_foregroundBlur_1_2"/>
+    </filter>
+  </defs>
+
+  <rect width="420" height="430" rx="30" fill="url(#coldBg)"/>
+  <rect x="12" y="12" width="396" height="406" rx="24" fill="#F3E3CB" stroke="#B98956" stroke-width="3"/>
+
+  <rect x="0" y="0" width="420" height="84" rx="30" fill="#C49A63" fill-opacity="0.18"/>
+  <rect x="0" y="314" width="420" height="116" rx="30" fill="#B88850" fill-opacity="0.1"/>
+
+  <text x="28" y="44" fill="#533019" font-family="Sora, Inter, Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="1.4">Cup &amp; Co</text>
+  <text x="28" y="66" fill="#6C472B" font-family="Georgia, 'Times New Roman', serif" font-size="26" font-weight="700">Super Coffee</text>
+
+  <text x="286" y="54" fill="#3A1D11" font-family="Georgia, 'Times New Roman', serif" font-size="58" font-weight="700">10% off</text>
+  <text x="290" y="86" fill="#6B4832" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="600" letter-spacing="0.5">This weekend only</text>
+
+  <text x="80" y="248" fill="#2A130C" fill-opacity="0.95" font-family="Arial Black, Inter, sans-serif" font-size="132" font-weight="900" letter-spacing="-6">ICED</text>
+  <text x="56" y="348" fill="#2A130C" font-family="Arial Black, Inter, sans-serif" font-size="66" font-weight="900" letter-spacing="1.5">COFFEE</text>
+
+  <rect y="192" width="420" height="58" fill="url(#coldBand)"/>
+  <ellipse cx="210" cy="225" rx="96" ry="44" fill="url(#glow)"/>
+  <g filter="url(#softShadow)">
+    <ellipse cx="210" cy="225" rx="70" ry="18" fill="#C3814C" fill-opacity="0.32"/>
+  </g>
+
+  <g fill="#704223">
+    <ellipse cx="52" cy="154" rx="15" ry="9.5" transform="rotate(-22 52 154)"/>
+    <ellipse cx="78" cy="244" rx="12" ry="7.6" transform="rotate(34 78 244)"/>
+    <ellipse cx="52" cy="325" rx="14" ry="8.8" transform="rotate(-34 52 325)"/>
+    <ellipse cx="112" cy="366" rx="11" ry="7.2" transform="rotate(16 112 366)"/>
+    <ellipse cx="374" cy="126" rx="14" ry="8.8" transform="rotate(24 374 126)"/>
+    <ellipse cx="346" cy="186" rx="12" ry="7.4" transform="rotate(-32 346 186)"/>
+    <ellipse cx="378" cy="262" rx="14" ry="8.8" transform="rotate(26 378 262)"/>
+    <ellipse cx="336" cy="338" rx="12" ry="7.6" transform="rotate(-24 336 338)"/>
+  </g>
+  <g stroke="#E9C8A5" stroke-width="1.5" stroke-linecap="round">
+    <path d="M52 148C54 152 54 156 52 160"/>
+    <path d="M78 238C80 242 80 246 78 250"/>
+    <path d="M52 319C54 323 54 327 52 331"/>
+    <path d="M112 360C114 364 114 368 112 372"/>
+    <path d="M374 120C376 124 376 128 374 132"/>
+    <path d="M346 180C348 184 348 188 346 192"/>
+    <path d="M378 256C380 260 380 264 378 268"/>
+    <path d="M336 332C338 336 338 340 336 344"/>
+  </g>
+
+  <rect x="26" y="368" width="180" height="30" rx="15" fill="#F9F2E8" fill-opacity="0.9"/>
+  <text x="40" y="387" fill="#6B4832" font-family="Inter, Arial, sans-serif" font-size="10" font-weight="800" letter-spacing="1.8">ORDER NOW • DAILY FAVORITE</text>
+
+  <text x="394" y="390" text-anchor="end" fill="#8E603D" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="700" letter-spacing="1.2">VANILLA COLD BREW</text>
+</svg>

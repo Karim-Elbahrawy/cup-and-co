@@ -115,7 +115,7 @@ export default function HomePage() {
           </div>
           <button
             type="button"
-            aria-label="Notifications"
+            aria-label={t('common.notifications')}
             className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-subtle text-[var(--cup-cocoa)] transition-colors hover:text-[var(--cup-primary)]"
           >
             <Bell size={18} aria-hidden="true" />
@@ -141,7 +141,7 @@ export default function HomePage() {
         {catalog && catalog.offers.length > 0 && (
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--cup-muted)]">
-              {language === 'ar' ? 'عروض حالية' : 'Active Offers'}
+              {t('common.activeOffers')}
             </p>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {catalog.offers.map((offer) => (
@@ -162,7 +162,7 @@ export default function HomePage() {
         )}
 
         {/* Category tabs */}
-        <div role="tablist" aria-label="Filter by category" className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 scrollbar-hide">
+        <div role="tablist" aria-label={t('common.filter')} className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 scrollbar-hide">
           <CategoryChip
             label={t('home.categories.all' as any) || (language === 'ar' ? 'الكل' : 'All')}
             selected={activeCategory === 'all'}

@@ -38,13 +38,13 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
         aria-label={`${name}, ${price}`}
         className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cup-primary)] focus-visible:ring-offset-2 rounded-[16px]"
       >
-        <div className="relative aspect-square overflow-hidden rounded-2xl bg-[var(--cup-cream)]">
+        <div className="relative aspect-square overflow-hidden rounded-2xl bg-white">
           <Image
             src={product.image_url}
             alt=""
             width={300}
             height={300}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="h-full w-full rounded-2xl object-contain p-2 transition-transform duration-300 group-hover:scale-105"
           />
         </div>
         <div className="mt-3 px-1">

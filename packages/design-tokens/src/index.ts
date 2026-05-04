@@ -26,7 +26,7 @@ export const colors = {
 
   // Warm fills
   cream: '#FEF3C7',
-  paperBackground: '#FAF6F0',
+  paperBackground: '#F7F7F5',
   surface: '#FFFFFF',
 
   // Text
@@ -158,7 +158,7 @@ export const tailwindColors = {
   'cup-cream': {
     DEFAULT: colors.cream,
     50: '#FFFBF5',
-    100: colors.paperBackground, // #FAF6F0
+    100: colors.paperBackground, // #F7F7F5
     200: colors.cream,           // #FEF3C7
     300: '#FDE68A',
     400: '#FCD34D',

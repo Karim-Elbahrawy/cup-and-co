@@ -13,57 +13,62 @@ values (
 
 -- Categories
 insert into categories (id, slug, name_en, name_ar, sort_order) values
-  ('11111111-1111-1111-1111-111111111101', 'coffee',    'Coffee',    'قهوة',   1),
-  ('11111111-1111-1111-1111-111111111102', 'desserts',  'Desserts',  'حلويات', 2),
-  ('11111111-1111-1111-1111-111111111103', 'breakfast', 'Breakfast', 'فطور',   3);
+  ('11111111-1111-1111-1111-111111111101', 'hot_coffee',  'Hot Coffee',  'قهوة ساخنة', 1),
+  ('11111111-1111-1111-1111-111111111102', 'cold_coffee', 'Cold Coffee', 'قهوة باردة', 2),
+  ('11111111-1111-1111-1111-111111111103', 'milk_coffee', 'Milk Coffee', 'قهوة بالحليب', 3),
+  ('11111111-1111-1111-1111-111111111104', 'hot_teas',    'Hot Teas',    'شاي ساخن',   4),
+  ('11111111-1111-1111-1111-111111111105', 'hot_drinks',  'Hot Drinks',  'مشروبات ساخنة', 5),
+  ('11111111-1111-1111-1111-111111111106', 'blended',     'Blended',     'مخلوط',      6),
+  ('11111111-1111-1111-1111-111111111107', 'desserts',    'Desserts',    'حلويات',      7),
+  ('11111111-1111-1111-1111-111111111108', 'breakfast',   'Breakfast',   'فطور',        8);
 
 -- Coffee products (10)
 insert into products (id, category_id, name_en, name_ar, description_en, description_ar, base_price_egp, image_url, prep_minutes, sort_order, rating_avg, rating_count) values
-  ('22222222-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111101', 'Velvet Cappuccino',  'كابتشينو فيلفيت',     'Silky steamed milk over a double shot, dusted with cocoa', 'حليب مبخر حريري على شوت مزدوج برشة كاكاو', 65,  '/images/products/velvet-cappuccino.svg', 5, 1, 4.9, 128),
-  ('22222222-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111101', 'Caramel Macchiato',  'كراميل ماكياتو',       'Espresso, vanilla, foam, and a caramel drizzle',           'إسبريسو وفانيليا ورغوة وكراميل',           70,  '/images/products/caramel-macchiato.svg', 5, 2, 4.8, 96),
-  ('22222222-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111101', 'Honey Latte',        'لاتيه عسل',           'Local honey blended with espresso and steamed milk',       'عسل محلي مع إسبريسو وحليب مبخر',           68,  '/images/products/honey-latte.svg',       5, 3, 4.7, 64),
-  ('22222222-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111101', 'Vanilla Cold Brew',  'كولد برو فانيليا',     '12-hour cold brew, vanilla, over ice',                     'كولد برو ١٢ ساعة بفانيليا على ثلج',         62,  '/images/products/vanilla-cold-brew.svg', 3, 4, 4.8, 82),
-  ('22222222-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111101', 'Espresso Romano',    'إسبريسو رومانو',       'Double shot with a twist of lemon',                        'شوت مزدوج مع قشر ليمون',                   45,  '/images/products/espresso-romano.svg',   3, 5, 4.6, 41),
-  ('22222222-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111101', 'Iced Americano',     'أمريكانو مثلج',       'Long espresso shaken over ice',                            'إسبريسو طويل على ثلج',                     50,  '/images/products/iced-americano.svg',    3, 6, 4.7, 73),
-  ('22222222-0000-0000-0000-000000000007', '11111111-1111-1111-1111-111111111101', 'Mocha Royale',       'موكا رويال',           'Dark chocolate ganache, espresso, milk',                   'جاناش شوكولاتة داكنة وإسبريسو وحليب',     75,  '/images/products/mocha-royale.svg',      6, 7, 4.9, 110),
-  ('22222222-0000-0000-0000-000000000008', '11111111-1111-1111-1111-111111111101', 'Hazelnut Latte',     'لاتيه بندق',          'Roasted hazelnut syrup, espresso, milk',                   'شراب بندق محمص مع إسبريسو وحليب',         68,  '/images/products/hazelnut-latte.svg',    5, 8, 4.6, 58),
-  ('22222222-0000-0000-0000-000000000009', '11111111-1111-1111-1111-111111111101', 'Spanish Latte',      'لاتيه إسباني',         'Espresso, condensed milk, steamed milk',                   'إسبريسو وحليب مكثف وحليب مبخر',           70,  '/images/products/spanish-latte.svg',     5, 9, 4.8, 92),
-  ('22222222-0000-0000-0000-00000000000A', '11111111-1111-1111-1111-111111111101', 'Flat White',         'فلات وايت',            'Double ristretto under silky microfoam',                   'ريستريتو مزدوج تحت رغوة حريرية',          63,  '/images/products/flat-white.svg',        5, 10, 4.7, 67);
+  ('22222222-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111103', 'Velvet Cappuccino',  'كابتشينو فيلفيت',     'Silky steamed milk over a double shot, dusted with cocoa', 'حليب مبخر حريري على شوت مزدوج برشة كاكاو', 65,  '/images/products/hot_coffee.png', 5, 1, 4.9, 128),
+  ('22222222-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111103', 'Caramel Macchiato',  'كراميل ماكياتو',       'Espresso, vanilla, foam, and a caramel drizzle',           'إسبريسو وفانيليا ورغوة وكراميل',           70,  '/images/products/hot_coffee.png', 5, 2, 4.8, 96),
+  ('22222222-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111103', 'Honey Latte',        'لاتيه عسل',           'Local honey blended with espresso and steamed milk',       'عسل محلي مع إسبريسو وحليب مبخر',           68,  '/images/products/hot_coffee.png',       5, 3, 4.7, 64),
+  ('22222222-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111102', 'Vanilla Cold Brew',  'كولد برو فانيليا',     '12-hour cold brew, vanilla, over ice',                     'كولد برو ١٢ ساعة بفانيليا على ثلج',         62,  '/images/products/cold_coffee.png', 3, 4, 4.8, 82),
+  ('22222222-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111101', 'Espresso Romano',    'إسبريسو رومانو',       'Double shot with a twist of lemon',                        'شوت مزدوج مع قشر ليمون',                   45,  '/images/products/hot_coffee.png',   3, 5, 4.6, 41),
+  ('22222222-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111102', 'Iced Americano',     'أمريكانو مثلج',       'Long espresso shaken over ice',                            'إسبريسو طويل على ثلج',                     50,  '/images/products/cold_coffee.png',    3, 6, 4.7, 73),
+  ('22222222-0000-0000-0000-000000000007', '11111111-1111-1111-1111-111111111103', 'Mocha Royale',       'موكا رويال',           'Dark chocolate ganache, espresso, milk',                   'جاناش شوكولاتة داكنة وإسبريسو وحليب',     75,  '/images/products/hot_coffee.png',      6, 7, 4.9, 110),
+  ('22222222-0000-0000-0000-000000000008', '11111111-1111-1111-1111-111111111103', 'Hazelnut Latte',     'لاتيه بندق',          'Roasted hazelnut syrup, espresso, milk',                   'شراب بندق محمص مع إسبريسو وحليب',         68,  '/images/products/hot_coffee.png',    5, 8, 4.6, 58),
+  ('22222222-0000-0000-0000-000000000009', '11111111-1111-1111-1111-111111111103', 'Spanish Latte',      'لاتيه إسباني',         'Espresso, condensed milk, steamed milk',                   'إسبريسو وحليب مكثف وحليب مبخر',           70,  '/images/products/hot_coffee.png',     5, 9, 4.8, 92),
+  ('22222222-0000-0000-0000-00000000000A', '11111111-1111-1111-1111-111111111103', 'Flat White',         'فلات وايت',            'Double ristretto under silky microfoam',                   'ريستريتو مزدوج تحت رغوة حريرية',          63,  '/images/products/hot_coffee.png',        5, 10, 4.7, 67);
 
 -- Desserts (6)
 insert into products (id, category_id, name_en, name_ar, description_en, description_ar, base_price_egp, image_url, prep_minutes, sort_order, rating_avg, rating_count) values
-  ('22222222-0000-0000-0000-00000000000B', '11111111-1111-1111-1111-111111111102', 'Tiramisu Cup',         'كأس تيراميسو',         'Mascarpone, espresso-soaked ladyfingers, cocoa',           'ماسكاربوني وأصابع السيدة بإسبريسو وكاكاو', 85, '/images/products/tiramisu-cup.svg',         2, 1, 4.9, 88),
-  ('22222222-0000-0000-0000-00000000000C', '11111111-1111-1111-1111-111111111102', 'Brownie Bar',          'براوني',                'Fudgy double-chocolate brownie',                           'براوني شوكولاتة مزدوجة',                   55, '/images/products/brownie-bar.svg',          2, 2, 4.7, 74),
-  ('22222222-0000-0000-0000-00000000000D', '11111111-1111-1111-1111-111111111102', 'Almond Croissant',     'كرواسون لوز',           'Buttery croissant filled with almond cream',               'كرواسون بزبدة محشي بكريمة لوز',           60, '/images/products/almond-croissant.svg',     2, 3, 4.8, 56),
-  ('22222222-0000-0000-0000-00000000000E', '11111111-1111-1111-1111-111111111102', 'Cheesecake Slice',     'تشيز كيك',              'New York style cheesecake, berry compote',                 'تشيز كيك نيويورك بكومبوت توت',           70, '/images/products/cheesecake-slice.svg',     2, 4, 4.8, 81),
-  ('22222222-0000-0000-0000-00000000000F', '11111111-1111-1111-1111-111111111102', 'Chocolate Tart',       'تارت شوكولاتة',          'Dark chocolate ganache in butter pastry',                  'جاناش شوكولاتة داكنة في عجينة زبدية',     65, '/images/products/chocolate-tart.svg',       2, 5, 4.7, 49),
-  ('22222222-0000-0000-0000-000000000010', '11111111-1111-1111-1111-111111111102', 'Cinnamon Roll',        'سينامون رول',            'Warm cinnamon roll with cream cheese glaze',               'سينامون رول دافئ بصوص كريم تشيز',         50, '/images/products/cinnamon-roll.svg',        2, 6, 4.6, 42);
+  ('22222222-0000-0000-0000-00000000000B', '11111111-1111-1111-1111-111111111107', 'Tiramisu Cup',         'كأس تيراميسو',         'Mascarpone, espresso-soaked ladyfingers, cocoa',           'ماسكاربوني وأصابع السيدة بإسبريسو وكاكاو', 85, '/images/products/dessert.png',         2, 1, 4.9, 88),
+  ('22222222-0000-0000-0000-00000000000C', '11111111-1111-1111-1111-111111111107', 'Brownie Bar',          'براوني',                'Fudgy double-chocolate brownie',                           'براوني شوكولاتة مزدوجة',                   55, '/images/products/dessert.png',          2, 2, 4.7, 74),
+  ('22222222-0000-0000-0000-00000000000D', '11111111-1111-1111-1111-111111111107', 'Almond Croissant',     'كرواسون لوز',           'Buttery croissant filled with almond cream',               'كرواسون بزبدة محشي بكريمة لوز',           60, '/images/products/dessert.png',     2, 3, 4.8, 56),
+  ('22222222-0000-0000-0000-00000000000E', '11111111-1111-1111-1111-111111111107', 'Cheesecake Slice',     'تشيز كيك',              'New York style cheesecake, berry compote',                 'تشيز كيك نيويورك بكومبوت توت',           70, '/images/products/dessert.png',     2, 4, 4.8, 81),
+  ('22222222-0000-0000-0000-00000000000F', '11111111-1111-1111-1111-111111111107', 'Chocolate Tart',       'تارت شوكولاتة',          'Dark chocolate ganache in butter pastry',                  'جاناش شوكولاتة داكنة في عجينة زبدية',     65, '/images/products/dessert.png',       2, 5, 4.7, 49),
+  ('22222222-0000-0000-0000-000000000010', '11111111-1111-1111-1111-111111111107', 'Cinnamon Roll',        'سينامون رول',            'Warm cinnamon roll with cream cheese glaze',               'سينامون رول دافئ بصوص كريم تشيز',         50, '/images/products/dessert.png',        2, 6, 4.6, 42);
 
 -- Breakfast (6)
 insert into products (id, category_id, name_en, name_ar, description_en, description_ar, base_price_egp, image_url, prep_minutes, sort_order, rating_avg, rating_count) values
-  ('22222222-0000-0000-0000-000000000011', '11111111-1111-1111-1111-111111111103', 'Avocado Toast',          'توست أفوكادو',           'Sourdough, smashed avocado, chili flakes, lemon',          'خبز ساوردو وأفوكادو ورقائق فلفل وليمون',  80, '/images/products/avocado-toast.svg',        7, 1, 4.7, 65),
-  ('22222222-0000-0000-0000-000000000012', '11111111-1111-1111-1111-111111111103', 'Egg & Cheese Sandwich',  'ساندويتش بيض وجبنة',       'Scrambled eggs, melted cheese, on a toasted bun',          'بيض مخفوق وجبنة ذائبة في خبز محمص',       65, '/images/products/egg-cheese-sandwich.svg',  6, 2, 4.6, 54),
-  ('22222222-0000-0000-0000-000000000013', '11111111-1111-1111-1111-111111111103', 'Smoked Turkey Bagel',    'بيغل ديك رومي مدخن',        'Smoked turkey, swiss, mustard, on a fresh bagel',          'ديك رومي مدخن وسويسري وخردل في بيغل طازج',75, '/images/products/smoked-turkey-bagel.svg',  6, 3, 4.7, 48),
-  ('22222222-0000-0000-0000-000000000014', '11111111-1111-1111-1111-111111111103', 'Granola Bowl',           'وعاء جرانولا',           'House granola, yogurt, seasonal fruit, honey',             'جرانولا منزلية وزبادي وفواكه موسمية وعسل', 70, '/images/products/granola-bowl.svg',         5, 4, 4.8, 62),
-  ('22222222-0000-0000-0000-000000000015', '11111111-1111-1111-1111-111111111103', 'Acai Bowl',              'وعاء آساي',              'Acai, banana, granola, fresh berries',                     'آساي وموز وجرانولا وتوت طازج',           90, '/images/products/acai-bowl.svg',            5, 5, 4.9, 71),
-  ('22222222-0000-0000-0000-000000000016', '11111111-1111-1111-1111-111111111103', 'Spinach Feta Wrap',      'راب سبانخ وفيتا',          'Spinach, feta, sundried tomatoes in spinach tortilla',     'سبانخ وفيتا وطماطم مجففة في تورتيلا سبانخ', 75, '/images/products/spinach-feta-wrap.svg',    6, 6, 4.6, 38);
+  ('22222222-0000-0000-0000-000000000011', '11111111-1111-1111-1111-111111111108', 'Avocado Toast',          'توست أفوكادو',           'Sourdough, smashed avocado, chili flakes, lemon',          'خبز ساوردو وأفوكادو ورقائق فلفل وليمون',  80, '/images/products/breakfast.png',        7, 1, 4.7, 65),
+  ('22222222-0000-0000-0000-000000000012', '11111111-1111-1111-1111-111111111108', 'Egg & Cheese Sandwich',  'ساندويتش بيض وجبنة',       'Scrambled eggs, melted cheese, on a toasted bun',          'بيض مخفوق وجبنة ذائبة في خبز محمص',       65, '/images/products/breakfast.png',  6, 2, 4.6, 54),
+  ('22222222-0000-0000-0000-000000000013', '11111111-1111-1111-1111-111111111108', 'Smoked Turkey Bagel',    'بيغل ديك رومي مدخن',        'Smoked turkey, swiss, mustard, on a fresh bagel',          'ديك رومي مدخن وسويسري وخردل في بيغل طازج',75, '/images/products/breakfast.png',  6, 3, 4.7, 48),
+  ('22222222-0000-0000-0000-000000000014', '11111111-1111-1111-1111-111111111108', 'Granola Bowl',           'وعاء جرانولا',           'House granola, yogurt, seasonal fruit, honey',             'جرانولا منزلية وزبادي وفواكه موسمية وعسل', 70, '/images/products/breakfast.png',         5, 4, 4.8, 62),
+  ('22222222-0000-0000-0000-000000000015', '11111111-1111-1111-1111-111111111108', 'Acai Bowl',              'وعاء آساي',              'Acai, banana, granola, fresh berries',                     'آساي وموز وجرانولا وتوت طازج',           90, '/images/products/breakfast.png',            5, 5, 4.9, 71),
+  ('22222222-0000-0000-0000-000000000016', '11111111-1111-1111-1111-111111111108', 'Spinach Feta Wrap',      'راب سبانخ وفيتا',          'Spinach, feta, sundried tomatoes in spinach tortilla',     'سبانخ وفيتا وطماطم مجففة في تورتيلا سبانخ', 75, '/images/products/breakfast.png',    6, 6, 4.6, 38);
 
 -- Product options for coffee items (size, sugar, ice)
 -- Size for all coffees
 insert into product_options (product_id, group_name, name_en, name_ar, price_delta_egp, sort_order)
-select id, 'size'::option_group, 'Small', 'صغير', -5, 1 from products where category_id = '11111111-1111-1111-1111-111111111101';
+select id, 'size'::option_group, 'Small', 'صغير', -5, 1 from products where category_id in ('11111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111102', '11111111-1111-1111-1111-111111111103');
 insert into product_options (product_id, group_name, name_en, name_ar, price_delta_egp, sort_order)
-select id, 'size'::option_group, 'Medium', 'وسط', 0, 2 from products where category_id = '11111111-1111-1111-1111-111111111101';
+select id, 'size'::option_group, 'Medium', 'وسط', 0, 2 from products where category_id in ('11111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111102', '11111111-1111-1111-1111-111111111103');
 insert into product_options (product_id, group_name, name_en, name_ar, price_delta_egp, sort_order)
-select id, 'size'::option_group, 'Large', 'كبير', 10, 3 from products where category_id = '11111111-1111-1111-1111-111111111101';
+select id, 'size'::option_group, 'Large', 'كبير', 10, 3 from products where category_id in ('11111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111102', '11111111-1111-1111-1111-111111111103');
 
 -- Sugar for all coffees
 insert into product_options (product_id, group_name, name_en, name_ar, price_delta_egp, sort_order)
-select id, 'sugar'::option_group, 'Normal', 'عادي', 0, 1 from products where category_id = '11111111-1111-1111-1111-111111111101';
+select id, 'sugar'::option_group, 'Normal', 'عادي', 0, 1 from products where category_id in ('11111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111102', '11111111-1111-1111-1111-111111111103');
 insert into product_options (product_id, group_name, name_en, name_ar, price_delta_egp, sort_order)
-select id, 'sugar'::option_group, 'Less', 'أقل', 0, 2 from products where category_id = '11111111-1111-1111-1111-111111111101';
+select id, 'sugar'::option_group, 'Less', 'أقل', 0, 2 from products where category_id in ('11111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111102', '11111111-1111-1111-1111-111111111103');
 insert into product_options (product_id, group_name, name_en, name_ar, price_delta_egp, sort_order)
-select id, 'sugar'::option_group, 'No', 'بدون', 0, 3 from products where category_id = '11111111-1111-1111-1111-111111111101';
+select id, 'sugar'::option_group, 'No', 'بدون', 0, 3 from products where category_id in ('11111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111102', '11111111-1111-1111-1111-111111111103');
 
 -- Ice for cold coffees only (cold brew, americano)
 insert into product_options (product_id, group_name, name_en, name_ar, price_delta_egp, sort_order)

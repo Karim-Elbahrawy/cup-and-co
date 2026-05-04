@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Bell, Fingerprint, Globe, LogOut, Sparkles } from 'lucide-react';
 import { PageTransition } from '@/components/PageTransition';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { UserAvatar } from '@/components/UserAvatar';
 import { useSession, type Language } from '@/lib/session';
 import { useT } from '@/lib/i18n';
 import { api } from '@/lib/api';
@@ -31,7 +32,13 @@ export default function ProfilePage() {
       .then((data) => {
         if (cancelled) return;
         setPoints(data.points);
-        if (data.user) setUser({ ...data.user, fullName: user?.fullName, languagePref: language });
+        if (data.user)
+          setUser({
+            ...data.user,
+            fullName: user?.fullName,
+            avatarUrl: user?.avatarUrl ?? data.user.avatarUrl ?? null,
+            languagePref: language,
+          });
       })
       .catch(() => {
         // Silent — keeps cached session usable when the API is offline.
@@ -61,7 +68,7 @@ export default function ProfilePage() {
 
   return (
     <PageTransition>
-      <main className="flex flex-1 flex-col gap-6 px-5 pt-6">
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-5 pt-6">
         <header className="flex items-center justify-between">
           <Link
             href="/"
@@ -79,12 +86,12 @@ export default function ProfilePage() {
         {/* Profile card */}
         <section className="rounded-card bg-white p-5 shadow-card">
           <div className="flex items-center gap-4">
-            <div
-              aria-hidden="true"
-              className="cup-sunrise flex h-16 w-16 items-center justify-center rounded-2xl font-heading text-2xl font-bold text-white shadow-[0_8px_20px_rgba(194,65,12,0.25)]"
-            >
-              {(user.fullName ?? user.phone).slice(0, 1).toUpperCase()}
-            </div>
+            <UserAvatar
+              name={user.fullName ?? user.phone}
+              phone={user.phone}
+              avatarUrl={user.avatarUrl ?? null}
+              size="lg"
+            />
             <div className="min-w-0 flex-1">
               <input
                 type="text"
@@ -158,7 +165,7 @@ export default function ProfilePage() {
                 <span className="block text-sm font-semibold text-[var(--cup-espresso)]">
                   {t('profile.faceId')}
                 </span>
-                <span className="text-xs text-[var(--cup-muted)]">iOS only</span>
+                <span className="text-xs text-[var(--cup-muted)]">{t('profile.iOSOnly')}</span>
               </div>
             </div>
             <ToggleSwitch checked={false} disabled onChange={() => {}} ariaLabel={t('profile.faceId')} />

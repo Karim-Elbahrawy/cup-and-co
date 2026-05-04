@@ -23,6 +23,8 @@ export const en: Translations = {
     retry: 'Try Again',
     noResults: 'No results found',
     seeAll: 'See All',
+    notifications: 'Notifications',
+    activeOffers: 'Active Offers',
   },
   auth: {
     phoneNumber: 'Phone Number',
@@ -51,6 +53,7 @@ export const en: Translations = {
     superDiscount: 'Super Discount',
     offPercent: '% OFF',
     categories: {
+      all: 'All',
       coffee: 'Coffee',
       desserts: 'Desserts',
       breakfast: 'Breakfast',
@@ -94,6 +97,10 @@ export const en: Translations = {
     payWithWallet: 'Mobile Wallet',
     payWithCash: 'Cash on Pickup',
     placeOrder: 'Place Order',
+    couponCode: 'Coupon Code',
+    enterCode: 'Enter code',
+    apply: 'Apply',
+    couponDiscount: 'Coupon Discount',
   },
   orders: {
     myOrders: 'My Orders',
@@ -119,6 +126,9 @@ export const en: Translations = {
     redeemed: 'Redeemed',
     scanQr: 'Scan QR',
     scanQrMessage: 'Scan the QR code on your receipt to earn points',
+    noScores: 'No scores yet this week. Be the first!',
+    redeeming: 'Redeeming…',
+    noPrizes: 'No prizes yet. Play the game to win!',
   },
   games: {
     play: 'Play',
@@ -131,6 +141,11 @@ export const en: Translations = {
     gameOver: 'Game Over',
     score: 'Score',
     highScore: 'High Score',
+    preparing: 'Preparing game…',
+    instructions: 'How to play',
+    catchBeans: 'Catch beans — +10 pts each',
+    missBean: 'Miss a bean — lose a heart',
+    timeAndLives: '60 seconds · 3 hearts · earn loyalty points!',
   },
   profile: {
     myProfile: 'My Profile',
@@ -140,5 +155,6 @@ export const en: Translations = {
     notifications: 'Notifications',
     support: 'Support',
     about: 'About',
+    iOSOnly: 'iOS only',
   },
 };

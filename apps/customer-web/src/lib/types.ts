@@ -36,6 +36,8 @@ export interface SessionUser {
   phoneVerified: boolean;
   /** Optional client-side metadata only — not persisted server-side yet. */
   fullName?: string | null;
+  /** Optional avatar image URL for profile rendering. */
+  avatarUrl?: string | null;
   /** Preferred display language. Defaults to `'en'`. */
   languagePref?: 'en' | 'ar';
 }

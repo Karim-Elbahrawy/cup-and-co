@@ -59,7 +59,7 @@ export default function LoginPage() {
           <Logo showWordmark size={56} />
         </header>
 
-        <section className="mt-12 flex-1">
+        <section className="mx-auto mt-12 w-full max-w-md flex-1">
           <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--cup-espresso)]">
             Welcome back
           </h1>

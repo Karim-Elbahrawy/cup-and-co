@@ -45,7 +45,7 @@ export default function OrderHistoryPage() {
         <span className="w-10" aria-hidden="true" />
       </header>
 
-      <div className="mx-auto max-w-md px-5 pt-2">
+      <div className="mx-auto max-w-3xl px-5 pt-2">
         {error && (
           <div className="rounded-card border border-cup-error bg-white p-4 text-sm text-cup-error">
             {error}

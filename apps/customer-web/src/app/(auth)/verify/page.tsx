@@ -92,7 +92,7 @@ export default function VerifyPage() {
           <span className="h-10 w-10" aria-hidden="true" />
         </header>
 
-        <section className="mt-10 flex-1">
+        <section className="mx-auto mt-10 w-full max-w-md flex-1">
           <h1 className="font-heading text-3xl font-bold tracking-tight text-[var(--cup-espresso)]">
             Verify your number
           </h1>

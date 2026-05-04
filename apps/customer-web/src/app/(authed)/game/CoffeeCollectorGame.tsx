@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Trophy, Clock, Gamepad2, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import type { GameSession } from '@/lib/types';
 
 // ─── Canvas colours (Cup & Co palette) ──────────────────────────────────────
@@ -73,6 +74,7 @@ interface Props {
 }
 
 export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
+  const { t, language } = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<GameState | null>(null);
   const rafRef = useRef<number>(0);
@@ -404,26 +406,26 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
               <Gamepad2 className="h-10 w-10 text-cup-orange-600" />
             </span>
             <h1 className="font-heading text-2xl font-bold text-cup-brown-900">
-              Coffee Collector
+              {language === 'ar' ? 'جامع القهوة' : 'Coffee Collector'}
             </h1>
             <p className="mt-2 text-sm text-cup-muted">
-              Catch falling coffee beans with your cup!
+              {language === 'ar' ? 'اصطاد حبات القهوة المتساقطة بفنجانك!' : 'Catch falling coffee beans with your cup!'}
             </p>
 
             <div className="mt-6 w-full rounded-2xl border border-cup-stroke bg-white p-4 text-left shadow-subtle">
               <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-widest text-cup-muted">
-                How to play
+                {t('games.instructions')}
               </p>
               <ul className="space-y-1.5 text-sm text-cup-brown-900">
-                <li>• Move your mouse / finger to guide the cup</li>
-                <li>• Catch beans → <span className="font-semibold text-cup-orange-600">+10 pts</span> each</li>
-                <li>• Miss a bean → lose a <span className="font-semibold text-cup-error">heart</span></li>
-                <li>• 60 seconds · 3 hearts · earn loyalty points!</li>
+                <li>• {language === 'ar' ? 'حرك الماوس / إصبعك لتوجيه الفنجان' : 'Move your mouse / finger to guide the cup'}</li>
+                <li>• {t('games.catchBeans')}</li>
+                <li>• {t('games.missBean')}</li>
+                <li>• {t('games.timeAndLives')}</li>
               </ul>
             </div>
 
             <div className="mt-4 rounded-xl bg-cup-orange-500/10 px-4 py-2 text-sm font-semibold text-cup-orange-600">
-              Daily sessions left: {Math.max(0, dailyLeft)}
+              {language === 'ar' ? 'المحاولات المتبقية: ' : 'Daily sessions left: '}{Math.max(0, dailyLeft)}
             </div>
 
             <button
@@ -432,7 +434,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
               disabled={dailyLeft <= 0}
               className="mt-6 w-full rounded-2xl bg-cup-orange-500 py-4 font-heading text-base font-bold text-white shadow-elevated transition active:scale-[0.97] disabled:opacity-40"
             >
-              {dailyLeft <= 0 ? 'No sessions left today' : 'Play Now'}
+              {dailyLeft <= 0 ? (language === 'ar' ? 'لا توجد محاولات متبقية' : 'No sessions left today') : t('games.play')}
             </button>
 
             <button
@@ -440,7 +442,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
               onClick={onBack}
               className="mt-3 text-sm text-cup-muted underline-offset-2 hover:underline"
             >
-              Back to Rewards
+              {language === 'ar' ? 'العودة للمكافآت' : 'Back to Rewards'}
             </button>
           </motion.div>
         )}
@@ -460,11 +462,11 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
             <span className="mb-3 grid h-20 w-20 place-items-center rounded-3xl bg-cup-orange-500/10">
               <Trophy className="h-10 w-10 text-cup-orange-600" />
             </span>
-            <h2 className="font-heading text-2xl font-bold text-cup-brown-900">Game Over!</h2>
+            <h2 className="font-heading text-2xl font-bold text-cup-brown-900">{t('games.gameOver')}</h2>
 
             <div className="mt-4 w-full rounded-2xl border border-cup-stroke bg-white p-5 shadow-subtle">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-cup-muted">
-                Final Score
+                {language === 'ar' ? 'النتيجة النهائية' : 'Final Score'}
               </p>
               <p className="mt-1 font-heading text-5xl font-bold text-cup-brown-900">
                 {finalScore}
@@ -474,7 +476,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
                 {submitting && (
                   <div className="flex items-center justify-center gap-2 text-sm text-cup-muted">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-cup-orange-500 border-t-transparent" />
-                    Saving score…
+                    {language === 'ar' ? 'جاري حفظ النتيجة…' : 'Saving score…'}
                   </div>
                 )}
                 {!submitting && pointsAwarded !== null && (
@@ -483,7 +485,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
                     animate={{ opacity: 1, y: 0 }}
                     className="font-heading text-lg font-semibold text-cup-teal-700"
                   >
-                    +{pointsAwarded} loyalty points earned!
+                    +{pointsAwarded} {language === 'ar' ? 'نقاط ولاء مكتسبة!' : 'loyalty points earned!'}
                   </motion.p>
                 )}
                 {!submitting && submitError && (
@@ -498,7 +500,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
                 onClick={onBack}
                 className="flex-1 rounded-2xl border border-cup-stroke bg-white py-3.5 font-heading text-sm font-semibold text-cup-brown-900 shadow-subtle transition active:scale-[0.97]"
               >
-                Back
+                {t('common.back')}
               </button>
               <button
                 type="button"
@@ -506,7 +508,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
                 disabled={dailyLeft <= 0 || submitting}
                 className="flex-1 rounded-2xl bg-cup-orange-500 py-3.5 font-heading text-sm font-bold text-white shadow-elevated transition active:scale-[0.97] disabled:opacity-40"
               >
-                Play Again
+                {language === 'ar' ? 'العب مجدداً' : 'Play Again'}
               </button>
             </div>
           </motion.div>
@@ -517,7 +519,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
       {screen === 'playing' && (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between px-4 py-3">
           <span className="rounded-xl bg-white/80 px-3 py-1.5 font-heading text-sm font-bold text-cup-brown-900 shadow-subtle backdrop-blur-sm">
-            {liveScore} pts
+            {liveScore} {language === 'ar' ? 'نقطة' : 'pts'}
           </span>
           <span
             className={`flex items-center gap-1 rounded-xl px-3 py-1.5 font-heading text-sm font-bold shadow-subtle backdrop-blur-sm ${
@@ -527,7 +529,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
             }`}
           >
             <Clock className="h-3.5 w-3.5" />
-            {liveTime}s
+            {liveTime}{language === 'ar' ? 'ث' : 's'}
           </span>
           <span className="flex items-center gap-0.5 rounded-xl bg-white/80 px-3 py-1.5 shadow-subtle backdrop-blur-sm">
             {Array.from({ length: MAX_LIVES }).map((_, i) => (

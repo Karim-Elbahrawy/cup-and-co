@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, ShoppingBag, Sparkles, User } from 'lucide-react';
+import { Home, RotateCcw, ShoppingBag, Sparkles, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface NavItem {
@@ -15,7 +15,7 @@ interface NavItem {
 
 const ITEMS: NavItem[] = [
   { href: '/', label: 'Home', icon: Home, exact: true },
-  { href: '/search', label: 'Search', icon: Search },
+  { href: '/usual', label: 'Usual', icon: RotateCcw },
   { href: '/cart', label: 'Cart', icon: ShoppingBag },
   { href: '/rewards', label: 'Rewards', icon: Sparkles },
   { href: '/profile', label: 'Profile', icon: User },
@@ -35,7 +35,7 @@ export function BottomNav() {
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--cup-stroke)] bg-white/95 backdrop-blur-md shadow-[0_-4px_16px_rgba(28,25,23,0.06)]"
     >
-      <ul className="mx-auto flex max-w-md items-stretch justify-around px-2 py-2 pb-[max(env(safe-area-inset-bottom),8px)]">
+      <ul className="mx-auto flex max-w-7xl items-stretch justify-around px-2 py-2 pb-[max(env(safe-area-inset-bottom),8px)] md:justify-center md:gap-16">
         {ITEMS.map(({ href, label, icon: Icon, exact }) => {
           const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
           return (

@@ -4,7 +4,7 @@
   "description": "Your morning, handled.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FAF6F0",
+  "background_color": "#F7F7F5",
   "theme_color": "#C2410C",
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },

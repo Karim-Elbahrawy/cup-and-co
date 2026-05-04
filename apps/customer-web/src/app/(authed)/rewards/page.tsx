@@ -103,7 +103,7 @@ export default function RewardsPage() {
 
       {/* Error state */}
       {error && !data && (
-        <div className="mx-auto max-w-md px-5 pt-4">
+        <div className="mx-auto max-w-3xl px-5 pt-4">
           <div className="rounded-2xl border border-cup-error bg-white p-6 text-center text-cup-error">
             <p className="font-semibold">{t('common.error')}</p>
             <p className="mt-1 text-sm">{error}</p>
@@ -113,7 +113,7 @@ export default function RewardsPage() {
 
       {/* Loading */}
       {!data && !error && (
-        <div className="mx-auto max-w-md space-y-4 px-5 pt-4">
+        <div className="mx-auto max-w-3xl space-y-4 px-5 pt-4">
           <div className="h-40 animate-pulse rounded-2xl bg-cup-stroke" />
           <div className="h-14 animate-pulse rounded-2xl bg-cup-stroke" />
           <div className="space-y-2">
@@ -125,7 +125,7 @@ export default function RewardsPage() {
       )}
 
       {data && (
-        <div className="mx-auto max-w-md px-5 pt-2">
+        <div className="mx-auto max-w-3xl px-5 pt-2">
           {/* Points balance hero */}
           <motion.section
             initial={{ opacity: 0, y: 16 }}
@@ -345,6 +345,7 @@ function LeaderboardSection({
   me: LeaderboardMeResponse | null;
   userId?: string;
 }) {
+  const { t, language } = useT();
   if (!leaderboard) return null;
 
   const top10 = leaderboard.entries.slice(0, 10);
@@ -354,7 +355,7 @@ function LeaderboardSection({
       <div className="flex items-center gap-2">
         <Trophy className="h-5 w-5 text-cup-orange-600" />
         <h2 className="font-heading text-base font-bold text-cup-brown-900">
-          Weekly Leaderboard
+          {language === 'ar' ? 'لوحة المتصدرين الأسبوعية' : 'Weekly Leaderboard'}
         </h2>
       </div>
 
@@ -370,9 +371,9 @@ function LeaderboardSection({
         ))}
       </div>
 
-      {top10.length === 0 ? (
+        {top10.length === 0 ? (
         <div className="mt-3 rounded-2xl border border-cup-stroke bg-white p-6 text-center shadow-subtle">
-          <p className="text-sm text-cup-muted">No scores yet this week. Be the first!</p>
+          <p className="text-sm text-cup-muted">{t('loyalty.noScores')}</p>
         </div>
       ) : (
         <motion.ul
@@ -401,7 +402,7 @@ function LeaderboardSection({
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-heading text-sm font-semibold text-cup-brown-900">
-                    {isMe ? 'You' : `…${entry.userId.slice(-6)}`}
+                    {isMe ? (language === 'ar' ? 'أنت' : 'You') : `…${entry.userId.slice(-6)}`}
                   </p>
                   {RANK_PRIZE[entry.rank] && (
                     <p className="text-[10px] text-cup-muted">{RANK_PRIZE[entry.rank]}</p>

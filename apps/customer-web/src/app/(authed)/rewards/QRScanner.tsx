@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 interface QRScannerProps {
   open: boolean;
@@ -21,6 +22,7 @@ type ScanState =
   | { kind: 'unsupported' };
 
 export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
+  const { t, language } = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [state, setState] = useState<ScanState>({ kind: 'idle' });
@@ -147,7 +149,7 @@ export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
               <button
                 type="button"
                 onClick={handleClose}
-                aria-label="Close scanner"
+                aria-label={language === 'ar' ? 'إغلاق الماسح' : 'Close scanner'}
                 className="grid h-8 w-8 place-items-center rounded-full bg-cup-paper text-cup-brown-900 transition active:scale-95"
               >
                 <X className="h-4 w-4" />
@@ -192,7 +194,7 @@ export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
               {state.kind === 'submitting' && (
                 <div className="flex items-center justify-center gap-2">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-cup-orange-500 border-t-transparent" />
-                  <p className="text-sm text-cup-muted">Redeeming...</p>
+                  <p className="text-sm text-cup-muted">{t('loyalty.redeeming')}</p>
                 </div>
               )}
 
@@ -200,14 +202,14 @@ export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
                 <div className="flex flex-col items-center gap-2">
                   <CheckCircle className="h-8 w-8 text-cup-teal-600" />
                   <p className="font-heading text-base font-semibold text-cup-brown-900">
-                    +{state.points} points earned!
+                    +{state.points} {language === 'ar' ? 'نقاط مكتسبة!' : 'points earned!'}
                   </p>
                   <button
                     type="button"
                     onClick={handleClose}
                     className="mt-1 rounded-full bg-cup-orange-500 px-6 py-2.5 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-95"
                   >
-                    Done
+                    {t('common.done')}
                   </button>
                 </div>
               )}

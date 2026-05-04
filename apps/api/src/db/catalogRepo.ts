@@ -19,33 +19,38 @@ import { config } from '../config.js';
  */
 const FALLBACK: CatalogResponse = {
   categories: [
-    { id: 'cat-coffee',    slug: 'coffee',    name_en: 'Coffee',    name_ar: 'قهوة',   sort_order: 1 },
-    { id: 'cat-desserts',  slug: 'desserts',  name_en: 'Desserts',  name_ar: 'حلويات', sort_order: 2 },
-    { id: 'cat-breakfast', slug: 'breakfast', name_en: 'Breakfast', name_ar: 'فطور',   sort_order: 3 },
+    { id: '11111111-1111-1111-1111-111111111101', slug: 'hot_coffee',  name_en: 'Hot Coffee',  name_ar: 'قهوة ساخنة', sort_order: 1 },
+    { id: '11111111-1111-1111-1111-111111111102', slug: 'cold_coffee', name_en: 'Cold Coffee', name_ar: 'قهوة باردة', sort_order: 2 },
+    { id: '11111111-1111-1111-1111-111111111103', slug: 'milk_coffee', name_en: 'Milk Coffee', name_ar: 'قهوة بالحليب', sort_order: 3 },
+    { id: '11111111-1111-1111-1111-111111111104', slug: 'hot_teas',    name_en: 'Hot Teas',    name_ar: 'شاي ساخن',   sort_order: 4 },
+    { id: '11111111-1111-1111-1111-111111111105', slug: 'hot_drinks',  name_en: 'Hot Drinks',  name_ar: 'مشروبات ساخنة', sort_order: 5 },
+    { id: '11111111-1111-1111-1111-111111111106', slug: 'blended',     name_en: 'Blended',     name_ar: 'مخلوط',      sort_order: 6 },
+    { id: '11111111-1111-1111-1111-111111111107', slug: 'desserts',    name_en: 'Desserts',    name_ar: 'حلويات',      sort_order: 7 },
+    { id: '11111111-1111-1111-1111-111111111108', slug: 'breakfast',   name_en: 'Breakfast',   name_ar: 'فطور',        sort_order: 8 },
   ],
   products: [
-    p('velvet-cappuccino',  'cat-coffee',    'Velvet Cappuccino',     'كابتشينو فيلفيت',     'Silky steamed milk · cocoa dust',                65, 4.9, 128),
-    p('caramel-macchiato',  'cat-coffee',    'Caramel Macchiato',     'كراميل ماكياتو',       'Espresso · vanilla · caramel drizzle',           70, 4.8, 96),
-    p('honey-latte',        'cat-coffee',    'Honey Latte',           'لاتيه عسل',           'Local honey · espresso · steamed milk',           68, 4.7, 64),
-    p('vanilla-cold-brew',  'cat-coffee',    'Vanilla Cold Brew',     'كولد برو فانيليا',     '12-hour cold brew · vanilla · over ice',          62, 4.8, 82),
-    p('espresso-romano',    'cat-coffee',    'Espresso Romano',       'إسبريسو رومانو',       'Double shot · twist of lemon',                    45, 4.6, 41),
-    p('iced-americano',     'cat-coffee',    'Iced Americano',        'أمريكانو مثلج',       'Long espresso shaken over ice',                   50, 4.7, 73),
-    p('mocha-royale',       'cat-coffee',    'Mocha Royale',          'موكا رويال',           'Dark chocolate ganache · espresso · milk',        75, 4.9, 110, 6),
-    p('hazelnut-latte',     'cat-coffee',    'Hazelnut Latte',        'لاتيه بندق',          'Roasted hazelnut syrup · espresso · milk',        68, 4.6, 58),
-    p('spanish-latte',      'cat-coffee',    'Spanish Latte',         'لاتيه إسباني',         'Espresso · condensed milk · steamed milk',        70, 4.8, 92),
-    p('flat-white',         'cat-coffee',    'Flat White',            'فلات وايت',            'Double ristretto · silky microfoam',              63, 4.7, 67),
-    p('tiramisu-cup',       'cat-desserts',  'Tiramisu Cup',          'كأس تيراميسو',         'Mascarpone · espresso ladyfingers · cocoa',       85, 4.9, 88, 2),
-    p('brownie-bar',        'cat-desserts',  'Brownie Bar',           'براوني',                'Fudgy double-chocolate brownie',                  55, 4.7, 74, 2),
-    p('almond-croissant',   'cat-desserts',  'Almond Croissant',      'كرواسون لوز',           'Buttery croissant · almond cream',                60, 4.8, 56, 2),
-    p('cheesecake-slice',   'cat-desserts',  'Cheesecake Slice',      'تشيز كيك',              'New York style · berry compote',                  70, 4.8, 81, 2),
-    p('chocolate-tart',     'cat-desserts',  'Chocolate Tart',        'تارت شوكولاتة',          'Dark chocolate ganache · butter pastry',          65, 4.7, 49, 2),
-    p('cinnamon-roll',      'cat-desserts',  'Cinnamon Roll',         'سينامون رول',            'Warm cinnamon · cream cheese glaze',              50, 4.6, 42, 2),
-    p('avocado-toast',      'cat-breakfast', 'Avocado Toast',         'توست أفوكادو',           'Sourdough · smashed avocado · chili · lemon',    80, 4.7, 65, 7),
-    p('egg-cheese-sandwich','cat-breakfast', 'Egg & Cheese Sandwich', 'ساندويتش بيض وجبنة',     'Scrambled eggs · melted cheese · toasted bun',   65, 4.6, 54, 6),
-    p('smoked-turkey-bagel','cat-breakfast', 'Smoked Turkey Bagel',   'بيغل ديك رومي مدخن',     'Smoked turkey · swiss · mustard · fresh bagel',  75, 4.7, 48, 6),
-    p('granola-bowl',       'cat-breakfast', 'Granola Bowl',          'وعاء جرانولا',           'House granola · yogurt · seasonal fruit · honey',70, 4.8, 62, 5),
-    p('acai-bowl',          'cat-breakfast', 'Acai Bowl',             'وعاء آساي',              'Acai · banana · granola · fresh berries',         90, 4.9, 71, 5),
-    p('spinach-feta-wrap',  'cat-breakfast', 'Spinach Feta Wrap',     'راب سبانخ وفيتا',         'Spinach · feta · sundried tomato · spinach tortilla', 75, 4.6, 38, 6),
+    p('22222222-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111103', 'Velvet Cappuccino',  'كابتشينو فيلفيت',     'Silky steamed milk over a double shot, dusted with cocoa', 65, '/images/products/hot_coffee.png', 5, 1, 4.9, 128),
+    p('22222222-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111103', 'Caramel Macchiato',  'كراميل ماكياتو',       'Espresso, vanilla, foam, and a caramel drizzle',           70, '/images/products/hot_coffee.png', 5, 2, 4.8, 96),
+    p('22222222-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111103', 'Honey Latte',        'لاتيه عسل',           'Local honey blended with espresso and steamed milk',       68, '/images/products/hot_coffee.png', 5, 3, 4.7, 64),
+    p('22222222-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111102', 'Vanilla Cold Brew',  'كولد برو فانيليا',     '12-hour cold brew, vanilla, over ice',                     62, '/images/products/cold_coffee.png', 3, 4, 4.8, 82),
+    p('22222222-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111101', 'Espresso Romano',    'إسبريسو رومانو',       'Double shot with a twist of lemon',                        45, '/images/products/hot_coffee.png', 3, 5, 4.6, 41),
+    p('22222222-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111102', 'Iced Americano',     'أمريكانو مثلج',       'Long espresso shaken over ice',                            50, '/images/products/cold_coffee.png', 3, 6, 4.7, 73),
+    p('22222222-0000-0000-0000-000000000007', '11111111-1111-1111-1111-111111111103', 'Mocha Royale',       'موكا رويال',           'Dark chocolate ganache, espresso, milk',                   75, '/images/products/hot_coffee.png', 6, 7, 4.9, 110),
+    p('22222222-0000-0000-0000-000000000008', '11111111-1111-1111-1111-111111111103', 'Hazelnut Latte',     'لاتيه بندق',          'Roasted hazelnut syrup, espresso, milk',                   68, '/images/products/hot_coffee.png', 5, 8, 4.6, 58),
+    p('22222222-0000-0000-0000-000000000009', '11111111-1111-1111-1111-111111111103', 'Spanish Latte',      'لاتيه إسباني',         'Espresso, condensed milk, steamed milk',                   70, '/images/products/hot_coffee.png', 5, 9, 4.8, 92),
+    p('22222222-0000-0000-0000-00000000000A', '11111111-1111-1111-1111-111111111103', 'Flat White',         'فلات وايت',            'Double ristretto under silky microfoam',                   63, '/images/products/hot_coffee.png', 5, 10, 4.7, 67),
+    p('22222222-0000-0000-0000-00000000000B', '11111111-1111-1111-1111-111111111107', 'Tiramisu Cup',         'كأس تيراميسو',         'Mascarpone, espresso-soaked ladyfingers, cocoa',           85, '/images/products/dessert.png', 2, 1, 4.9, 88),
+    p('22222222-0000-0000-0000-00000000000C', '11111111-1111-1111-1111-111111111107', 'Brownie Bar',          'براوني',                'Fudgy double-chocolate brownie',                           55, '/images/products/dessert.png', 2, 2, 4.7, 74),
+    p('22222222-0000-0000-0000-00000000000D', '11111111-1111-1111-1111-111111111107', 'Almond Croissant',     'كرواسون لوز',           'Buttery croissant filled with almond cream',               60, '/images/products/dessert.png', 2, 3, 4.8, 56),
+    p('22222222-0000-0000-0000-00000000000E', '11111111-1111-1111-1111-111111111107', 'Cheesecake Slice',     'تشيز كيك',              'New York style cheesecake, berry compote',                 70, '/images/products/dessert.png', 2, 4, 4.8, 81),
+    p('22222222-0000-0000-0000-00000000000F', '11111111-1111-1111-1111-111111111107', 'Chocolate Tart',       'تارت شوكولاتة',          'Dark chocolate ganache in butter pastry',                  65, '/images/products/dessert.png', 2, 5, 4.7, 49),
+    p('22222222-0000-0000-0000-000000000010', '11111111-1111-1111-1111-111111111107', 'Cinnamon Roll',        'سينامون رول',            'Warm cinnamon roll with cream cheese glaze',               50, '/images/products/dessert.png', 2, 6, 4.6, 42),
+    p('22222222-0000-0000-0000-000000000011', '11111111-1111-1111-1111-111111111108', 'Avocado Toast',          'توست أفوكادو',           'Sourdough, smashed avocado, chili flakes, lemon',          80, '/images/products/breakfast.png', 7, 1, 4.7, 65),
+    p('22222222-0000-0000-0000-000000000012', '11111111-1111-1111-1111-111111111108', 'Egg & Cheese Sandwich',  'ساندويتش بيض وجبنة',       'Scrambled eggs, melted cheese, on a toasted bun',          65, '/images/products/breakfast.png', 6, 2, 4.6, 54),
+    p('22222222-0000-0000-0000-000000000013', '11111111-1111-1111-1111-111111111108', 'Smoked Turkey Bagel',    'بيغل ديك رومي مدخن',        'Smoked turkey, swiss, mustard, on a fresh bagel',          75, '/images/products/breakfast.png', 6, 3, 4.7, 48),
+    p('22222222-0000-0000-0000-000000000014', '11111111-1111-1111-1111-111111111108', 'Granola Bowl',           'وعاء جرانولا',           'House granola, yogurt, seasonal fruit, honey',             70, '/images/products/breakfast.png', 5, 4, 4.8, 62),
+    p('22222222-0000-0000-0000-000000000015', '11111111-1111-1111-1111-111111111108', 'Acai Bowl',              'وعاء آساي',              'Acai, banana, granola, fresh berries',                     90, '/images/products/breakfast.png', 5, 5, 4.9, 71),
+    p('22222222-0000-0000-0000-000000000016', '11111111-1111-1111-1111-111111111108', 'Spinach Feta Wrap',      'راب سبانخ وفيتا',          'Spinach, feta, sundried tomatoes in spinach tortilla',     75, '/images/products/breakfast.png', 6, 6, 4.6, 38),
   ],
   offers: [
     {
@@ -75,28 +80,30 @@ const FALLBACK: CatalogResponse = {
 };
 
 function p(
-  slug: string,
+  id: string,
   category_id: string,
   name_en: string,
   name_ar: string,
   description_en: string,
   base_price_egp: number,
+  image_url: string,
+  prep_minutes = 5,
+  sort_order = 0,
   rating_avg = 4.7,
   rating_count = 0,
-  prep_minutes = 5,
 ): Product {
   return {
-    id: slug,
+    id,
     category_id,
     name_en,
     name_ar,
     description_en,
     description_ar: '',
     base_price_egp,
-    image_url: `/images/products/${slug}.svg`,
+    image_url,
     prep_minutes,
     is_available: true,
-    sort_order: 0,
+    sort_order,
     rating_avg,
     rating_count,
   };
@@ -120,8 +127,9 @@ const ICE_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
 function fallbackOptionsFor(productId: string): ProductOption[] {
   const product = FALLBACK.products.find((x) => x.id === productId);
   if (!product) return [];
-  if (product.category_id === 'cat-coffee') {
-    const isCold = productId === 'vanilla-cold-brew' || productId === 'iced-americano';
+  const coffeeCategories = ['11111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111102', '11111111-1111-1111-1111-111111111103'];
+  if (coffeeCategories.includes(product.category_id)) {
+    const isCold = product.category_id === '11111111-1111-1111-1111-111111111102';
     const all: Omit<ProductOption, 'product_id' | 'id'>[] = isCold
       ? [...COFFEE_OPTIONS, ...ICE_OPTIONS]
       : COFFEE_OPTIONS;

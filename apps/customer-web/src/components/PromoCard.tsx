@@ -1,52 +1,81 @@
 'use client';
 
+import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
 
 interface PromoCardProps {
-  eyebrow: string;
-  headline: string;
-  subtitle: string;
   ctaLabel: string;
+  featuredImageUrl?: string | null;
+  posterImageUrl: string;
+  theme?: 'cold' | 'hot';
   onCtaClick?: () => void;
 }
 
 /**
- * Hero promo card. Uses the `cup-sunrise` gradient utility for the surface,
- * a generous 20px radius, warm terracotta-tinted shadow, and two slowly
- * pulsing decorative blobs. Respects `prefers-reduced-motion`.
+ * Poster-led promo card. The poster is generated first as a single SVG layer,
+ * then the cutout cup sits on top as the only animated element.
  */
-export function PromoCard({ eyebrow, headline, subtitle, ctaLabel, onCtaClick }: PromoCardProps) {
+export function PromoCard({
+  ctaLabel,
+  featuredImageUrl,
+  posterImageUrl,
+  theme = 'cold',
+  onCtaClick,
+}: PromoCardProps) {
   const reduce = useReducedMotion();
+  const isCold = theme === 'cold';
 
   return (
     <section
-      className="cup-sunrise relative overflow-hidden rounded-[20px] p-6 text-white shadow-[0_12px_32px_rgba(194,65,12,0.22)]"
       aria-label="Promotional offer"
+      className="relative isolate min-h-[390px] overflow-hidden rounded-[30px] border border-[rgba(120,86,55,0.14)] shadow-[0_22px_48px_rgba(61,41,20,0.16)]"
     >
-      <p className="text-[11px] font-medium uppercase tracking-[0.2em] opacity-95">{eyebrow}</p>
-      <p className="mt-1.5 font-heading text-4xl font-bold leading-tight tracking-tight">{headline}</p>
-      <p className="mt-1 text-sm opacity-95">{subtitle}</p>
-      <button
-        type="button"
-        onClick={onCtaClick}
-        className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[var(--cup-primary)] shadow-[0_4px_12px_rgba(28,25,23,0.15)] transition-all hover:bg-[var(--cup-cream)] active:scale-[0.97]"
-      >
-        {ctaLabel}
-        <span aria-hidden="true">→</span>
-      </button>
+      <Image
+        src={posterImageUrl}
+        alt=""
+        fill
+        sizes="(max-width: 768px) 100vw, 420px"
+        className="object-cover"
+        priority={false}
+      />
 
-      <motion.div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/15 blur-2xl"
-        animate={reduce ? undefined : { scale: [1, 1.12, 1], opacity: [0.5, 0.7, 0.5] }}
-        transition={reduce ? undefined : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-14 -left-8 h-40 w-40 rounded-full bg-white/10 blur-2xl"
-        animate={reduce ? undefined : { scale: [1.05, 0.95, 1.05], opacity: [0.4, 0.6, 0.4] }}
-        transition={reduce ? undefined : { duration: 3.6, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
-      />
+      {featuredImageUrl ? (
+        <motion.div
+          className={`pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 ${
+            isCold
+              ? 'bottom-[58px] h-[270px] w-[270px] sm:bottom-[56px] sm:h-[292px] sm:w-[292px]'
+              : 'bottom-[78px] h-[220px] w-[220px] sm:bottom-[74px] sm:h-[236px] sm:w-[236px]'
+          }`}
+          animate={
+            reduce
+              ? undefined
+              : isCold
+                ? { y: [0, -7, 0], rotate: [-7, -4, -7] }
+                : { y: [0, -5, 0], rotate: [0, 2, 0], scale: [1, 1.02, 1] }
+          }
+          transition={reduce ? undefined : { duration: 4.8, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <Image
+            src={featuredImageUrl}
+            alt=""
+            fill
+            sizes="274px"
+            className="object-contain drop-shadow-[0_24px_34px_rgba(61,41,20,0.28)]"
+            priority={false}
+          />
+        </motion.div>
+      ) : null}
+
+      <div className="relative z-30 flex min-h-[390px] items-end justify-end p-5">
+        <button
+          type="button"
+          onClick={onCtaClick}
+          className="inline-flex items-center gap-2 rounded-full bg-[rgba(28,25,23,0.92)] px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-white shadow-[0_10px_22px_rgba(28,25,23,0.22)] backdrop-blur-sm transition active:scale-[0.98]"
+        >
+          {ctaLabel}
+          <span aria-hidden="true">-&gt;</span>
+        </button>
+      </div>
     </section>
   );
 }
