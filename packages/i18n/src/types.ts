@@ -49,6 +49,7 @@ export interface Translations {
     superDiscount: string;
     offPercent: string;
     categories: {
+      all: string;
       coffee: string;
       desserts: string;
       breakfast: string;

@@ -14,7 +14,7 @@ type PaymentMethod = 'paymob_card' | 'paymob_wallet' | 'cash';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { t } = useT();
+  const { t, language } = useT();
 
   const items = useCart((s) => s.items);
   const redeemPoints = useCart((s) => s.redeemPoints);
@@ -24,6 +24,8 @@ export default function CheckoutPage() {
   const [scheduled, setScheduled] = useState<string>(''); // empty = ASAP
   const [payment, setPayment] = useState<PaymentMethod>('cash');
   const [notes, setNotes] = useState('');
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,8 +37,8 @@ export default function CheckoutPage() {
   }, [items.length, router]);
 
   const subtotal = cartSubtotal(items);
-  const discount = Math.min(Math.floor(redeemPoints / 100) * 5, subtotal);
-  const total = Math.max(0, subtotal - discount);
+  const pointsDiscount = Math.min(Math.floor(redeemPoints / 100) * 5, subtotal);
+  const total = Math.max(0, subtotal - pointsDiscount - couponDiscount);
 
   async function placeOrder() {
     setSubmitting(true);
@@ -89,7 +91,7 @@ export default function CheckoutPage() {
         <span className="w-10" aria-hidden="true" />
       </header>
 
-      <div className="mx-auto max-w-md space-y-5 px-5 pt-2">
+      <div className="mx-auto max-w-3xl space-y-5 px-5 pt-2">
         {/* Fulfillment */}
         <Section label={t('checkout.fulfillment')}>
           <Segmented
@@ -157,11 +159,44 @@ export default function CheckoutPage() {
           />
         </Section>
 
+        {/* Coupon */}
+        <Section label={language === 'ar' ? 'كوبون الخصم' : 'Coupon Code'}>
+          <div className="flex gap-2">
+            <input
+              value={couponCode}
+              onChange={(e) => {
+                setCouponCode(e.target.value);
+                setCouponDiscount(0);
+              }}
+              placeholder={language === 'ar' ? 'أدخل الكود' : 'Enter code'}
+              className="flex-1 rounded-lg border border-cup-stroke bg-white px-3 py-2 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                // Phase 5 MVP: client-side placeholder. Wire to /coupons/validate in Phase 6.
+                if (couponCode.trim().toUpperCase() === 'STUDENT15') {
+                  setCouponDiscount(Math.floor(subtotal * 0.15));
+                } else {
+                  setCouponDiscount(0);
+                  setError(language === 'ar' ? 'كود غير صالح' : 'Invalid coupon code');
+                }
+              }}
+              className="rounded-pill bg-cup-orange-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cup-orange-700"
+            >
+              {language === 'ar' ? 'تطبيق' : 'Apply'}
+            </button>
+          </div>
+        </Section>
+
         {/* Summary */}
         <section className="rounded-card border border-cup-stroke bg-white p-5 shadow-subtle">
           <Row label={t('cart.subtotal')} value={`EGP ${subtotal}`} />
-          {discount > 0 && (
-            <Row label={t('cart.discount')} value={`- EGP ${discount}`} color="text-cup-success" />
+          {pointsDiscount > 0 && (
+            <Row label={t('cart.discount')} value={`- EGP ${pointsDiscount}`} color="text-cup-success" />
+          )}
+          {couponDiscount > 0 && (
+            <Row label={language === 'ar' ? 'خصم الكوبون' : 'Coupon Discount'} value={`- EGP ${couponDiscount}`} color="text-cup-success" />
           )}
           <hr className="my-2 border-cup-stroke" />
           <Row label={t('cart.total')} value={`EGP ${total}`} bold />
@@ -183,7 +218,7 @@ export default function CheckoutPage() {
           type="button"
           onClick={placeOrder}
           disabled={submitting}
-          className="flex w-full items-center justify-center rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98] disabled:opacity-70"
+          className="mx-auto flex w-full max-w-3xl items-center justify-center rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98] disabled:opacity-70"
         >
           {submitting ? 'Placing order…' : `${t('checkout.placeOrder')} — EGP ${total}`}
         </button>

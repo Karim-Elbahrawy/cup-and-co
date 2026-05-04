@@ -2,31 +2,21 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, GraduationCap, BookOpen, Briefcase } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PromoCard } from '@/components/PromoCard';
 import { ProductCard } from '@/components/ProductCard';
-import { RoleChip } from '@/components/RoleChip';
+import { CategoryChip } from '@/components/CategoryChip';
 import { SearchBar } from '@/components/SearchBar';
 import { PageTransition } from '@/components/PageTransition';
 import { LoadingDots } from '@/components/LoadingDots';
+import { UserAvatar } from '@/components/UserAvatar';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { useT } from '@/lib/i18n';
-import type { CatalogResponse, UserRole } from '@/lib/types';
+import type { CatalogResponse } from '@/lib/types';
 
-type SelectableRole = 'student' | 'faculty' | 'office';
 
-const ROLE_OPTIONS: { role: SelectableRole; icon: LucideIcon }[] = [
-  { role: 'student', icon: GraduationCap },
-  { role: 'faculty', icon: BookOpen },
-  { role: 'office',  icon: Briefcase },
-];
-
-function defaultSelectableRole(role: UserRole | undefined): SelectableRole {
-  return role === 'faculty' || role === 'office' ? role : 'student';
-}
 
 export default function HomePage() {
   const { t, language } = useT();
@@ -37,7 +27,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [activeRole, setActiveRole] = useState<SelectableRole>(defaultSelectableRole(user?.role));
+  const [activeCategory, setActiveCategory] = useState<string>('all');
 
   useEffect(() => {
     let cancelled = false;
@@ -65,12 +55,33 @@ export default function HomePage() {
     return user.phone ? `+…${user.phone.slice(-4)}` : 'there';
   }, [user]);
 
-  const popularOffer = catalog?.offers[0] ?? null;
+  const featuredPromoProduct = useMemo(() => {
+    if (!catalog) return null;
+    return (
+      catalog.products.find((product) => product.image_url.includes('cold_coffee')) ??
+      catalog.products.find((product) => product.image_url.includes('hot_coffee')) ??
+      catalog.products[0] ??
+      null
+    );
+  }, [catalog]);
+  const featuredPromoCutout = useMemo(() => {
+    if (!featuredPromoProduct) return null;
+    return featuredPromoProduct.image_url.replace('.png', '-cutout.png');
+  }, [featuredPromoProduct]);
+  const promoTheme = featuredPromoProduct?.image_url.includes('cold_coffee') ? 'cold' : 'hot';
+  const promoPosterImage = useMemo(() => {
+    const locale = language === 'ar' ? 'ar' : 'en';
+    const kind = promoTheme === 'cold' ? 'cold' : 'hot';
+    return `/brand/posters/offer-${kind}-${locale}.svg`;
+  }, [language, promoTheme]);
 
   const filteredProducts = useMemo(() => {
     if (!catalog) return [];
     const query = search.trim().toLowerCase();
     let products = catalog.products.filter((p) => p.is_available);
+    if (activeCategory !== 'all') {
+      products = products.filter((p) => p.category_id === activeCategory);
+    }
     if (query) {
       products = products.filter((p) =>
         (language === 'ar' ? p.name_ar : p.name_en).toLowerCase().includes(query),
@@ -78,7 +89,7 @@ export default function HomePage() {
     }
     // Sort by rating × count to surface the genuinely popular items at the top.
     return [...products].sort((a, b) => b.rating_avg * (b.rating_count + 1) - a.rating_avg * (a.rating_count + 1));
-  }, [catalog, search, language]);
+  }, [catalog, search, language, activeCategory]);
 
   return (
     <PageTransition>
@@ -86,12 +97,13 @@ export default function HomePage() {
         {/* Greeting + bell */}
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div
-              aria-hidden="true"
-              className="cup-sunrise flex h-11 w-11 items-center justify-center rounded-2xl text-base font-bold text-white shadow-[0_6px_16px_rgba(194,65,12,0.25)]"
-            >
-              {firstName.slice(0, 1).toUpperCase()}
-            </div>
+            <UserAvatar
+              name={user?.fullName ?? user?.phone ?? firstName}
+              phone={user?.phone}
+              avatarUrl={user?.avatarUrl ?? null}
+              size="sm"
+              className="shadow-[0_6px_16px_rgba(194,65,12,0.25)]"
+            />
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--cup-muted)]">
                 {t('common.goodMorning')}
@@ -118,32 +130,53 @@ export default function HomePage() {
         <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
 
         {/* Hero promo */}
-        {popularOffer ? (
-          <PromoCard
-            eyebrow={t('home.todayOnly')}
-            headline={`${popularOffer.value}${t('home.offPercent')}`}
-            subtitle={t('home.superDiscount')}
-            ctaLabel={t('common.orderNow')}
-          />
-        ) : (
-          <PromoCard
-            eyebrow={t('home.todayOnly')}
-            headline={`70${t('home.offPercent')}`}
-            subtitle={t('home.superDiscount')}
-            ctaLabel={t('common.orderNow')}
-          />
+        <PromoCard
+          ctaLabel={t('common.orderNow')}
+          featuredImageUrl={featuredPromoCutout}
+          posterImageUrl={promoPosterImage}
+          theme={promoTheme}
+        />
+
+        {/* Active offers */}
+        {catalog && catalog.offers.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--cup-muted)]">
+              {language === 'ar' ? 'عروض حالية' : 'Active Offers'}
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {catalog.offers.map((offer) => (
+                <div
+                  key={offer.id}
+                  className="shrink-0 rounded-pill bg-gradient-to-r from-[#F4A261] to-[#C2410C] px-4 py-2 text-xs font-bold text-white shadow-warm-glow"
+                >
+                  {language === 'ar' ? offer.name_ar : offer.name_en}
+                  {offer.code && (
+                    <span className="ml-2 rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px]">
+                      {offer.code}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
-        {/* Role tabs */}
-        <div role="tablist" aria-label="Filter by role" className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5">
-          {ROLE_OPTIONS.map(({ role, icon }) => (
-            <RoleChip
-              key={role}
-              role={role}
-              icon={icon}
-              label={t(`roles.${role}`)}
-              selected={activeRole === role}
-              onSelect={() => setActiveRole(role)}
+        {/* Category tabs */}
+        <div role="tablist" aria-label="Filter by category" className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 scrollbar-hide">
+          <CategoryChip
+            label={t('home.categories.all' as any) || (language === 'ar' ? 'الكل' : 'All')}
+            selected={activeCategory === 'all'}
+            onSelect={() => setActiveCategory('all')}
+          />
+          {catalog?.categories
+            .slice()
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map((cat) => (
+            <CategoryChip
+              key={cat.id}
+              label={language === 'ar' ? cat.name_ar : cat.name_en}
+              selected={activeCategory === cat.id}
+              onSelect={() => setActiveCategory(cat.id)}
             />
           ))}
         </div>
@@ -180,7 +213,7 @@ export default function HomePage() {
             </div>
           ) : (
             <motion.div
-              className="mt-4 grid grid-cols-2 gap-3"
+              className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
               initial={reduce ? false : 'hidden'}
               animate="visible"
               variants={{
