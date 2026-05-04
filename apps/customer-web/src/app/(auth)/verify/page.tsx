@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { OtpInput } from '@/components/OtpInput';
@@ -15,6 +15,14 @@ import { useT } from '@/lib/i18n';
 const RESEND_SECONDS = 30;
 
 export default function VerifyPage() {
+  return (
+    <Suspense fallback={null}>
+      <VerifyPageInner />
+    </Suspense>
+  );
+}
+
+function VerifyPageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const { t } = useT();
