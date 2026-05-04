@@ -5,6 +5,9 @@ export default defineConfig({
     environment: 'node',
     globals: false,
     include: ['src/**/*.test.ts'],
+    env: {
+      ALLOW_HEADER_AUTH_BYPASS: '1',
+    },
   },
   resolve: {
     alias: {
