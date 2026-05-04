@@ -5,7 +5,7 @@ import { adminOffers } from '../db/offersStore.js';
 export function catalogRouter(): Router {
   const router = Router();
 
-  router.get('/catalog', async (_req, res, next) => {
+  router.get('/catalog', async (req, res, next) => {
     try {
       const catalog = await getCatalog();
       // Merge admin-managed offers, filtering out expired ones
@@ -14,6 +14,17 @@ export function catalogRouter(): Router {
         (o) => o.starts_at <= now && o.ends_at >= now,
       );
       catalog.offers = [...catalog.offers, ...activeAdmin];
+
+      const q = (req.query.q as string | undefined)?.trim().toLowerCase();
+      if (q) {
+        catalog.products = catalog.products.filter(
+          (p) =>
+            p.name_en.toLowerCase().includes(q) ||
+            p.name_ar.includes(q) ||
+            (p.description_en?.toLowerCase().includes(q) ?? false),
+        );
+      }
+
       res.json(catalog);
     } catch (e) { next(e); }
   });
