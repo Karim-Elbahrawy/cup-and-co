@@ -102,6 +102,7 @@ export const en: Translations = {
     emptyCartMessage: 'Add some coffee to get started',
     redeemPoints: 'Redeem Points',
     pointsAvailable: 'points available',
+    browseMenu: 'Browse the menu',
   },
   checkout: {
     pickupTime: 'Pickup Time',

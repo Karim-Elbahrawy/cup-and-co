@@ -54,11 +54,11 @@ export default function CartPage() {
         <CartHeader t={t} />
         <div className="mx-auto mt-16 max-w-sm rounded-card border border-cup-stroke bg-white p-8 text-center shadow-card">
           <Image
-            src="/brand/monogram.svg"
+            src="/brand/empty-cart.svg"
             alt=""
-            width={72}
-            height={72}
-            className="mx-auto opacity-70"
+            width={140}
+            height={140}
+            className="mx-auto"
           />
           <h2 className="mt-4 font-heading text-xl font-bold text-cup-brown-900">
             {t('cart.emptyCart')}
@@ -68,7 +68,7 @@ export default function CartPage() {
             href="/"
             className="mt-5 inline-block rounded-pill bg-cup-orange-600 px-6 py-2.5 text-sm font-semibold text-white shadow-subtle"
           >
-            {t('common.back')}
+            {t('cart.browseMenu')}
           </Link>
         </div>
       </main>

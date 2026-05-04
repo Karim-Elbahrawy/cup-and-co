@@ -93,6 +93,7 @@ export interface Translations {
     emptyCartMessage: string;
     redeemPoints: string;
     pointsAvailable: string;
+    browseMenu: string;
   };
   checkout: {
     pickupTime: string;

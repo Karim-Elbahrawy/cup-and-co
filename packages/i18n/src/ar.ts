@@ -102,6 +102,7 @@ export const ar: Translations = {
     emptyCartMessage: 'أضف بعض القهوة للبدء',
     redeemPoints: 'استبدال النقاط',
     pointsAvailable: 'نقطة متاحة',
+    browseMenu: 'تصفح القائمة',
   },
   checkout: {
     pickupTime: 'وقت الاستلام',
