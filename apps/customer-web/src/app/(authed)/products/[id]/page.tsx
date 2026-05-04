@@ -392,7 +392,7 @@ export default function ProductDetailPage({
             onChange={(e) => setReviewComment(e.target.value)}
             placeholder="Share your experience..."
             rows={3}
-            className="mt-3 w-full resize-none rounded-xl border border-cup-stroke bg-cup-paper px-4 py-3 font-body text-sm text-cup-brown-900 placeholder:text-cup-muted focus:border-cup-orange-500 focus:outline-none focus:ring-1 focus:ring-cup-orange-500"
+            className="mt-3 w-full resize-none rounded-xl border border-cup-stroke bg-cup-paper px-4 py-3 font-body text-sm text-cup-brown-900 placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none focus:ring-1 focus:ring-cup-orange-600"
           />
 
           {reviewError && (
@@ -413,7 +413,7 @@ export default function ProductDetailPage({
             type="button"
             onClick={handleSubmitReview}
             disabled={reviewRating === 0 || !reviewComment.trim() || submittingReview}
-            className="mt-3 flex items-center gap-2 rounded-full bg-cup-orange-500 px-6 py-3 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-95 disabled:opacity-50"
+            className="mt-3 flex items-center gap-2 rounded-full bg-cup-orange-600 px-6 py-3 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-95 disabled:opacity-50"
           >
             <Send className="h-4 w-4" />
             {submittingReview ? 'Submitting...' : 'Submit Review'}

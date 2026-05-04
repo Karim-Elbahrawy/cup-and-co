@@ -41,7 +41,7 @@ export function EmptyState({ icon, title, message, action }: EmptyStateProps) {
         <button
           type="button"
           onClick={action.onClick}
-          className="mt-6 rounded-2xl bg-cup-orange-500 px-8 py-3.5 font-heading text-sm font-bold text-white shadow-elevated transition active:scale-[0.97]"
+          className="mt-6 rounded-2xl bg-cup-orange-600 px-8 py-3.5 font-heading text-sm font-bold text-white shadow-elevated transition active:scale-[0.97]"
         >
           {action.label}
         </button>

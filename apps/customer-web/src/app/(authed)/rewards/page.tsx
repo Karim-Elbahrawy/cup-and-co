@@ -131,7 +131,7 @@ export default function RewardsPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-            className="overflow-hidden rounded-2xl bg-gradient-to-br from-cup-orange-500 to-cup-orange-600 p-6 text-white shadow-elevated"
+            className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#F4A261] to-[#C2410C] p-6 text-white shadow-elevated"
           >
             <div className="flex items-start justify-between">
               <div>
@@ -199,7 +199,7 @@ export default function RewardsPage() {
               onClick={() => setScannerOpen(true)}
               className="flex w-full items-center gap-3 rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle transition active:scale-[0.98]"
             >
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-cup-orange-500/10">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-cup-orange-600/10">
                 <QrCode className="h-5 w-5 text-cup-orange-600" />
               </span>
               <div className="flex-1 text-start">
@@ -391,7 +391,7 @@ function LeaderboardSection({
                 transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                 className={`flex items-center gap-3 rounded-2xl border p-3.5 shadow-subtle ${
                   isMe
-                    ? 'border-cup-orange-500/40 bg-cup-orange-500/5'
+                    ? 'border-cup-orange-600/40 bg-cup-orange-600/5'
                     : 'border-cup-stroke bg-white'
                 }`}
               >
@@ -419,7 +419,7 @@ function LeaderboardSection({
 
       {/* My rank if not in top 10 */}
       {me && !top10.some((e) => e.userId === userId) && (
-        <div className="mt-2 flex items-center gap-3 rounded-2xl border border-cup-orange-500/40 bg-cup-orange-500/5 p-3.5 shadow-subtle">
+        <div className="mt-2 flex items-center gap-3 rounded-2xl border border-cup-orange-600/40 bg-cup-orange-600/5 p-3.5 shadow-subtle">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cup-paper text-xs font-bold text-cup-muted">
             #{me.rank}
           </span>
@@ -501,12 +501,12 @@ function PrizeCard({ prize }: { prize: Prize }) {
       className={`rounded-2xl border p-4 shadow-subtle ${
         isRedeemed || isExpired
           ? 'border-cup-stroke bg-cup-paper opacity-60'
-          : 'border-cup-orange-500/30 bg-white'
+          : 'border-cup-orange-600/30 bg-white'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cup-orange-500/10">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cup-orange-600/10">
             <Trophy className="h-5 w-5 text-cup-orange-600" />
           </span>
           <div>

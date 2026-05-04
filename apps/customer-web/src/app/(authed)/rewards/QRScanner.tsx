@@ -169,7 +169,7 @@ export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="h-48 w-48 rounded-2xl border-2 border-white/60" />
                   <motion.div
-                    className="absolute left-1/2 h-0.5 w-48 -translate-x-1/2 bg-cup-orange-500"
+                    className="absolute left-1/2 h-0.5 w-48 -translate-x-1/2 bg-cup-orange-600"
                     animate={{ y: [-96, 96] }}
                     transition={{ duration: 2, repeat: Infinity, repeatType: 'reverse', ease: 'linear' }}
                   />
@@ -193,7 +193,7 @@ export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
 
               {state.kind === 'submitting' && (
                 <div className="flex items-center justify-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-cup-orange-500 border-t-transparent" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-cup-orange-600 border-t-transparent" />
                   <p className="text-sm text-cup-muted">{t('loyalty.redeeming')}</p>
                 </div>
               )}
@@ -207,7 +207,7 @@ export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
                   <button
                     type="button"
                     onClick={handleClose}
-                    className="mt-1 rounded-full bg-cup-orange-500 px-6 py-2.5 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-95"
+                    className="mt-1 rounded-full bg-cup-orange-600 px-6 py-2.5 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-95"
                   >
                     {t('common.done')}
                   </button>
