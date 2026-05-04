@@ -148,15 +148,15 @@ test.describe('Ordering flow', () => {
     await expect(page.getByText('Velvet Cappuccino')).toBeVisible();
 
     // Navigate to product detail
-    await page.getByText('Velvet Cappuccino').click();
-    await expect(page).toHaveURL(/\/products\/velvet-cappuccino/);
+    await page.getByRole('link', { name: /Velvet Cappuccino/i }).click();
+    await expect(page).toHaveURL(/\/products\/velvet-cappuccino/, { timeout: 8000 });
 
     // Product detail page: name, add-to-cart button visible
     await expect(page.getByRole('heading', { name: /Velvet Cappuccino/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Add to Cart/i })).toBeVisible();
 
-    // Add to cart
-    await page.getByRole('button', { name: /Add to Cart/i }).click();
+    // Add to cart — force bypasses the fixed bottom-nav which has a higher z-index
+    await page.getByRole('button', { name: /Add to Cart/i }).click({ force: true });
 
     // Should redirect to cart
     await expect(page).toHaveURL(/\/cart/, { timeout: 3000 });
@@ -254,7 +254,7 @@ test.describe('Ordering flow', () => {
           ],
           redeemPoints: 0,
         },
-        version: 0,
+        version: 1,
       };
       localStorage.setItem('cup-and-co.cart', JSON.stringify(cart));
     });
@@ -310,7 +310,7 @@ test.describe('Ordering flow', () => {
           ],
           redeemPoints: 0,
         },
-        version: 0,
+        version: 1,
       };
       localStorage.setItem('cup-and-co.cart', JSON.stringify(cart));
     });

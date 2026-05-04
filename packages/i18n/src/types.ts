@@ -168,10 +168,22 @@ export interface Translations {
   };
   profile: {
     myProfile: string;
+    account: string;
     personalInfo: string;
+    cardsAndPayments: string;
+    transactionHistory: string;
+    privacyAndData: string;
+    accountId: string;
     language: string;
+    security: string;
     faceId: string;
+    twoFactor: string;
+    passcode: string;
+    notificationPreferences: string;
     notifications: string;
+    orderUpdates: string;
+    promotions: string;
+    pointsAndRewards: string;
     support: string;
     about: string;
     iOSOnly: string;

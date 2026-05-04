@@ -485,7 +485,7 @@ export default function ProductDetailPage({
 
       {/* Sticky bottom add-to-cart */}
       <div
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-cup-stroke bg-white/95 px-6 py-4 backdrop-blur"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-cup-stroke bg-white/95 px-6 py-4 backdrop-blur"
         style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       >
         <button

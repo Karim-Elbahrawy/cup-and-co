@@ -3,7 +3,21 @@
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Bell, Fingerprint, Globe, LogOut, Sparkles } from 'lucide-react';
+import {
+  ArrowLeft,
+  Bell,
+  ChevronRight,
+  CreditCard,
+  Fingerprint,
+  History,
+  KeyRound,
+  LogOut,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  User,
+} from 'lucide-react';
 import { PageTransition } from '@/components/PageTransition';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -22,9 +36,12 @@ export default function ProfilePage() {
   const logout = useSession((s) => s.logout);
 
   const [points, setPoints] = useState<number | null>(null);
-  const [notifEnabled, setNotifEnabled] = useState(true);
+  const [notifOrderUpdates, setNotifOrderUpdates] = useState(true);
+  const [notifPromotions, setNotifPromotions] = useState(true);
+  const [notifRewards, setNotifRewards] = useState(true);
+  const [twoFactor, setTwoFactor] = useState(false);
+  const [passcode, setPasscode] = useState(false);
 
-  // Load `/me` to refresh the session user + points balance.
   useEffect(() => {
     let cancelled = false;
     api
@@ -40,14 +57,8 @@ export default function ProfilePage() {
             languagePref: language,
           });
       })
-      .catch(() => {
-        // Silent — keeps cached session usable when the API is offline.
-      });
-    return () => {
-      cancelled = true;
-    };
-    // We intentionally only run this on mount; the language effect doesn't
-    // need a refetch.
+      .catch(() => {});
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -68,7 +79,9 @@ export default function ProfilePage() {
 
   return (
     <PageTransition>
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-5 pt-6">
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-5 pt-6 pb-28">
+
+        {/* Header */}
         <header className="flex items-center justify-between">
           <Link
             href="/"
@@ -78,12 +91,12 @@ export default function ProfilePage() {
             <ArrowLeft size={18} aria-hidden="true" />
           </Link>
           <h1 className="font-heading text-lg font-bold text-[var(--cup-espresso)]">
-            {t('profile.myProfile')}
+            {t('profile.account')}
           </h1>
           <span className="h-10 w-10" aria-hidden="true" />
         </header>
 
-        {/* Profile card */}
+        {/* User hero card */}
         <section className="rounded-card bg-white p-5 shadow-card">
           <div className="flex items-center gap-4">
             <UserAvatar
@@ -114,24 +127,83 @@ export default function ProfilePage() {
               {t('loyalty.pointsBalance')}
             </span>
             <span className="font-heading text-lg font-bold text-[var(--cup-espresso)]">
-              {points ?? '—'} <span className="text-xs font-medium text-[var(--cup-muted)]">{t('loyalty.points')}</span>
+              {points ?? '—'}{' '}
+              <span className="text-xs font-medium text-[var(--cup-muted)]">{t('loyalty.points')}</span>
             </span>
           </div>
         </section>
 
-        {/* Settings list */}
-        <section className="rounded-card bg-white shadow-card">
-          {/* Language toggle */}
-          <div className="flex items-center justify-between gap-3 border-b border-[var(--cup-stroke)] p-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--cup-accent-tint)] text-[var(--cup-accent)]">
-                <Globe size={16} aria-hidden="true" />
-              </span>
-              <span className="text-sm font-semibold text-[var(--cup-espresso)]">
-                {t('profile.language')}
-              </span>
-            </div>
-            <div role="radiogroup" aria-label={t('profile.language')} className="flex rounded-pill bg-[var(--cup-paper)] p-1">
+        {/* Profile section */}
+        <div>
+          <SectionLabel>{t('profile.myProfile')}</SectionLabel>
+          <div className="rounded-card bg-white shadow-card overflow-hidden">
+            <NavRow icon={<User size={16} />} label={t('profile.personalInfo')} />
+            <NavRow icon={<CreditCard size={16} />} label={t('profile.cardsAndPayments')} />
+            <NavRow icon={<History size={16} />} label={t('profile.transactionHistory')} />
+            <NavRow icon={<Shield size={16} />} label={t('profile.privacyAndData')} />
+            <NavRow icon={<Tag size={16} />} label={t('profile.accountId')} last />
+          </div>
+        </div>
+
+        {/* Security section */}
+        <div>
+          <SectionLabel>{t('profile.security')}</SectionLabel>
+          <div className="rounded-card bg-white shadow-card overflow-hidden">
+            <ToggleRow
+              icon={<ShieldCheck size={16} />}
+              label={t('profile.twoFactor')}
+              checked={twoFactor}
+              onChange={setTwoFactor}
+            />
+            <ToggleRow
+              icon={<Fingerprint size={16} />}
+              label={t('profile.faceId')}
+              sublabel={t('profile.iOSOnly')}
+              checked={false}
+              onChange={() => {}}
+              disabled
+            />
+            <ToggleRow
+              icon={<KeyRound size={16} />}
+              label={t('profile.passcode')}
+              checked={passcode}
+              onChange={setPasscode}
+              last
+            />
+          </div>
+        </div>
+
+        {/* Notification Preferences section */}
+        <div>
+          <SectionLabel>{t('profile.notificationPreferences')}</SectionLabel>
+          <div className="rounded-card bg-white shadow-card overflow-hidden">
+            <ToggleRow
+              icon={<Bell size={16} />}
+              label={t('profile.orderUpdates')}
+              checked={notifOrderUpdates}
+              onChange={setNotifOrderUpdates}
+            />
+            <ToggleRow
+              icon={<Tag size={16} />}
+              label={t('profile.promotions')}
+              checked={notifPromotions}
+              onChange={setNotifPromotions}
+            />
+            <ToggleRow
+              icon={<Sparkles size={16} />}
+              label={t('profile.pointsAndRewards')}
+              checked={notifRewards}
+              onChange={setNotifRewards}
+              last
+            />
+          </div>
+        </div>
+
+        {/* Language */}
+        <div>
+          <SectionLabel>{t('profile.language')}</SectionLabel>
+          <div className="rounded-card bg-white shadow-card p-4">
+            <div role="radiogroup" aria-label={t('profile.language')} className="flex gap-2">
               {(['en', 'ar'] as const).map((lang) => {
                 const active = language === lang;
                 return (
@@ -142,54 +214,22 @@ export default function ProfilePage() {
                     aria-checked={active}
                     onClick={() => switchLang(lang)}
                     className={[
-                      'rounded-pill px-3 py-1 text-xs font-bold uppercase tracking-wider transition-all',
+                      'flex-1 rounded-2xl py-2.5 text-sm font-bold transition-all',
                       active
-                        ? 'bg-white text-[var(--cup-primary)] shadow-subtle'
-                        : 'text-[var(--cup-muted)] hover:text-[var(--cup-cocoa)]',
+                        ? 'bg-[var(--cup-primary)] text-white shadow-subtle'
+                        : 'bg-[var(--cup-paper)] text-[var(--cup-muted)] hover:text-[var(--cup-cocoa)]',
                     ].join(' ')}
                   >
-                    {lang === 'en' ? 'EN' : 'AR'}
+                    {lang === 'en' ? 'English' : 'العربية'}
                   </button>
                 );
               })}
             </div>
           </div>
+        </div>
 
-          {/* Face ID (disabled) */}
-          <div className="flex items-center justify-between gap-3 border-b border-[var(--cup-stroke)] p-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--cup-paper)] text-[var(--cup-muted)]">
-                <Fingerprint size={16} aria-hidden="true" />
-              </span>
-              <div>
-                <span className="block text-sm font-semibold text-[var(--cup-espresso)]">
-                  {t('profile.faceId')}
-                </span>
-                <span className="text-xs text-[var(--cup-muted)]">{t('profile.iOSOnly')}</span>
-              </div>
-            </div>
-            <ToggleSwitch checked={false} disabled onChange={() => {}} ariaLabel={t('profile.faceId')} />
-          </div>
-
-          {/* Notifications */}
-          <div className="flex items-center justify-between gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--cup-cream)] text-[var(--cup-primary)]">
-                <Bell size={16} aria-hidden="true" />
-              </span>
-              <span className="text-sm font-semibold text-[var(--cup-espresso)]">
-                {t('profile.notifications')}
-              </span>
-            </div>
-            <ToggleSwitch
-              checked={notifEnabled}
-              onChange={setNotifEnabled}
-              ariaLabel={t('profile.notifications')}
-            />
-          </div>
-        </section>
-
-        <div className="pt-2">
+        {/* Log out */}
+        <div className="pt-1">
           <PrimaryButton
             variant="ghost"
             onClick={handleLogout}
@@ -201,6 +241,78 @@ export default function ProfilePage() {
         </div>
       </main>
     </PageTransition>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cup-muted)]">
+      {children}
+    </p>
+  );
+}
+
+function NavRow({
+  icon,
+  label,
+  last = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  last?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={[
+        'flex w-full items-center gap-3 px-4 py-3.5 text-start transition-colors hover:bg-[var(--cup-paper)] active:bg-[var(--cup-paper)]',
+        !last ? 'border-b border-[var(--cup-stroke)]' : '',
+      ].join(' ')}
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--cup-cream)] text-[var(--cup-primary)]">
+        {icon}
+      </span>
+      <span className="flex-1 text-sm font-semibold text-[var(--cup-espresso)]">{label}</span>
+      <ChevronRight size={16} className="text-[var(--cup-muted)]" aria-hidden="true" />
+    </button>
+  );
+}
+
+function ToggleRow({
+  icon,
+  label,
+  sublabel,
+  checked,
+  onChange,
+  disabled = false,
+  last = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  sublabel?: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <div
+      className={[
+        'flex items-center gap-3 px-4 py-3.5',
+        !last ? 'border-b border-[var(--cup-stroke)]' : '',
+      ].join(' ')}
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--cup-paper)] text-[var(--cup-muted)]">
+        {icon}
+      </span>
+      <div className="flex-1 min-w-0">
+        <span className="block text-sm font-semibold text-[var(--cup-espresso)]">{label}</span>
+        {sublabel ? (
+          <span className="text-xs text-[var(--cup-muted)]">{sublabel}</span>
+        ) : null}
+      </div>
+      <ToggleSwitch checked={checked} onChange={onChange} disabled={disabled} ariaLabel={label} />
+    </div>
   );
 }
 
