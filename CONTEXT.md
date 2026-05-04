@@ -40,6 +40,13 @@ User-shared reference images (in chat history):
 **Phase 3 — Loyalty + QR + iOS Catch-up + SSE Real-time: ✅ COMPLETE**
 **Phase 4 — Games + Leaderboard: ✅ COMPLETE**
 **Phase 5 — Reviews + Offers + Admin Polish: ✅ COMPLETE**
+**Phase 6 — i18n + Accessibility + Polish: ✅ COMPLETE**
+
+### Phase 6 highlights
+- **i18n**: Full Arabic translations audit — 15 new translation keys, all hardcoded English strings replaced with `t()` calls across home, checkout, game, rewards, profile, QR scanner. **117/117 Vitest tests passing.**
+- **Accessibility**: `focus-visible` rings on all interactive elements, ARIA labels on icon buttons, `role="alert"` on errors, `role="status"` on loading, semantic HTML throughout. Reduced motion respected.
+- **UI Polish**: `SkeletonProductGrid`, `EmptyState`, `ErrorState` with retry, `OfflineIndicator` components. Integrated into home, orders, game pages.
+- **iOS**: Active offers displayed as gradient pills on home. `localizedName(language:)` helper on `Offer` model. `CategoryChipRow` rename.
 
 ### Phase 5 highlights
 - **API**: 11 new admin endpoints — reviews (list, toggle hidden), users (list, verify, block), offers (CRUD, role targeting, coupon codes), reports (revenue, top items, role breakdown). Shared `adminOffers` store merged into catalog response. `usersRegistry` for admin user management. **117/117 Vitest tests passing.**
@@ -60,7 +67,7 @@ User-shared reference images (in chat history):
 - **Admin**: SSE replaces 5s polling on kanban + order detail. `useOrdersSSE` hook with exponential backoff reconnect + polling fallback. Live/reconnecting/polling status indicator.
 
 ### Next phase
-**Phase 6 — i18n + Accessibility + Polish**. Full Arabic translations audit, accessibility (VoiceOver, large-text, contrast), loading skeletons, empty states, error states, offline mode, onboarding, splash, App Store assets.
+**Phase 7 — Test + Deploy + Launch**. Full E2E (Playwright web + admin, XCUITest iOS, Vitest backend), load test (50 concurrent orders), Paymob production keys, TestFlight build, soft launch.
 
 ## How to run locally
 
