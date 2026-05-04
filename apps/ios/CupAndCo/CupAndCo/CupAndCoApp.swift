@@ -98,8 +98,7 @@ struct MainTabShell: View {
             Group {
                 switch tab {
                 case .home:    NavigationStack { HomeView() }
-                case .search:  ComingSoonView(title: "tab.search",
-                                              symbol: "magnifyingglass")
+                case .search:  NavigationStack { SearchView() }
                 case .cart:    NavigationStack { CartView() }
                 case .rewards: NavigationStack { RewardsView() }
                 case .profile: NavigationStack { ProfileView() }
