@@ -7,6 +7,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     env: {
       ALLOW_HEADER_AUTH_BYPASS: '1',
+      DEV_OTP_OVERRIDE: '000000',
     },
   },
   resolve: {

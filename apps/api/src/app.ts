@@ -40,6 +40,14 @@ const usersRegistry = new Map<string, { id: string; phone: string; full_name: st
 // Reverse-lookup: phone → userId (so returning users keep their data across verify calls)
 const phoneToUserId = new Map<string, string>();
 
+// OTP store: phone → { code, expiresAt }
+const otpStore = new Map<string, { code: string; expiresAt: number }>();
+const OTP_TTL_MS = 5 * 60 * 1000;
+
+function generateOtp(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
 // Phase 4: prizes store keyed by userId
 interface Prize {
   id: string;
@@ -221,8 +229,11 @@ export function createApp(): express.Express {
         throw e;
       }
       const { phone } = otpSendSchema.parse(req.body);
-      // TODO: replace with supabase.auth.signInWithOtp({ phone }) when Supabase phone auth is enabled
-      res.json({ ok: true, phone, devCode: '000000', message: 'OTP sent (dev stub).' });
+      const code = process.env.DEV_OTP_OVERRIDE ?? generateOtp();
+      otpStore.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS });
+      const response: Record<string, unknown> = { ok: true, phone, message: 'OTP sent.' };
+      if (process.env.DEV_OTP_OVERRIDE) response.devCode = code;
+      res.json(response);
     } catch (e) { next(e); }
   });
 
@@ -234,11 +245,16 @@ export function createApp(): express.Express {
         throw e;
       }
       const { phone, code } = otpVerifySchema.parse(req.body);
-      if (code !== '000000') {
-        const e = new Error('Invalid OTP') as Error & { status?: number };
-        e.status = 401;
-        throw e;
+      const stored = otpStore.get(phone);
+      const validOverride = process.env.DEV_OTP_OVERRIDE && code === process.env.DEV_OTP_OVERRIDE;
+      if (!validOverride) {
+        if (!stored || stored.code !== code || Date.now() > stored.expiresAt) {
+          const e = new Error('Invalid OTP') as Error & { status?: number };
+          e.status = 401;
+          throw e;
+        }
       }
+      otpStore.delete(phone);
       // Reuse existing userId for this phone so returning users keep their data
       const existingId = phoneToUserId.get(phone);
       const userId = existingId ?? randomUUID();
