@@ -44,9 +44,11 @@ User-shared reference images (in chat history):
 **Phase 7 — Test + Deploy + Launch: ✅ COMPLETE**
 
 ### Phase 7 highlights
-- **E2E Tests**: Playwright tests for customer web (auth, ordering flow) and admin dashboard (login, kanban, role-based nav). **117/117 Vitest tests + Playwright passing.**
-- **Load Testing**: `apps/api/load-test.js` simulates 50 concurrent users placing orders. Measures auth, order creation, and status advancement latency.
-- **CI/CD**: GitHub Actions workflow updated with admin E2E job and iOS build job (enabled on macOS runner).
+- **Customer-web E2E**: `ordering-flow.spec.ts` — home → product → add to cart → cart → checkout → place order → tracking. `rtl.spec.ts` — verifies `html[dir=rtl]` and Arabic product names. `smoke.spec.ts` + `auth-flow.spec.ts` (existing, updated for profile-setup step).
+- **Admin E2E**: `admin-flow.spec.ts` — owner login, kanban board columns, barista `/users` redirect guard, owner `/users` access. New `playwright.config.ts` on port 3001.
+- **Load test**: `load-tests/order-rush.js` (k6) — 50 VUs, 2-minute lecture-break rush, ramp 30s up/down. Thresholds: p95 < 2s, error rate < 1%, order success > 99%.
+- **CI**: `e2e-customer` + `e2e-admin` jobs; `ios-build` job enabled on macOS runner. TestFlight upload block commented-out (needs Apple secrets).
+- **iOS testing path**: To test on iPhone/iPad without a Mac, add Apple Developer secrets to GitHub repo settings and uncomment the TestFlight block in `ci.yml`.
 - **Production Ready**: Environment templates, deployment configs, pre-launch checklist documented.
 
 ### Phase 6 highlights
@@ -81,8 +83,10 @@ User-shared reference images (in chat history):
 2. Provision Supabase project and apply migrations
 3. Deploy API to Render/Fly.io
 4. Deploy customer-web + admin to Vercel with custom domain
-5. Set up Apple Developer account + TestFlight
-6. Run 1-week soft launch with monitoring
+5. Add Apple Developer secrets to GitHub → uncomment TestFlight block in `ci.yml` → iOS app on iPhone/iPad via TestFlight
+6. Commit open-code review changes (product images, OrderSuccessOverlay, Order Ready banner) — tracked in `WAITING-CLAUDE-REVIEW.md`
+7. Set Paymob production keys in Vercel/Render environment variables
+8. Run 1-week soft launch with monitoring
 
 ## How to run locally
 

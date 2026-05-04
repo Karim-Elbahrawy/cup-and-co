@@ -89,6 +89,9 @@ test('login → verify → role → profile-setup → home flow with stubbed API
   // 3. Verify page → enter the dev code.
   await expect(page).toHaveURL(/\/verify/);
   await expect(page.getByRole('heading', { name: /Verify your number/i })).toBeVisible();
+  // Click the first box to guarantee focus before typing (autoFocus useEffect
+  // runs async — keyboard.type() needs focus to already be there).
+  await page.locator('[aria-label="Digit 1"]').click();
   for (const digit of '000000') {
     await page.keyboard.type(digit);
   }

@@ -10,17 +10,19 @@ export default defineConfig({
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:3000',
     trace: 'on-first-retry',
+    // Ensure every test starts with a clean browser origin (empty localStorage).
+    storageState: { cookies: [], origins: [] },
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile-safari', use: { ...devices['iPhone 14'] } },
   ],
-  webServer: process.env.CI
-    ? {
-        command: 'pnpm dev',
-        url: 'http://localhost:3000',
-        timeout: 120 * 1000,
-        reuseExistingServer: false,
-      }
-    : undefined,
+  webServer: {
+    command: 'pnpm dev',
+    url: 'http://localhost:3000',
+    timeout: 120 * 1000,
+    // Re-use an already-running dev server locally to save startup time;
+    // always start fresh in CI.
+    reuseExistingServer: !process.env.CI,
+  },
 });
