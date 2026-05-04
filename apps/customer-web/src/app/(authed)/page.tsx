@@ -136,6 +136,7 @@ export default function HomePage() {
           featuredImageUrl={featuredPromoCutout}
           posterImageUrl={promoPosterImage}
           theme={promoTheme}
+          onCtaClick={() => document.getElementById('popular-heading')?.scrollIntoView({ behavior: 'smooth' })}
         />
 
         {/* Active offers */}
