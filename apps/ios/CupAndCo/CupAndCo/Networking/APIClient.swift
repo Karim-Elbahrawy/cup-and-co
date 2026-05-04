@@ -42,7 +42,10 @@ final class APIClient: @unchecked Sendable {
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
-    init(baseURL: URL = URL(string: "http://localhost:4000")!,
+    init(baseURL: URL = {
+             let plist = Bundle.main.infoDictionary?["API_BASE_URL"] as? String ?? "http://localhost:4000"
+             return URL(string: plist)!
+         }(),
          session: URLSession = .shared) {
         self.baseURL = baseURL
         self.session = session
