@@ -84,6 +84,23 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
 
 import type { OrderStatus } from '@cup-and-co/types';
 
+export interface AdminOrderItem {
+  productId: string;
+  productNameEn: string;
+  productNameAr: string;
+  imageUrl: string;
+  quantity: number;
+  options: Record<string, string>;
+  unitPriceEgp: number;
+  lineTotalEgp: number;
+}
+
+export interface AdminStatusEvent {
+  status: OrderStatus;
+  at: string;
+  note?: string;
+}
+
 export interface AdminOrder {
   id: string;
   userId: string;
@@ -99,14 +116,26 @@ export interface AdminOrder {
   pickupCode: string | null;
   createdAt: string;
   scheduledFor: string | null;
-  /** API doesn't currently include items in /admin/orders; placeholder for Phase 2. */
-  items?: { name: string; quantity: number }[];
+  notes: string | null;
+  pickedUpAt: string | null;
+  /** Phase 2: API now returns full line items on every order list response. */
+  items: AdminOrderItem[];
+  statusHistory: AdminStatusEvent[];
+}
+
+export interface AdminTimelineStep {
+  status: OrderStatus;
+  label: string;
+  at: string | null;
+  active: boolean;
+  done: boolean;
 }
 
 export interface AdminSummary {
   todayRevenueEgp: number;
   activeOrders: number;
   fullReportsVisible: boolean;
+  kioskOpen?: boolean;
 }
 
 /**
@@ -123,13 +152,37 @@ export interface AdminQrReceipt {
   claimedAt: string | null;
 }
 
+export interface AdminKioskStatus {
+  is_open: boolean;
+  message_en: string | null;
+  message_ar: string | null;
+  capacity_per_slot: number;
+  slot_minutes: number;
+  opens_at: string;
+  closes_at: string;
+}
+
+export type AdminKioskPatch = Partial<AdminKioskStatus>;
+
 export const adminApi = {
   listOrders: (signal?: AbortSignal) =>
     api<{ orders: AdminOrder[] }>('/admin/orders', { signal }),
-  updateOrderStatus: (id: string, status: OrderStatus) =>
-    api<{ order: AdminOrder }>(`/admin/orders/${id}/status`, {
+  getOrder: (id: string, signal?: AbortSignal) =>
+    api<{ order: AdminOrder; timeline: AdminTimelineStep[] }>(`/admin/orders/${id}`, { signal }),
+  updateOrderStatus: (id: string, status: OrderStatus, note?: string) =>
+    api<{ order: AdminOrder; timeline: AdminTimelineStep[] }>(`/admin/orders/${id}/status`, {
       method: 'PATCH',
-      body: { status },
+      body: { status, ...(note ? { note } : {}) },
+    }),
+  cancelOrder: (id: string, note?: string) =>
+    api<{ order: AdminOrder; timeline: AdminTimelineStep[] }>(`/admin/orders/${id}/status`, {
+      method: 'PATCH',
+      body: { status: 'cancelled', ...(note ? { note } : {}) },
+    }),
+  refundOrder: (id: string, note?: string) =>
+    api<{ order: AdminOrder; timeline: AdminTimelineStep[] }>(`/admin/orders/${id}/status`, {
+      method: 'PATCH',
+      body: { status: 'refunded', ...(note ? { note } : {}) },
     }),
   summary: (signal?: AbortSignal) => api<AdminSummary>('/admin/summary', { signal }),
   createQrReceipt: (orderTotalEgp: number) =>
@@ -137,4 +190,19 @@ export const adminApi = {
       method: 'POST',
       body: { orderTotalEgp },
     }),
+  getKioskStatus: (signal?: AbortSignal) =>
+    api<AdminKioskStatus>('/admin/kiosk/status', { signal }),
+  updateKioskStatus: (patch: AdminKioskPatch) =>
+    api<AdminKioskStatus>('/admin/kiosk/status', {
+      method: 'PATCH',
+      body: patch,
+    }),
+  setProductAvailability: (productId: string, available: boolean) =>
+    api<{ id: string; available: boolean }>(
+      `/admin/menu/products/${productId}/availability`,
+      {
+        method: 'PATCH',
+        body: { available },
+      },
+    ),
 };
