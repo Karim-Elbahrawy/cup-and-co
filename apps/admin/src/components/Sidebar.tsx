@@ -9,6 +9,10 @@ import {
   QrCode,
   Settings,
   LogOut,
+  Star,
+  Users,
+  Tag,
+  BarChart3,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 import { Logo } from './Logo';
@@ -35,6 +39,30 @@ const NAV: NavItem[] = [
     hint: (s) => (s.role === 'barista' ? 'Read-only' : null),
   },
   { label: 'QR Receipts', href: '/qr', icon: QrCode },
+  {
+    label: 'Reviews',
+    href: '/reviews',
+    icon: Star,
+    hint: (s) => (s.role === 'barista' ? 'Owner only' : null),
+  },
+  {
+    label: 'Users',
+    href: '/users',
+    icon: Users,
+    hint: (s) => (s.role === 'barista' ? 'Owner only' : null),
+  },
+  {
+    label: 'Offers',
+    href: '/offers',
+    icon: Tag,
+    hint: (s) => (s.role === 'barista' ? 'Owner only' : null),
+  },
+  {
+    label: 'Reports',
+    href: '/reports',
+    icon: BarChart3,
+    hint: (s) => (s.role === 'barista' ? 'Owner only' : null),
+  },
   {
     label: 'Settings',
     href: '/settings',
@@ -72,7 +100,12 @@ export function Sidebar({ session }: SidebarProps) {
 
       <nav className="flex-1 overflow-y-auto px-2 py-4 md:px-3">
         <ul className="space-y-1">
-          {NAV.map((item) => {
+          {NAV.filter((item) => {
+            // Hide owner-only nav items from baristas
+            const ownerOnly = ['/reviews', '/users', '/offers', '/reports'];
+            if (ownerOnly.includes(item.href) && session.role !== 'owner') return false;
+            return true;
+          }).map((item) => {
             const isActive =
               item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
             const Icon = item.icon;

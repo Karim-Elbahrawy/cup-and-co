@@ -164,6 +164,58 @@ export interface AdminKioskStatus {
 
 export type AdminKioskPatch = Partial<AdminKioskStatus>;
 
+export interface AdminReview {
+  id: string;
+  userId: string;
+  productId: string;
+  orderId: string | null;
+  rating: number;
+  comment: string;
+  hidden: boolean;
+  createdAt: string;
+  userName?: string;
+}
+
+export interface AdminUser {
+  id: string;
+  phone: string;
+  full_name: string | null;
+  role: string;
+  verification_status: string;
+  blocked: boolean;
+  created_at: string;
+}
+
+export interface AdminOffer {
+  id: string;
+  name_en: string;
+  name_ar: string;
+  type: 'percentage' | 'fixed' | 'free_item';
+  value: number;
+  starts_at: string;
+  ends_at: string;
+  target_roles: string[];
+  code: string | null;
+  usage_limit: number | null;
+  usage_count: number;
+}
+
+export interface AdminReportRevenue {
+  todayRevenueEgp: number;
+  totalRevenueEgp: number;
+  paidOrders: number;
+}
+
+export interface AdminReportTopItem {
+  name_en: string;
+  count: number;
+  revenue: number;
+}
+
+export interface AdminReportRoleBreakdown {
+  breakdown: Record<string, { orders: number; revenue: number }>;
+}
+
 export const adminApi = {
   listOrders: (signal?: AbortSignal) =>
     api<{ orders: AdminOrder[] }>('/admin/orders', { signal }),
@@ -205,4 +257,39 @@ export const adminApi = {
         body: { available },
       },
     ),
+  // Phase 5: Reviews
+  listReviews: (signal?: AbortSignal) =>
+    api<{ reviews: AdminReview[] }>('/admin/reviews', { signal }),
+  setReviewVisibility: (id: string, hidden: boolean) =>
+    api<{ id: string; hidden: boolean }>(`/admin/reviews/${id}/visibility`, {
+      method: 'PATCH',
+      body: { hidden },
+    }),
+  // Phase 5: Users
+  listUsers: (status?: string, signal?: AbortSignal) =>
+    api<{ users: AdminUser[] }>(`/admin/users${status ? `?status=${status}` : ''}`, { signal }),
+  verifyUser: (id: string, status: 'approved' | 'rejected') =>
+    api<{ id: string; verification_status: string }>(`/admin/users/${id}/verify`, {
+      method: 'PATCH',
+      body: { status },
+    }),
+  blockUser: (id: string, blocked: boolean) =>
+    api<{ id: string; blocked: boolean }>(`/admin/users/${id}/block`, {
+      method: 'PATCH',
+      body: { blocked },
+    }),
+  // Phase 5: Offers
+  listOffers: (scope?: string, signal?: AbortSignal) =>
+    api<{ offers: AdminOffer[] }>(`/admin/offers${scope ? `?scope=${scope}` : ''}`, { signal }),
+  createOffer: (body: Omit<AdminOffer, 'id' | 'usage_count'>) =>
+    api<AdminOffer>('/admin/offers', { method: 'POST', body }),
+  updateOffer: (id: string, body: Partial<Omit<AdminOffer, 'id' | 'usage_count'>>) =>
+    api<AdminOffer>(`/admin/offers/${id}`, { method: 'PATCH', body }),
+  // Phase 5: Reports
+  getRevenueReport: (signal?: AbortSignal) =>
+    api<AdminReportRevenue>('/admin/reports/revenue', { signal }),
+  getTopItems: (signal?: AbortSignal) =>
+    api<{ topItems: AdminReportTopItem[] }>('/admin/reports/top-items', { signal }),
+  getRoleBreakdown: (signal?: AbortSignal) =>
+    api<AdminReportRoleBreakdown>('/admin/reports/role-breakdown', { signal }),
 };
