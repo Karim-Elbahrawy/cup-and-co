@@ -492,7 +492,7 @@ export default function ProductDetailPage({
           type="button"
           onClick={handleAddToCart}
           disabled={adding}
-          className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.32)] transition active:scale-[0.98] disabled:opacity-70"
+          className="mx-auto flex w-full max-w-3xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.32)] transition active:scale-[0.98] disabled:opacity-70"
         >
           <span>{t('common.addToCart')}</span>
           <span className="flex items-center gap-2">

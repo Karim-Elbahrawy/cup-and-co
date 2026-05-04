@@ -101,7 +101,7 @@ export default function HomePage() {
 
   return (
     <PageTransition>
-      <main className="flex flex-1 flex-col gap-6 px-5 pt-6">
+      <main className="mx-auto flex w-full max-w-[1080px] flex-1 flex-col gap-6 px-5 pt-6">
         {/* Greeting + bell */}
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">

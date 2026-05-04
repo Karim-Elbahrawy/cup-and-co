@@ -201,7 +201,7 @@ export default function CartPage() {
         <button
           type="button"
           onClick={() => router.push('/checkout')}
-          className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98]"
+          className="mx-auto flex w-full max-w-3xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98]"
         >
           <span>{t('common.checkout')}</span>
           <span>EGP {total}</span>
