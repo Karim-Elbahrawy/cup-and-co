@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd ../.. && pnpm --filter @cup-and-co/admin build",
-  "outputDirectory": "apps/admin/.next",
+  "buildCommand": "pnpm --filter @cup-and-co/admin build",
+  "outputDirectory": ".next",
   "framework": "nextjs",
   "rewrites": [
     {

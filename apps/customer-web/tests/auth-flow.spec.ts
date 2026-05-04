@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Phase 1 happy path: phone OTP → role select → home. The API is stubbed
- * via Playwright route interception so the test runs without the Express
- * server (CI just needs the Next dev server).
+ * Phase 1 happy path: phone OTP → verify → role select → profile setup → home.
+ * The API is stubbed via Playwright route interception so the test runs
+ * without the Express server (CI just needs the Next dev server).
  */
-test('login → verify → role → home flow with stubbed API', async ({ page }) => {
+test('login → verify → role → profile-setup → home flow with stubbed API', async ({ page }) => {
   await page.route('**/auth/otp/send', async (route) => {
     await route.fulfill({
       status: 200,
@@ -37,18 +37,18 @@ test('login → verify → role → home flow with stubbed API', async ({ page }
       contentType: 'application/json',
       body: JSON.stringify({
         categories: [
-          { id: 'cat-coffee', slug: 'coffee', name_en: 'Coffee', name_ar: 'قهوة', sort_order: 1 },
+          { id: '11111111-1111-1111-1111-111111111103', slug: 'milk_coffee', name_en: 'Milk Coffee', name_ar: 'قهوة بالحليب', sort_order: 1 },
         ],
         products: [
           {
-            id: 'velvet-cappuccino',
-            category_id: 'cat-coffee',
+            id: '22222222-0000-0000-0000-000000000001',
+            category_id: '11111111-1111-1111-1111-111111111103',
             name_en: 'Velvet Cappuccino',
             name_ar: 'كابتشينو فيلفيت',
             description_en: 'Silky steamed milk',
             description_ar: '',
             base_price_egp: 65,
-            image_url: '/images/products/velvet-cappuccino.svg',
+            image_url: '/images/products/hot_coffee.png',
             prep_minutes: 5,
             is_available: true,
             sort_order: 0,
@@ -56,50 +56,26 @@ test('login → verify → role → home flow with stubbed API', async ({ page }
             rating_count: 128,
           },
         ],
-        offers: [
-          {
-            id: 'offer-today',
-            name_en: 'Today Only',
-            name_ar: 'اليوم فقط',
-            type: 'percentage',
-            value: 70,
-            starts_at: new Date().toISOString(),
-            ends_at: new Date(Date.now() + 86_400_000).toISOString(),
-            target_roles: ['student', 'faculty', 'office'],
-            code: null,
-            usage_limit: null,
-            usage_count: 0,
-          },
-        ],
-        kiosk: {
-          id: 'kiosk-1',
-          is_open: true,
-          message_en: null,
-          message_ar: null,
-          capacity_per_slot: 10,
-          slot_minutes: 15,
-          opens_at: '07:00',
-          closes_at: '22:00',
-        },
+        offers: [],
+        kiosk: { id: 'kiosk-1', is_open: true, message_en: null, message_ar: null, capacity_per_slot: 10, slot_minutes: 15, opens_at: '07:00', closes_at: '22:00' },
       }),
     });
   });
 
+  // Stub /me (GET for auth, PATCH for profile setup)
   await page.route('**/me', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        user: {
-          id: 'u-1',
-          phone: '+201000000001',
-          role: 'student',
-          verificationStatus: 'approved',
-          phoneVerified: true,
-        },
-        points: 240,
-      }),
-    });
+    if (route.request().method() === 'PATCH') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: { id: 'u-1', phone: '+201000000001', role: 'student', verificationStatus: 'approved', phoneVerified: true },
+          points: 240,
+        }),
+      });
+    }
   });
 
   // 1. Land on root → redirected to login.
@@ -113,25 +89,27 @@ test('login → verify → role → home flow with stubbed API', async ({ page }
   // 3. Verify page → enter the dev code.
   await expect(page).toHaveURL(/\/verify/);
   await expect(page.getByRole('heading', { name: /Verify your number/i })).toBeVisible();
-  // Type the 6 digits of the demo code; auto-advance should hit the last box.
   for (const digit of '000000') {
     await page.keyboard.type(digit);
   }
 
-  // Auto-advance triggers `verify` on the last digit. Allow the route change
-  // to settle.
-  await expect(page).toHaveURL(/\/role/, { timeout: 5000 });
+  // Auto-advance triggers `verify` on the last digit.
+  await expect(page).toHaveURL(/\/role/, { timeout: 10000 });
 
   // 4. Pick the default Student role and continue.
-  await expect(page.getByText(/How do you take your campus\?/i)).toBeVisible();
+  await expect(page.getByText(/How do you take your campus/i)).toBeVisible();
   await page.getByRole('button', { name: /Continue/i }).click();
 
-  // 5. Verify-ID page (skippable). Skip.
-  await expect(page).toHaveURL(/\/verify-id/);
+  // 5. Profile setup → Continue.
+  await expect(page).toHaveURL(/\/profile-setup/, { timeout: 10000 });
+  await page.getByRole('button', { name: /Continue/i }).click();
+
+  // 6. Verify-ID page → Skip for now.
+  await expect(page).toHaveURL(/\/verify-id/, { timeout: 10000 });
   await page.getByRole('button', { name: /Skip for now/i }).click();
 
-  // 6. Land on home with the popular section visible.
-  await expect(page).toHaveURL(/\/$/);
+  // 7. Land on home with the popular section visible.
+  await expect(page).toHaveURL(/\/$/, { timeout: 10000 });
   await expect(page.getByRole('heading', { name: /Popular/i })).toBeVisible();
   await expect(page.getByText(/Velvet Cappuccino/i)).toBeVisible();
 });

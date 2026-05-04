@@ -57,6 +57,33 @@ describe('PATCH /me', () => {
     const res = await request(app).get('/me').set(headers()).expect(200);
     expect(res.body.user.full_name).toBe('Karim Elbahrawy');
   });
+
+  it('updates gender and avatar_id', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .patch('/me')
+      .set(headers())
+      .send({ gender: 'male', avatar_id: 3 })
+      .expect(200);
+    expect(res.body.user.gender).toBe('male');
+    expect(res.body.user.avatar_id).toBe(3);
+  });
+
+  it('rejects out-of-range avatar_id', async () => {
+    await request(createApp())
+      .patch('/me')
+      .set(headers())
+      .send({ avatar_id: 8 })
+      .expect(400);
+  });
+
+  it('rejects invalid gender value', async () => {
+    await request(createApp())
+      .patch('/me')
+      .set(headers())
+      .send({ gender: 'other' })
+      .expect(400);
+  });
 });
 
 describe('POST /me/verification', () => {

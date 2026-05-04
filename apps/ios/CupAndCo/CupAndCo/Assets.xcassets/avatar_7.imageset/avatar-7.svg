@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" fill="none">
+  <!-- The Coffee Lover — top-knot bun, angular flat style -->
+
+  <!-- Caramel sweater block -->
+  <path d="M0 200 L0 170 C26 156 56 153 70 159 L80 163 L90 159 C104 153 134 156 160 170 L160 200Z" fill="#B07020"/>
+  <path d="M66 159 Q80 155 94 159" stroke="#8A5410" stroke-width="2.5" fill="none"/>
+
+  <!-- Neck -->
+  <rect x="64" y="151" width="32" height="13" rx="2" fill="#C87B50"/>
+
+  <!-- Hair — dark, pulled back, smooth sides -->
+  <path d="M30 62 Q36 24 80 22 Q124 24 130 62 Q128 78 126 90 L120 88 Q118 62 80 60 Q42 62 40 88 L34 90 Q32 78 30 62Z" fill="#2A1608"/>
+  <path d="M30 62 Q26 82 28 108 Q32 112 38 110 Q36 90 40 72Z" fill="#2A1608"/>
+
+  <!-- TOP KNOT BUN — defining silhouette -->
+  <ellipse cx="80" cy="34" rx="22" ry="18" fill="#2A1608"/>
+  <ellipse cx="80" cy="28" rx="18" ry="16" fill="#3D2010"/>
+  <rect x="68" y="44" width="24" height="6" rx="3" fill="#C87B50"/>
+  <rect x="70" y="44" width="20" height="6" rx="3" fill="#C2410C" fill-opacity="0.85"/>
+  <ellipse cx="70" cy="47" rx="5" ry="4" fill="#A83A0A"/>
+  <ellipse cx="90" cy="47" rx="5" ry="4" fill="#A83A0A"/>
+
+  <!-- Angular face polygon -->
+  <polygon points="36,62 118,58 122,96 114,150 80,164 46,154 34,110" fill="#C87B50"/>
+
+  <!-- Right ear -->
+  <path d="M118,96 Q132,102 132,114 Q132,126 118,130" stroke="#C87B50" stroke-width="11" fill="none" stroke-linecap="round"/>
+  <path d="M120,100 Q128,106 128,114 Q128,122 120,126" stroke="#A06038" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+  <!-- Eyebrows — warm, arched -->
+  <path d="M54 86 Q65 80 74 83" stroke="#1A0A04" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M88 83 Q97 80 108 86" stroke="#1A0A04" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+  <!-- Eyes — warm content -->
+  <ellipse cx="64" cy="96" rx="7" ry="6.5" fill="#1C1008"/>
+  <ellipse cx="96" cy="94" rx="8" ry="7.5" fill="#1C1008"/>
+  <circle cx="66" cy="94" r="2" fill="white" opacity="0.75"/>
+  <circle cx="98" cy="92" r="2.2" fill="white" opacity="0.75"/>
+
+  <!-- Rosy cheeks -->
+  <circle cx="52" cy="118" r="8" fill="#D46040" fill-opacity="0.18"/>
+  <circle cx="108" cy="118" r="8" fill="#D46040" fill-opacity="0.18"/>
+
+  <!-- Nose -->
+  <path d="M77 111 Q81 117 85 114" stroke="#9A5A30" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+
+  <!-- Warm smile with teeth -->
+  <path d="M62 128 Q80 138 98 128" stroke="#7A3A1A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M65 129 Q80 137 95 129 Q88 135 80 137 Q72 135 65 129Z" fill="white"/>
+
+  <!-- Coffee cup -->
+  <g transform="translate(105 155)">
+    <path d="M0 6 L3 28 L21 28 L24 6Z" fill="#F5EEE4" stroke="#D8CEC0" stroke-width="1.5"/>
+    <rect x="2" y="12" width="20" height="9" rx="2" fill="#C2410C"/>
+    <path d="M24 12 Q32 12 32 18 Q32 24 24 24" stroke="#D8CEC0" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M7 4 Q9 0 7 -2" stroke="#C8C0B4" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    <path d="M13 2 Q15 -2 13 -4" stroke="#C8C0B4" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>

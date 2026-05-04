@@ -114,7 +114,7 @@ final class SessionStore {
         phase = .profileSetup
     }
 
-    func completeProfileSetup(gender: Gender, avatarId: Int) {
+    func completeProfileSetup(gender: Gender, avatarId: Int) async {
         if var u = user {
             u = User(
                 id: u.id, phone: u.phone, fullName: u.fullName,
@@ -128,6 +128,11 @@ final class SessionStore {
         }
         UserDefaults.standard.set(avatarId, forKey: Keys.avatarId)
         UserDefaults.standard.set(gender.rawValue, forKey: Keys.gender)
+        do {
+            _ = try await MeAPI.patch(.init(gender: gender.rawValue, avatarId: avatarId))
+        } catch {
+            lastError = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+        }
         phase = .home
     }
 

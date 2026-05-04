@@ -8,6 +8,7 @@ import { Logo } from '@/components/Logo';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { PageTransition } from '@/components/PageTransition';
 import { useSession } from '@/lib/session';
+import { api } from '@/lib/api';
 
 type GenderOption = 'male' | 'female' | 'prefer_not_to_say';
 
@@ -46,9 +47,13 @@ export default function ProfileSetupPage() {
 
   const handleContinue = async () => {
     setSubmitting(true);
+    try {
+      await api.patchMe({ gender, avatar_id: avatarId });
+    } catch {
+      // best-effort — update local state even if the API call fails
+    }
     setAvatarId(avatarId);
     setGender(gender);
-    await new Promise((r) => setTimeout(r, 180));
     router.push('/verify-id');
   };
 

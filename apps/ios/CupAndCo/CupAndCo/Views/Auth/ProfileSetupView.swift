@@ -7,6 +7,7 @@ struct ProfileSetupView: View {
 
     @State private var selectedAvatar: Int = 1
     @State private var selectedGender: Gender = .male
+    @State private var submitting = false
 
     private let avatarCount = 7
 
@@ -164,12 +165,19 @@ struct ProfileSetupView: View {
 
     private var continueButton: some View {
         Button {
-            session.completeProfileSetup(gender: selectedGender, avatarId: selectedAvatar)
+            guard !submitting else { return }
+            submitting = true
+            Task {
+                await session.completeProfileSetup(gender: selectedGender, avatarId: selectedAvatar)
+                submitting = false
+            }
         } label: {
             Text("common.continue")
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(CupPrimaryButtonStyle())
+        .disabled(submitting)
+        .opacity(submitting ? 0.6 : 1)
         .padding(.top, 8)
     }
 }

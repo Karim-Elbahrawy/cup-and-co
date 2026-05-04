@@ -10,6 +10,7 @@ struct HomeView: View {
     @State private var query: String = ""
     @State private var roleFilter: UserRole = .student
     @State private var showProfile: Bool = false
+    @State private var showUsual: Bool = false
 
     private var greetingName: String {
         let name = session.user?.firstName ?? ""
@@ -42,7 +43,7 @@ struct HomeView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
 
-                SearchBarView(query: $query)
+                DailyOrderBarView(query: $query, onUsualTap: { showUsual = true })
                     .padding(.horizontal, 20)
 
                 PromoBannerView(percent: heroPercent)
@@ -123,6 +124,13 @@ struct HomeView: View {
             }
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showUsual) {
+            NavigationStack {
+                OrderHistoryView()
+            }
+            .presentationDragIndicator(.visible)
+            .presentationDetents([.large])
+        }
     }
 
     // MARK: - Top bar
@@ -136,7 +144,13 @@ struct HomeView: View {
                     Circle()
                         .fill(CupColors.cream)
                         .frame(width: 44, height: 44)
-                    if let initials = avatarInitials {
+                    if let avatarId = session.user?.avatarId {
+                        Image("avatar_\(avatarId)")
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 44, height: 44)
+                            .clipShape(Circle())
+                    } else if let initials = avatarInitials {
                         Text(initials)
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundStyle(CupColors.primary)

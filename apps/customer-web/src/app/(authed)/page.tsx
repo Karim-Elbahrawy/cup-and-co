@@ -101,6 +101,7 @@ export default function HomePage() {
             <UserAvatar
               name={user?.fullName ?? user?.phone ?? firstName}
               phone={user?.phone}
+              avatarId={user?.avatarId ?? null}
               avatarUrl={user?.avatarUrl ?? null}
               size="sm"
               className="shadow-[0_6px_16px_rgba(194,65,12,0.25)]"

@@ -3,23 +3,19 @@
 
   <!-- Mustard hoodie block -->
   <path d="M0 200 L0 170 C26 156 56 153 70 159 L80 163 L90 159 C104 153 134 156 160 170 L160 200Z" fill="#B08820"/>
-  <!-- Hood opening line -->
   <path d="M68 159 Q80 171 92 159" stroke="#8A6808" stroke-width="2.5" fill="none"/>
-  <!-- Kangaroo pocket -->
   <path d="M52 186 Q80 184 108 186" stroke="#8A6808" stroke-width="2" stroke-linecap="round" fill="none"/>
 
   <!-- Neck -->
   <rect x="64" y="151" width="32" height="13" rx="2" fill="#A86040"/>
 
-  <!-- Messy hair — tousled, sticking up, soft silhouette -->
+  <!-- Messy hair — tousled, sticking up -->
   <ellipse cx="80" cy="82" rx="52" ry="56" fill="#6A3818"/>
-  <!-- Messy tufts sticking up and out -->
   <ellipse cx="50" cy="46" rx="16" ry="20" fill="#6A3818" transform="rotate(-20 50 46)"/>
   <ellipse cx="80" cy="28" rx="18" ry="22" fill="#7A4422"/>
   <ellipse cx="110" cy="46" rx="16" ry="20" fill="#6A3818" transform="rotate(20 110 46)"/>
   <ellipse cx="34" cy="72" rx="14" ry="18" fill="#6A3818" transform="rotate(-30 34 72)"/>
   <ellipse cx="126" cy="68" rx="13" ry="16" fill="#7A4422" transform="rotate(15 126 68)"/>
-  <!-- Stray strand top -->
   <path d="M68 24 Q72 10 76 18" stroke="#7A4422" stroke-width="8" stroke-linecap="round" fill="none"/>
   <path d="M88 22 Q94 8 90 16" stroke="#7A4422" stroke-width="6" stroke-linecap="round" fill="none"/>
 
@@ -30,18 +26,17 @@
   <path d="M118,98 Q132,104 132,116 Q132,128 118,132" stroke="#A86040" stroke-width="11" fill="none" stroke-linecap="round"/>
   <path d="M120,102 Q128,108 128,116 Q128,124 120,128" stroke="#8A4C28" stroke-width="4" fill="none" stroke-linecap="round"/>
 
-  <!-- Small earbud on right ear -->
+  <!-- Earbud -->
   <circle cx="128" cy="112" r="5" fill="#D8D8D8"/>
   <circle cx="128" cy="112" r="3" fill="#B8B8B8"/>
 
-  <!-- Eyebrows — relaxed, droopy outer ends -->
+  <!-- Eyebrows — relaxed, droopy -->
   <path d="M54 87 Q65 81 74 85" stroke="#3A1808" stroke-width="2.6" stroke-linecap="round" fill="none"/>
   <path d="M87 85 Q96 81 107 87" stroke="#3A1808" stroke-width="2.6" stroke-linecap="round" fill="none"/>
 
-  <!-- Eyes — half-lidded, relaxed -->
+  <!-- Eyes — half-lidded -->
   <ellipse cx="64" cy="98" rx="7" ry="6.5" fill="#1C0E08"/>
   <ellipse cx="96" cy="96" rx="8" ry="7.5" fill="#1C0E08"/>
-  <!-- Half-lid overlay -->
   <path d="M57 92 Q64 88 71 92 L71 98 Q64 95 57 98Z" fill="#A86040" fill-opacity="0.6"/>
   <path d="M88 90 Q96 86 104 90 L104 96 Q96 93 88 96Z" fill="#A86040" fill-opacity="0.6"/>
   <circle cx="66" cy="96" r="1.8" fill="white" opacity="0.6"/>
@@ -50,6 +45,6 @@
   <!-- Nose -->
   <path d="M77 114 Q81 120 85 117" stroke="#7A4828" stroke-width="1.8" fill="none" stroke-linecap="round"/>
 
-  <!-- Chill relaxed smile -->
+  <!-- Chill smile -->
   <path d="M67 130 Q80 138 93 130" stroke="#6A3820" stroke-width="2.2" fill="none" stroke-linecap="round"/>
 </svg>

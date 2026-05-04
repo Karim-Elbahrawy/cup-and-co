@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd ../.. && pnpm --filter @cup-and-co/customer-web build",
-  "outputDirectory": "apps/customer-web/.next",
+  "buildCommand": "pnpm --filter @cup-and-co/customer-web build",
+  "outputDirectory": ".next",
   "framework": "nextjs",
   "rewrites": [
     {

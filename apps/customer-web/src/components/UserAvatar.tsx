@@ -6,6 +6,8 @@ interface UserAvatarProps {
   name?: string | null;
   phone?: string | null;
   avatarUrl?: string | null;
+  /** Personality avatar index 1–7. Takes priority over avatarUrl and initials. */
+  avatarId?: number | null;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
@@ -31,9 +33,16 @@ function getInitials(name?: string | null, phone?: string | null): string {
   return 'U';
 }
 
-export function UserAvatar({ name, phone, avatarUrl, size = 'md', className = '' }: UserAvatarProps) {
+export function UserAvatar({ name, phone, avatarUrl, avatarId, size = 'md', className = '' }: UserAvatarProps) {
   const initials = getInitials(name, phone);
   const showInitialBadge = Boolean(name);
+
+  const resolvedSrc =
+    avatarId && avatarId >= 1 && avatarId <= 7
+      ? `/brand/avatars/avatar-${avatarId}.svg`
+      : avatarUrl ?? '/brand/avatar-placeholder.svg';
+
+  const isPersonality = Boolean(avatarId && avatarId >= 1 && avatarId <= 7);
 
   return (
     <div
@@ -43,24 +52,18 @@ export function UserAvatar({ name, phone, avatarUrl, size = 'md', className = ''
         className,
       ].join(' ')}
     >
-      {avatarUrl ? (
-        <Image src={avatarUrl} alt="" fill sizes="80px" className="object-cover" />
-      ) : (
-        <>
-          <Image
-            src="/brand/avatar-placeholder.svg"
-            alt=""
-            fill
-            sizes="80px"
-            className="object-cover"
-          />
-          {showInitialBadge ? (
-            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-[rgba(28,25,23,0.74)] px-2 py-0.5 font-heading text-[10px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
-              {initials}
-            </div>
-          ) : null}
-        </>
-      )}
+      <Image
+        src={resolvedSrc}
+        alt=""
+        fill
+        sizes="80px"
+        className={isPersonality ? 'object-contain bg-[var(--cup-cream)]' : 'object-cover'}
+      />
+      {!isPersonality && !avatarUrl && showInitialBadge ? (
+        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-[rgba(28,25,23,0.74)] px-2 py-0.5 font-heading text-[10px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
+          {initials}
+        </div>
+      ) : null}
     </div>
   );
 }

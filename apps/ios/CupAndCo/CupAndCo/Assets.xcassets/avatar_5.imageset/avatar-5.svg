@@ -3,38 +3,34 @@
 
   <!-- Teal top block -->
   <path d="M0 200 L0 170 C26 156 56 153 70 159 L80 163 L90 159 C104 153 134 156 160 170 L160 200Z" fill="#087A68"/>
-  <!-- V-neck -->
   <path d="M70 159 L80 171 L90 159" stroke="#065E50" stroke-width="2" fill="none"/>
 
   <!-- Neck -->
   <rect x="64" y="151" width="32" height="13" rx="2" fill="#6A3818"/>
 
-  <!-- Hair — short high fade, dark -->
+  <!-- Hair — short high fade -->
   <path d="M34 58 Q40 20 80 18 Q120 20 126 58 Q124 72 122 82 L116 80 Q114 58 80 56 Q46 58 44 80 L38 82 Q36 72 34 58Z" fill="#0A0604"/>
   <path d="M34 58 Q30 78 32 100 Q36 104 42 102 Q40 84 44 68Z" fill="#0A0604"/>
 
-  <!-- LARGE over-ear headphones — the defining feature -->
-  <!-- Headband arc over top -->
+  <!-- LARGE over-ear headphones -->
   <path d="M18 94 Q80 38 142 94" stroke="#B8B8B8" stroke-width="10" fill="none" stroke-linecap="round"/>
   <path d="M18 94 Q80 38 142 94" stroke="#D4D4D4" stroke-width="6" fill="none" stroke-linecap="round"/>
-  <!-- Left cup -->
   <ellipse cx="16" cy="104" rx="14" ry="18" fill="#C0C0C0"/>
   <ellipse cx="16" cy="104" rx="10" ry="14" fill="#D8D8D8"/>
   <circle cx="16" cy="104" r="5.5" fill="#ACACAC"/>
-  <!-- Right cup -->
   <ellipse cx="144" cy="104" rx="14" ry="18" fill="#C0C0C0"/>
   <ellipse cx="144" cy="104" rx="10" ry="14" fill="#D8D8D8"/>
   <circle cx="144" cy="104" r="5.5" fill="#ACACAC"/>
 
-  <!-- Angular face polygon — wider, social -->
+  <!-- Angular face polygon — wider -->
   <polygon points="32,60 122,56 128,94 120,148 80,164 40,152 30,108" fill="#6A3818"/>
 
   <!-- Right ear -->
   <path d="M122,94 Q136,100 136,112 Q136,124 122,128" stroke="#6A3818" stroke-width="11" fill="none" stroke-linecap="round"/>
   <path d="M124,98 Q132,104 132,112 Q132,120 124,124" stroke="#502808" stroke-width="4" fill="none" stroke-linecap="round"/>
 
-  <!-- Eyebrows — expressive, friendly arch -->
-  <path d="M50 84 Q63 78 73 82" stroke="#08060 4" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <!-- Eyebrows — friendly arch -->
+  <path d="M50 84 Q63 78 73 82" stroke="#080604" stroke-width="2.8" stroke-linecap="round" fill="none"/>
   <path d="M87 82 Q97 78 110 84" stroke="#080604" stroke-width="2.8" stroke-linecap="round" fill="none"/>
 
   <!-- Eyes — bright, wide open -->
@@ -49,7 +45,6 @@
   <!-- Huge smile with teeth -->
   <path d="M56 126 Q80 144 104 126" stroke="#300E06" stroke-width="2.5" fill="none" stroke-linecap="round"/>
   <path d="M59 127 Q80 143 101 127 Q92 136 80 138 Q68 136 59 127Z" fill="white"/>
-  <!-- Dimples -->
   <circle cx="54" cy="122" r="4" fill="#3A1A08" fill-opacity="0.22"/>
   <circle cx="106" cy="122" r="4" fill="#3A1A08" fill-opacity="0.22"/>
 </svg>

@@ -103,6 +103,18 @@ export const api = {
 
   me: () => apiFetch<MeResponse>('/me'),
 
+  patchMe: (input: {
+    full_name?: string;
+    role?: string;
+    language_pref?: string;
+    biometric_enabled?: boolean;
+    university_id?: string;
+    major?: string;
+    department?: string;
+    gender?: string;
+    avatar_id?: number;
+  }) => apiFetch<MeResponse>('/me', { method: 'PATCH', body: input }),
+
   catalog: () => apiFetch<CatalogResponse>('/catalog'),
 
   product: (id: string) => apiFetch<ProductDetailResponse>(`/products/${id}`),

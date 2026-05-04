@@ -1,16 +1,18 @@
 services:
   - type: web
     name: cup-and-co-api
-    env: node
-    plan: standard
-    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @cup-and-co/api build
-    startCommand: pnpm --filter @cup-and-co/api start
+    env: docker
+    plan: starter
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 10000
+        value: 4000
       - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
@@ -42,7 +44,3 @@ services:
         value: "300"
       - key: GAME_DAILY_SESSIONS_PER_USER
         value: "3"
-    disk:
-      name: tmp
-      mountPath: /tmp
-      sizeGB: 1

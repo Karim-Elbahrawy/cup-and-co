@@ -87,6 +87,19 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Xcode project
+        working-directory: apps/ios/CupAndCo
+        run: |
+          brew install xcodegen
+          xcodegen generate
       - name: Build iOS project
         working-directory: apps/ios/CupAndCo
         run: |

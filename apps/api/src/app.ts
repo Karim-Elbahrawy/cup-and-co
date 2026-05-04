@@ -234,6 +234,8 @@ export function createApp(): express.Express {
           university_id: z.string().min(1).max(40).optional(),
           major: z.string().min(1).max(80).optional(),
           department: z.string().min(1).max(80).optional(),
+          gender: z.enum(['male', 'female', 'prefer_not_to_say']).optional(),
+          avatar_id: z.number().int().min(1).max(7).optional(),
         })
         .parse(req.body);
       const existing = userProfiles.get(u.id) ?? {};

@@ -15,7 +15,6 @@
 
   <!-- BIG wild curly hair — dominant silhouette -->
   <ellipse cx="80" cy="74" rx="62" ry="58" fill="#8A3C1A"/>
-  <!-- Curly texture bumps around edges -->
   <circle cx="20" cy="78" r="18" fill="#8A3C1A"/>
   <circle cx="140" cy="78" r="18" fill="#8A3C1A"/>
   <circle cx="32" cy="50" r="16" fill="#9E4A22"/>
@@ -26,7 +25,7 @@
   <circle cx="16" cy="100" r="14" fill="#8A3C1A"/>
   <circle cx="144" cy="100" r="14" fill="#8A3C1A"/>
 
-  <!-- Teal beret — sits on top of hair mass -->
+  <!-- Teal beret -->
   <ellipse cx="84" cy="54" rx="30" ry="10" fill="#0A7888" transform="rotate(-10 84 54)"/>
   <ellipse cx="84" cy="51" rx="26" ry="12" fill="#0C9AB0" transform="rotate(-10 84 51)"/>
   <circle cx="91" cy="42" r="5" fill="#0A7888"/>
@@ -42,7 +41,7 @@
   <path d="M54 88 Q65 82 74 86" stroke="#3A1A08" stroke-width="2.6" stroke-linecap="round" fill="none"/>
   <path d="M88 86 Q97 82 108 88" stroke="#3A1A08" stroke-width="2.6" stroke-linecap="round" fill="none"/>
 
-  <!-- Eyes — dreamy upward -->
+  <!-- Eyes — dreamy -->
   <ellipse cx="64" cy="98" rx="7" ry="6.5" fill="#1C0E08"/>
   <ellipse cx="96" cy="96" rx="8" ry="7.5" fill="#1C0E08"/>
   <circle cx="66" cy="96" r="2" fill="white" opacity="0.7"/>

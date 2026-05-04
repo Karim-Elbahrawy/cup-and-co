@@ -3,46 +3,42 @@
 
   <!-- Charcoal blazer block -->
   <path d="M0 200 L0 170 C26 156 56 153 70 159 L80 163 L90 159 C104 153 134 156 160 170 L160 200Z" fill="#262626"/>
-  <!-- White shirt collar points -->
+  <!-- White shirt collar -->
   <path d="M64 158 L72 172 L80 163 L88 172 L96 158" fill="#EDE8DC"/>
-  <!-- Blazer lapels -->
   <path d="M70 159 L76 173 L80 163" fill="#181818"/>
   <path d="M90 159 L84 173 L80 163" fill="#181818"/>
-  <!-- Gold pin -->
   <circle cx="88" cy="166" r="4" fill="#C8A030"/>
   <circle cx="88" cy="166" r="2.2" fill="#ECC040"/>
 
   <!-- Neck -->
   <rect x="64" y="151" width="32" height="13" rx="2" fill="#B87A50"/>
 
-  <!-- Slick side-parted hair — swept right, angular -->
+  <!-- Slick side-parted hair -->
   <path d="M28 60 Q32 18 80 16 Q128 18 132 60 Q130 76 128 88 L122 86 Q118 60 90 56 Q66 54 52 60 Q40 66 36 88 L30 88 Q28 76 28 60Z" fill="#180E06"/>
-  <!-- Hair swept to the right — covering left side more -->
   <path d="M28 60 Q24 80 26 106 Q30 110 36 108 Q32 88 36 72Z" fill="#180E06"/>
-  <!-- Slick gel shine line -->
   <path d="M56 48 Q66 38 80 36" stroke="#2E1A0C" stroke-width="2" fill="none" stroke-linecap="round"/>
 
-  <!-- Angular face polygon — slightly longer/sharper chin -->
+  <!-- Angular face polygon -->
   <polygon points="36,60 118,56 124,94 116,152 80,168 44,156 34,110" fill="#B87A50"/>
 
   <!-- Right ear -->
   <path d="M120,94 Q134,100 134,113 Q134,126 120,130" stroke="#B87A50" stroke-width="11" fill="none" stroke-linecap="round"/>
   <path d="M122,98 Q130,104 130,113 Q130,122 122,126" stroke="#9A6038" stroke-width="4" fill="none" stroke-linecap="round"/>
 
-  <!-- Eyebrows — sharp, confident, slightly angled down inner -->
+  <!-- Eyebrows — sharp, confident -->
   <path d="M52 80 Q64 74 73 77" stroke="#100806" stroke-width="3.2" stroke-linecap="round" fill="none"/>
   <path d="M87 77 Q96 74 108 80" stroke="#100806" stroke-width="3.2" stroke-linecap="round" fill="none"/>
 
-  <!-- Eyes — direct, focused gaze -->
+  <!-- Eyes — focused -->
   <ellipse cx="63" cy="94" rx="7" ry="6" fill="#180E06"/>
   <ellipse cx="96" cy="92" rx="8" ry="7" fill="#180E06"/>
   <circle cx="65" cy="92" r="2" fill="white" opacity="0.7"/>
   <circle cx="98" cy="90" r="2.2" fill="white" opacity="0.7"/>
 
-  <!-- Nose — defined, angular -->
+  <!-- Nose -->
   <path d="M77 111 Q81 117 85 114" stroke="#8A5A30" stroke-width="2" fill="none" stroke-linecap="round"/>
   <path d="M76 108 Q75 112 77 111" stroke="#8A5A30" stroke-width="1.4" fill="none" stroke-linecap="round"/>
 
-  <!-- Confident slight smirk — asymmetric -->
+  <!-- Confident smirk -->
   <path d="M65 128 Q80 134 94 129" stroke="#6A3A1A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
 </svg>
