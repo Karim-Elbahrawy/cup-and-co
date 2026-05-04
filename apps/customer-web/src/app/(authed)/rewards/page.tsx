@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   ChevronLeft,
   Gift,
@@ -48,6 +48,7 @@ function getSourceConfig(source: string) {
 export default function RewardsPage() {
   const { t } = useT();
   const user = useSession((s) => s.user);
+  const reduce = useReducedMotion();
   const isStudent = user?.role === 'student';
 
   const [data, setData] = useState<LoyaltyHistoryResponse | null>(null);
@@ -128,9 +129,9 @@ export default function RewardsPage() {
         <div className="mx-auto max-w-3xl px-5 pt-2">
           {/* Points balance hero */}
           <motion.section
-            initial={{ opacity: 0, y: 16 }}
+            initial={reduce ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+            transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 24 }}
             className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#F4A261] to-[#C2410C] p-6 text-white shadow-elevated"
           >
             <div className="flex items-start justify-between">
@@ -160,9 +161,9 @@ export default function RewardsPage() {
           {/* Play Game button — students only */}
           {isStudent && (
             <motion.section
-              initial={{ opacity: 0, y: 12 }}
+              initial={reduce ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.04 }}
+              transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 24, delay: 0.04 }}
               className="mt-4"
             >
               <Link
@@ -189,9 +190,9 @@ export default function RewardsPage() {
 
           {/* QR Scan button */}
           <motion.section
-            initial={{ opacity: 0, y: 12 }}
+            initial={reduce ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.06 }}
+            transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 24, delay: 0.06 }}
             className="mt-3"
           >
             <button
