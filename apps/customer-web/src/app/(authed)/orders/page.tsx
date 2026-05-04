@@ -91,7 +91,7 @@ export default function OrderHistoryPage() {
                       {new Date(o.createdAt).toLocaleString()}
                     </p>
                     <p className="mt-1 text-xs text-cup-brown-700">
-                      {o.items.length} item{o.items.length !== 1 ? 's' : ''} · {o.status}
+                      {o.items.length} item{o.items.length !== 1 ? 's' : ''} · {t(`orders.${camelize(o.status)}`)}
                     </p>
                   </div>
                   <p className="font-heading text-base font-bold text-cup-orange-700">
@@ -106,4 +106,8 @@ export default function OrderHistoryPage() {
       </div>
     </main>
   );
+}
+
+function camelize(s: string): string {
+  return s.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase());
 }
