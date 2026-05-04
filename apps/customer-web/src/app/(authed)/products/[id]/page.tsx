@@ -207,7 +207,7 @@ export default function ProductDetailPage({
   return (
     <main className="relative min-h-screen bg-cup-paper pb-32">
       {/* Top bar */}
-      <header className="sticky top-0 z-20 flex items-center justify-between bg-cup-paper/85 px-5 py-4 backdrop-blur-sm">
+      <header className="sticky top-0 z-20 mx-auto flex max-w-[1080px] items-center justify-between bg-cup-paper/85 px-5 py-4 backdrop-blur-sm">
         <button
           type="button"
           onClick={() => router.back()}
@@ -234,7 +234,7 @@ export default function ProductDetailPage({
       </header>
 
       {/* Hero image */}
-      <section className="relative px-6 pt-2 pb-6">
+      <section className="relative mx-auto max-w-[1080px] px-6 pt-2 pb-6">
         <div
           aria-hidden="true"
           className="absolute left-1/2 top-1/2 h-[280px] w-[280px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cup-orange-600/12 blur-3xl"
@@ -259,7 +259,7 @@ export default function ProductDetailPage({
       </section>
 
       {/* Product info + quantity */}
-      <section className="px-6 pb-6">
+      <section className="mx-auto max-w-[1080px] px-6 pb-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <h1 className="font-heading text-[28px] font-bold leading-tight text-cup-brown-900">
@@ -312,7 +312,7 @@ export default function ProductDetailPage({
       </section>
 
       {/* Option groups */}
-      <section className="space-y-4 px-6">
+      <section className="mx-auto max-w-[1080px] space-y-4 px-6">
         {GROUP_ORDER.map((g) => {
           const opts = groups[g];
           if (!opts || opts.length === 0) return null;
@@ -356,7 +356,7 @@ export default function ProductDetailPage({
       </section>
 
       {/* Reviews section */}
-      <section className="mt-8 space-y-4 px-6">
+      <section className="mx-auto mt-8 max-w-[1080px] space-y-4 px-6">
         <h2 className="font-heading text-lg font-bold text-cup-brown-900">Reviews</h2>
 
         {/* Write a review */}
