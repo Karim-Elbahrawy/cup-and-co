@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import {} from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PromoCard } from '@/components/PromoCard';
 import { ProductCard } from '@/components/ProductCard';
