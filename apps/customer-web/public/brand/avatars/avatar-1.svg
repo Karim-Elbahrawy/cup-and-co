@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" fill="none">
+  <!-- The Scholar — neat dark hair, round glasses, navy sweater -->
+
+  <!-- Hair back -->
+  <ellipse cx="80" cy="92" rx="48" ry="54" fill="#231108"/>
+
+  <!-- Face -->
+  <ellipse cx="80" cy="100" rx="44" ry="52" fill="#C87B50"/>
+
+  <!-- Ears -->
+  <ellipse cx="36" cy="102" rx="8" ry="11" fill="#C87B50"/>
+  <ellipse cx="124" cy="102" rx="8" ry="11" fill="#C87B50"/>
+  <ellipse cx="36" cy="102" rx="5" ry="7" fill="#A06038"/>
+  <ellipse cx="124" cy="102" rx="5" ry="7" fill="#A06038"/>
+
+  <!-- Hair front -->
+  <path d="M36 78 Q48 42 80 40 Q112 42 124 78 Q108 56 80 55 Q52 56 36 78Z" fill="#231108"/>
+
+  <!-- Eyebrows (level, focused) -->
+  <path d="M57 86 Q64 82 71 84" stroke="#1A0A04" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+  <path d="M89 84 Q96 82 103 86" stroke="#1A0A04" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+
+  <!-- Eye whites -->
+  <ellipse cx="65" cy="95" rx="9" ry="8" fill="#FEFCFA"/>
+  <ellipse cx="95" cy="95" rx="9" ry="8" fill="#FEFCFA"/>
+
+  <!-- Glasses (round wireframe) -->
+  <ellipse cx="65" cy="95" rx="11.5" ry="10.5" stroke="#2C1A0E" stroke-width="1.8" fill="none"/>
+  <ellipse cx="95" cy="95" rx="11.5" ry="10.5" stroke="#2C1A0E" stroke-width="1.8" fill="none"/>
+  <line x1="76.5" y1="95" x2="83.5" y2="95" stroke="#2C1A0E" stroke-width="1.8"/>
+  <line x1="53.5" y1="93" x2="44" y2="90" stroke="#2C1A0E" stroke-width="1.8"/>
+  <line x1="106.5" y1="93" x2="116" y2="90" stroke="#2C1A0E" stroke-width="1.8"/>
+
+  <!-- Pupils -->
+  <circle cx="65" cy="95" r="4.8" fill="#1C1008"/>
+  <circle cx="95" cy="95" r="4.8" fill="#1C1008"/>
+  <circle cx="67" cy="93" r="1.8" fill="white"/>
+  <circle cx="97" cy="93" r="1.8" fill="white"/>
+
+  <!-- Nose -->
+  <path d="M76 110 Q80 115 84 110" stroke="#9A5A30" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+
+  <!-- Mouth (subtle scholarly smile) -->
+  <path d="M70 121 Q80 128 90 121" stroke="#884428" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+
+  <!-- Neck -->
+  <path d="M66 148 L66 162 Q80 166 94 162 L94 148 Q88 140 80 138 Q72 140 66 148Z" fill="#C87B50"/>
+
+  <!-- White collar -->
+  <path d="M46 200 L64 157 L80 170 L96 157 L114 200Z" fill="#EEE8E0"/>
+  <path d="M64 157 L80 170 L96 157" stroke="#CCC6BC" stroke-width="1.2" fill="none"/>
+
+  <!-- Navy sweater -->
+  <path d="M8 200 L46 200 L64 157 C48 150 20 156 10 172Z" fill="#1D3868"/>
+  <path d="M152 200 L114 200 L96 157 C112 150 140 156 150 172Z" fill="#1D3868"/>
+  <path d="M8 200 L10 172 C20 156 48 150 64 157 L80 164 L96 157 C112 150 140 156 150 172 L152 200Z" fill="#1D3868"/>
+</svg>

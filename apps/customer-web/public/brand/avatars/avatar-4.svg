@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" fill="none">
+  <!-- The Entrepreneur — slick side-parted hair, dark blazer, white collar, confident -->
+
+  <!-- Hair back (dark, voluminous on top) -->
+  <ellipse cx="80" cy="88" rx="46" ry="50" fill="#180E06"/>
+
+  <!-- Face -->
+  <ellipse cx="80" cy="100" rx="44" ry="52" fill="#C87B50"/>
+
+  <!-- Ears -->
+  <ellipse cx="36" cy="102" rx="8" ry="11" fill="#C87B50"/>
+  <ellipse cx="124" cy="102" rx="8" ry="11" fill="#C87B50"/>
+  <ellipse cx="36" cy="102" rx="5" ry="7" fill="#A06038"/>
+  <ellipse cx="124" cy="102" rx="5" ry="7" fill="#A06038"/>
+
+  <!-- Hair front (side-parted, slick — parted left) -->
+  <path d="M36 76 Q44 44 80 42 Q116 44 124 76 Q114 58 90 57 Q66 56 50 62 Q40 68 36 76Z" fill="#180E06"/>
+  <!-- Part line highlight (gel shine) -->
+  <path d="M60 52 Q68 44 80 42" stroke="#2C1A0C" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+
+  <!-- Eyebrows (sharp, confident) -->
+  <path d="M57 86 Q65 81 72 83" stroke="#100806" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <path d="M88 83 Q95 81 103 86" stroke="#100806" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+
+  <!-- Eye whites -->
+  <ellipse cx="65" cy="94" rx="9" ry="8" fill="#FEFCFA"/>
+  <ellipse cx="95" cy="94" rx="9" ry="8" fill="#FEFCFA"/>
+
+  <!-- Pupils (direct, confident gaze) -->
+  <circle cx="65" cy="94" r="5" fill="#1C1008"/>
+  <circle cx="95" cy="94" r="5" fill="#1C1008"/>
+  <circle cx="67" cy="92" r="2" fill="white"/>
+  <circle cx="97" cy="92" r="2" fill="white"/>
+
+  <!-- Nose (sharp, defined) -->
+  <path d="M76 109 Q80 114 84 109" stroke="#9A5A30" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <!-- Nose bridge sides -->
+  <path d="M75 106 Q74 109 76 109" stroke="#9A5A30" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M85 106 Q86 109 84 109" stroke="#9A5A30" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+
+  <!-- Mouth (confident slight smirk) -->
+  <path d="M70 120 Q80 126 90 121" stroke="#7A3A1A" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+
+  <!-- Neck -->
+  <path d="M66 148 L66 162 Q80 166 94 162 L94 148 Q88 140 80 138 Q72 140 66 148Z" fill="#C87B50"/>
+
+  <!-- White dress shirt collar -->
+  <path d="M50 200 L66 158 L80 170 L94 158 L110 200Z" fill="#F2EDE6"/>
+  <path d="M66 158 L80 170 L94 158" stroke="#D8D2CA" stroke-width="1" fill="none"/>
+
+  <!-- Dark charcoal blazer -->
+  <path d="M8 200 L10 174 C20 157 47 151 63 158 L80 165 L97 158 C113 151 140 157 150 174 L152 200Z" fill="#2A2A2A"/>
+  <!-- Blazer lapels / pocket square -->
+  <path d="M63 158 L72 172 L80 165" fill="#1C1C1C"/>
+  <path d="M97 158 L88 172 L80 165" fill="#1C1C1C"/>
+  <!-- Gold pin -->
+  <circle cx="87" cy="163" r="3.5" fill="#D4A843"/>
+  <circle cx="87" cy="163" r="2" fill="#F0C060"/>
+</svg>

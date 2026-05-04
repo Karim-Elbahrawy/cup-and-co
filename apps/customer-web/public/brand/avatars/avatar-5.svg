@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" fill="none">
+  <!-- The Social — high stylish fade, large white headphones, bright top, huge smile -->
+
+  <!-- Hair (high-top fade, dark) -->
+  <ellipse cx="80" cy="76" rx="44" ry="46" fill="#0D0804"/>
+  <!-- Fade sides (lighter, shorter) -->
+  <path d="M36 88 Q40 64 58 58 Q58 80 46 92Z" fill="#0D0804"/>
+  <path d="M124 88 Q120 64 102 58 Q102 80 114 92Z" fill="#0D0804"/>
+
+  <!-- Face -->
+  <ellipse cx="80" cy="102" rx="42" ry="50" fill="#C87B50"/>
+
+  <!-- Ears -->
+  <ellipse cx="38" cy="104" rx="8" ry="11" fill="#C87B50"/>
+  <ellipse cx="122" cy="104" rx="8" ry="11" fill="#C87B50"/>
+  <ellipse cx="38" cy="104" rx="5" ry="7" fill="#A06038"/>
+  <ellipse cx="122" cy="104" rx="5" ry="7" fill="#A06038"/>
+
+  <!-- Over-ear headphones -->
+  <!-- Left cup -->
+  <ellipse cx="25" cy="100" rx="12" ry="16" fill="#D8D8D8"/>
+  <ellipse cx="25" cy="100" rx="9" ry="12" fill="#E8E8E8"/>
+  <circle cx="25" cy="100" r="5" fill="#CCCCCC"/>
+  <!-- Right cup -->
+  <ellipse cx="135" cy="100" rx="12" ry="16" fill="#D8D8D8"/>
+  <ellipse cx="135" cy="100" rx="9" ry="12" fill="#E8E8E8"/>
+  <circle cx="135" cy="100" r="5" fill="#CCCCCC"/>
+  <!-- Headband arc -->
+  <path d="M25 84 Q80 46 135 84" stroke="#BBBBBB" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M25 84 Q80 46 135 84" stroke="#D8D8D8" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+  <!-- Eyebrows (expressive, friendly arch) -->
+  <path d="M58 90 Q66 85 73 88" stroke="#1A0A04" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+  <path d="M87 88 Q94 85 102 90" stroke="#1A0A04" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+
+  <!-- Eye whites (bright, open) -->
+  <ellipse cx="66" cy="100" rx="9.5" ry="9" fill="#FEFCFA"/>
+  <ellipse cx="94" cy="100" rx="9.5" ry="9" fill="#FEFCFA"/>
+
+  <!-- Pupils -->
+  <circle cx="66" cy="100" r="5.2" fill="#1C1008"/>
+  <circle cx="94" cy="100" r="5.2" fill="#1C1008"/>
+  <circle cx="68" cy="98" r="2" fill="white"/>
+  <circle cx="96" cy="98" r="2" fill="white"/>
+
+  <!-- Nose -->
+  <path d="M76 114 Q80 119 84 114" stroke="#9A5A30" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+
+  <!-- Huge social smile -->
+  <path d="M62 125 Q80 140 98 125" stroke="#7A3A1A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <!-- Teeth visible -->
+  <path d="M65 126 Q80 137 95 126 Q88 134 80 135 Q72 134 65 126Z" fill="white"/>
+  <!-- Cheek dimples -->
+  <circle cx="58" cy="122" r="4" fill="#B86840" fill-opacity="0.35"/>
+  <circle cx="102" cy="122" r="4" fill="#B86840" fill-opacity="0.35"/>
+
+  <!-- Neck -->
+  <path d="M68 150 L68 163 Q80 167 92 163 L92 150 Q87 143 80 141 Q73 143 68 150Z" fill="#C87B50"/>
+
+  <!-- Bright teal top -->
+  <path d="M8 200 L10 175 C20 158 46 152 62 159 L80 167 L98 159 C114 152 140 158 150 175 L152 200Z" fill="#0B8E7A"/>
+  <!-- V-neck -->
+  <path d="M68 159 L80 172 L92 159" stroke="#097A68" stroke-width="2" fill="none"/>
+</svg>

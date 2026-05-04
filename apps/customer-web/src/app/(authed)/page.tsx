@@ -127,8 +127,12 @@ export default function HomePage() {
           </button>
         </header>
 
-        {/* Search */}
-        <SearchBar value={search} onChange={setSearch} placeholder={t('common.search')} />
+        {/* Daily habit / quick-order bar */}
+        <DailyOrderBar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder={t('common.search')}
+        />
 
         {/* Hero promo */}
         <PromoCard

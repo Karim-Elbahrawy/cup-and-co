@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" fill="none">
+  <!-- The Athlete — short hair, orange headband, sports jersey, big smile -->
+
+  <!-- Hair (short crop) -->
+  <ellipse cx="80" cy="86" rx="46" ry="44" fill="#100A04"/>
+
+  <!-- Face -->
+  <ellipse cx="80" cy="100" rx="44" ry="52" fill="#C87B50"/>
+
+  <!-- Ears -->
+  <ellipse cx="36" cy="102" rx="8" ry="11" fill="#C87B50"/>
+  <ellipse cx="124" cy="102" rx="8" ry="11" fill="#C87B50"/>
+  <ellipse cx="36" cy="102" rx="5" ry="7" fill="#A06038"/>
+  <ellipse cx="124" cy="102" rx="5" ry="7" fill="#A06038"/>
+
+  <!-- Hair front (tight athletic cut) -->
+  <path d="M36 74 Q46 48 80 46 Q114 48 124 74 Q112 60 80 59 Q48 60 36 74Z" fill="#100A04"/>
+
+  <!-- Orange headband -->
+  <rect x="31" y="68" width="98" height="14" rx="7" fill="#E8620A"/>
+  <rect x="31" y="68" width="98" height="6" rx="3" fill="#F47C2A"/>
+
+  <!-- Eyebrows (bold, energetic — both raised) -->
+  <path d="M55 87 Q64 82 72 85" stroke="#1A0A04" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M88 85 Q96 82 105 87" stroke="#1A0A04" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- Eye whites (wide open) -->
+  <ellipse cx="65" cy="96" rx="9.5" ry="9" fill="#FEFCFA"/>
+  <ellipse cx="95" cy="96" rx="9.5" ry="9" fill="#FEFCFA"/>
+
+  <!-- Pupils -->
+  <circle cx="65" cy="96" r="5" fill="#1C1008"/>
+  <circle cx="95" cy="96" r="5" fill="#1C1008"/>
+  <circle cx="67" cy="94" r="2" fill="white"/>
+  <circle cx="97" cy="94" r="2" fill="white"/>
+
+  <!-- Nose -->
+  <path d="M76 111 Q80 116 84 111" stroke="#9A5A30" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+
+  <!-- Big open smile -->
+  <path d="M63 122 Q80 136 97 122" stroke="#7A3A1A" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <!-- Teeth -->
+  <path d="M66 123 Q80 133 94 123 Q87 130 80 131 Q73 130 66 123Z" fill="white"/>
+
+  <!-- Neck -->
+  <path d="M66 148 L66 162 Q80 166 94 162 L94 148 Q88 140 80 138 Q72 140 66 148Z" fill="#C87B50"/>
+
+  <!-- Orange jersey with white stripes -->
+  <path d="M8 200 L10 172 C20 156 48 150 64 157 L80 164 L96 157 C112 150 140 156 150 172 L152 200Z" fill="#E8620A"/>
+  <!-- Jersey stripes -->
+  <line x1="52" y1="155" x2="45" y2="200" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.4"/>
+  <line x1="108" y1="155" x2="115" y2="200" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.4"/>
+  <!-- Collar V-neck -->
+  <path d="M70 157 L80 170 L90 157" stroke="white" stroke-width="2" fill="none"/>
+</svg>

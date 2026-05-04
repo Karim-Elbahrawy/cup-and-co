@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" fill="none">
+  <!-- The Creative — big curly hair, teal beret, denim jacket, dreamy eyes -->
+
+  <!-- Big curly hair mass -->
+  <ellipse cx="80" cy="76" rx="58" ry="54" fill="#5C3218"/>
+  <!-- Hair texture bumps -->
+  <circle cx="42" cy="68" r="16" fill="#5C3218"/>
+  <circle cx="118" cy="68" r="16" fill="#5C3218"/>
+  <circle cx="60" cy="52" r="14" fill="#6E3E20"/>
+  <circle cx="100" cy="52" r="14" fill="#6E3E20"/>
+  <circle cx="80" cy="44" r="16" fill="#6E3E20"/>
+  <circle cx="38" cy="88" r="12" fill="#5C3218"/>
+  <circle cx="122" cy="88" r="12" fill="#5C3218"/>
+
+  <!-- Face -->
+  <ellipse cx="80" cy="104" rx="42" ry="50" fill="#C87B50"/>
+
+  <!-- Ears -->
+  <ellipse cx="38" cy="106" rx="8" ry="11" fill="#C87B50"/>
+  <ellipse cx="122" cy="106" rx="8" ry="11" fill="#C87B50"/>
+  <ellipse cx="38" cy="106" rx="5" ry="7" fill="#A06038"/>
+  <ellipse cx="122" cy="106" rx="5" ry="7" fill="#A06038"/>
+
+  <!-- Beret (teal, tilted slightly right) -->
+  <ellipse cx="86" cy="67" rx="36" ry="12" fill="#0D7B8A" transform="rotate(-8 86 67)"/>
+  <ellipse cx="86" cy="64" rx="32" ry="14" fill="#0F96A8" transform="rotate(-8 86 64)"/>
+  <circle cx="94" cy="56" r="5" fill="#0D7B8A"/>
+
+  <!-- Eyebrows (expressive, slightly arched) -->
+  <path d="M58 91 Q66 86 73 89" stroke="#3D1E0A" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  <path d="M87 89 Q94 86 102 91" stroke="#3D1E0A" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+
+  <!-- Eye whites (slightly upward look) -->
+  <ellipse cx="66" cy="99" rx="9" ry="8" fill="#FEFCFA"/>
+  <ellipse cx="94" cy="99" rx="9" ry="8" fill="#FEFCFA"/>
+
+  <!-- Pupils (looking slightly up = dreamy) -->
+  <circle cx="66" cy="97" r="4.8" fill="#1C1008"/>
+  <circle cx="94" cy="97" r="4.8" fill="#1C1008"/>
+  <circle cx="68" cy="95.5" r="1.8" fill="white"/>
+  <circle cx="96" cy="95.5" r="1.8" fill="white"/>
+
+  <!-- Nose -->
+  <path d="M76 113 Q80 118 84 113" stroke="#9A5A30" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+
+  <!-- Soft dreamy smile -->
+  <path d="M70 124 Q80 131 90 124" stroke="#884428" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Neck -->
+  <path d="M68 150 L68 163 Q80 167 92 163 L92 150 Q88 143 80 141 Q72 143 68 150Z" fill="#C87B50"/>
+
+  <!-- Denim jacket -->
+  <path d="M8 200 L10 174 C20 158 46 152 62 159 L80 166 L98 159 C114 152 140 158 150 174 L152 200Z" fill="#3D5A80"/>
+  <!-- Jacket lapels -->
+  <path d="M62 159 L72 175 L80 166" fill="#2C4260" stroke="none"/>
+  <path d="M98 159 L88 175 L80 166" fill="#2C4260" stroke="none"/>
+  <!-- Jacket collar -->
+  <path d="M72 175 L80 166 L88 175" stroke="#4A6A90" stroke-width="1" fill="none"/>
+  <!-- Colorful pin on jacket -->
+  <circle cx="68" cy="170" r="5" fill="#F4A261"/>
+  <circle cx="68" cy="170" r="3" fill="#E8620A"/>
+</svg>
