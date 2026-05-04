@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DollarSign, TrendingUp, Users } from 'lucide-react';
 import { useToast } from '@/components/Toast';
+import { useSession } from '@/lib/useSession';
 import {
   adminApi,
   type AdminReportRevenue,
@@ -12,6 +14,12 @@ import {
 
 export default function ReportsPage() {
   const toast = useToast();
+  const session = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (session && session.role !== 'owner') router.replace('/');
+  }, [session, router]);
   const [revenue, setRevenue] = useState<AdminReportRevenue | null>(null);
   const [topItems, setTopItems] = useState<AdminReportTopItem[]>([]);
   const [breakdown, setBreakdown] = useState<AdminReportRoleBreakdown | null>(null);

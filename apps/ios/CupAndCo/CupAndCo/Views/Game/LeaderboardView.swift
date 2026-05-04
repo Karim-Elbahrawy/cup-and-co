@@ -29,7 +29,7 @@ struct LeaderboardView: View {
             .padding(.bottom, 100)
         }
         .background(CupColors.paper.ignoresSafeArea())
-        .navigationTitle("Leaderboard")
+        .navigationTitle("leaderboard.title")
         .navigationBarTitleDisplayMode(.large)
         .task { await load() }
         .refreshable { await load() }
@@ -51,30 +51,30 @@ struct LeaderboardView: View {
                         )
                     HStack(spacing: 0) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Your Rank")
+                            Text("leaderboard.your_rank")
                                 .font(.system(size: 13, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white.opacity(0.85))
                             if let rank = myRank.rank {
-                                Text("#\(rank)")
+                                Text(verbatim: "#\(rank)")
                                     .font(.system(size: 40, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
                             } else {
-                                Text("—")
+                                Text(verbatim: "—")
                                     .font(.system(size: 40, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white.opacity(0.6))
                             }
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 4) {
-                            Text("Score")
+                            Text("leaderboard.score")
                                 .font(.system(size: 13, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white.opacity(0.85))
                             if let total = myRank.totalScore {
-                                Text("\(total)")
+                                Text(verbatim: "\(total)")
                                     .font(.system(size: 40, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
                             } else {
-                                Text("—")
+                                Text(verbatim: "—")
                                     .font(.system(size: 40, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white.opacity(0.6))
                             }
@@ -92,7 +92,7 @@ struct LeaderboardView: View {
 
     private var leaderboardSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("This Week's Top Players")
+            Text("leaderboard.this_week")
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(CupColors.espresso)
 
@@ -114,8 +114,8 @@ struct LeaderboardView: View {
             } else {
                 emptyState(
                     icon: "list.number",
-                    message: "No scores yet this week",
-                    subtext: "Play a game to appear on the leaderboard!"
+                    message: "leaderboard.no_scores",
+                    subtext: "leaderboard.no_scores_sub"
                 )
             }
         }
@@ -125,12 +125,12 @@ struct LeaderboardView: View {
         let isMe = entry.userId == session.user?.id
         return HStack(spacing: 12) {
             // Rank medal or number
-            Text(rankDisplay(entry.rank))
+            Text(verbatim: rankDisplay(entry.rank))
                 .font(.system(size: entry.rank <= 3 ? 22 : 14, weight: .bold, design: .rounded))
                 .frame(width: 32)
 
             // User ID (truncated)
-            Text(truncatedId(entry.userId))
+            Text(verbatim: truncatedId(entry.userId))
                 .font(.system(size: 14, weight: isMe ? .bold : .medium, design: .rounded))
                 .foregroundStyle(isMe ? CupColors.primary : CupColors.espresso)
                 .lineLimit(1)
@@ -138,7 +138,7 @@ struct LeaderboardView: View {
             Spacer()
 
             // Score
-            Text("\(entry.totalScore)")
+            Text(verbatim: "\(entry.totalScore)")
                 .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundStyle(isMe ? CupColors.primary : CupColors.cocoa)
         }
@@ -168,21 +168,21 @@ struct LeaderboardView: View {
     private var prizeTiersCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Weekly Prizes")
+                Text("leaderboard.prizes_title")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(CupColors.espresso)
                 Spacer()
-                Text("Resets Sunday")
+                Text("leaderboard.resets_sunday")
                     .font(.system(size: 12, design: .rounded))
                     .foregroundStyle(CupColors.muted)
             }
 
             VStack(spacing: 0) {
-                prizeTierRow(medal: "🥇", label: "1st Place", reward: "Free combo meal")
+                prizeTierRow(medal: "🥇", label: "leaderboard.rank_1st", reward: "leaderboard.prize_combo")
                 Divider().padding(.leading, 52)
-                prizeTierRow(medal: "🥈", label: "2nd Place", reward: "Free drink")
+                prizeTierRow(medal: "🥈", label: "leaderboard.rank_2nd", reward: "leaderboard.prize_drink")
                 Divider().padding(.leading, 52)
-                prizeTierRow(medal: "🥉", label: "3rd Place", reward: "50% off your order")
+                prizeTierRow(medal: "🥉", label: "leaderboard.rank_3rd", reward: "leaderboard.prize_discount")
             }
             .background(CupColors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -193,9 +193,9 @@ struct LeaderboardView: View {
         }
     }
 
-    private func prizeTierRow(medal: String, label: String, reward: String) -> some View {
+    private func prizeTierRow(medal: String, label: LocalizedStringKey, reward: LocalizedStringKey) -> some View {
         HStack(spacing: 12) {
-            Text(medal)
+            Text(verbatim: medal)
                 .font(.system(size: 22))
                 .frame(width: 32)
             VStack(alignment: .leading, spacing: 2) {
@@ -216,7 +216,7 @@ struct LeaderboardView: View {
 
     private var myPrizesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Your Prizes")
+            Text("leaderboard.your_prizes")
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(CupColors.espresso)
 
@@ -229,8 +229,8 @@ struct LeaderboardView: View {
             } else {
                 emptyState(
                     icon: "gift",
-                    message: "No prizes yet",
-                    subtext: "Reach the top 3 this week to earn a prize!"
+                    message: "leaderboard.no_prizes",
+                    subtext: "leaderboard.no_prizes_sub"
                 )
             }
         }
@@ -251,12 +251,12 @@ struct LeaderboardView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
-                        Text(prize.description)
+                        Text(verbatim: prize.description)
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                             .foregroundStyle(redeemed ? CupColors.muted : CupColors.espresso)
                         Spacer()
                         if redeemed {
-                            Text("Redeemed")
+                            Text("leaderboard.redeemed")
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 8)
@@ -266,7 +266,7 @@ struct LeaderboardView: View {
                                 )
                         }
                     }
-                    Text("Rank \(prize.rank)")
+                    Text(verbatim: "Rank \(prize.rank)")
                         .font(.system(size: 12, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                 }
@@ -277,7 +277,7 @@ struct LeaderboardView: View {
                 Image(systemName: "ticket.fill")
                     .font(.system(size: 13))
                     .foregroundStyle(redeemed ? CupColors.muted : CupColors.accent)
-                Text(prize.code)
+                Text(verbatim: prize.code)
                     .font(.system(size: 15, weight: .bold, design: .monospaced))
                     .foregroundStyle(redeemed ? CupColors.muted : CupColors.espresso)
                     .tracking(2)
@@ -287,7 +287,7 @@ struct LeaderboardView: View {
             .background(redeemed ? CupColors.stroke.opacity(0.3) : CupColors.accentTint)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            Text("Expires \(formatExpiry(prize.expiresAt))")
+            Text(verbatim: String(format: NSLocalizedString("leaderboard.expires", comment: ""), formatExpiry(prize.expiresAt)))
                 .font(.system(size: 12, design: .rounded))
                 .foregroundStyle(CupColors.muted)
         }
@@ -321,7 +321,7 @@ struct LeaderboardView: View {
 
     // MARK: - Empty / Error states
 
-    private func emptyState(icon: String, message: String, subtext: String) -> some View {
+    private func emptyState(icon: String, message: LocalizedStringKey, subtext: LocalizedStringKey) -> some View {
         VStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 30))
@@ -343,10 +343,10 @@ struct LeaderboardView: View {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 28))
                 .foregroundStyle(CupColors.primary)
-            Text(message)
+            Text(verbatim: message)
                 .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(CupColors.muted)
-            Button("Retry") { Task { await load() } }
+            Button("leaderboard.retry") { Task { await load() } }
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundStyle(CupColors.primary)
         }
@@ -371,4 +371,3 @@ struct LeaderboardView: View {
         isLoading = false
     }
 }
-

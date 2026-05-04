@@ -55,7 +55,7 @@ struct GameView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .tint(CupColors.primary)
-            Text("Preparing your game…")
+            Text("game.loading")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundStyle(CupColors.muted)
         }
@@ -78,10 +78,10 @@ struct GameView: View {
                 }
 
                 VStack(spacing: 8) {
-                    Text("Coffee Collector")
+                    Text("game.title")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(CupColors.espresso)
-                    Text("Catch the falling beans!\nEach catch earns +10 points.")
+                    Text("game.tagline")
                         .font(.system(size: 15, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                         .multilineTextAlignment(.center)
@@ -97,7 +97,7 @@ struct GameView: View {
 
             // Error / limit notice
             if let error {
-                Text(error)
+                Text(verbatim: error)
                     .font(.system(size: 13, design: .rounded))
                     .foregroundStyle(CupColors.error)
                     .multilineTextAlignment(.center)
@@ -109,7 +109,7 @@ struct GameView: View {
             Button {
                 startGame()
             } label: {
-                Text("Play")
+                Text("game.play")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -128,10 +128,10 @@ struct GameView: View {
 
     private var rulesCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ruleRow(icon: "hand.tap.fill", text: "Drag or tap to move the cup")
-            ruleRow(icon: "circle.fill", text: "Catch a bean → +10 points")
-            ruleRow(icon: "heart.slash.fill", text: "Miss a bean → lose 1 life")
-            ruleRow(icon: "timer", text: "60 seconds per round")
+            ruleRow(icon: "hand.tap.fill", text: "game.rule1")
+            ruleRow(icon: "circle.fill", text: "game.rule2")
+            ruleRow(icon: "heart.slash.fill", text: "game.rule3")
+            ruleRow(icon: "timer", text: "game.rule4")
         }
         .padding(18)
         .background(CupColors.surface)
@@ -143,7 +143,7 @@ struct GameView: View {
         .padding(.horizontal, 24)
     }
 
-    private func ruleRow(icon: String, text: String) -> some View {
+    private func ruleRow(icon: String, text: LocalizedStringKey) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .semibold))
@@ -178,10 +178,10 @@ struct GameView: View {
         HStack(spacing: 0) {
             // Score
             VStack(alignment: .leading, spacing: 2) {
-                Text("SCORE")
+                Text("game.score_label")
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundStyle(CupColors.muted)
-                Text("\(score)")
+                Text(verbatim: "\(score)")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundStyle(CupColors.espresso)
                     .contentTransition(.numericText())
@@ -191,10 +191,10 @@ struct GameView: View {
 
             // Countdown
             VStack(spacing: 2) {
-                Text("TIME")
+                Text("game.time_label")
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundStyle(CupColors.muted)
-                Text("\(timeRemaining)s")
+                Text(verbatim: "\(timeRemaining)s")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundStyle(timeRemaining <= 10 ? CupColors.error : CupColors.espresso)
                     .contentTransition(.numericText())
@@ -204,7 +204,7 @@ struct GameView: View {
 
             // Lives
             VStack(alignment: .trailing, spacing: 2) {
-                Text("LIVES")
+                Text("game.lives_label")
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundStyle(CupColors.muted)
                 HStack(spacing: 4) {
@@ -244,10 +244,10 @@ struct GameView: View {
                 }
 
                 VStack(spacing: 8) {
-                    Text("Game Over!")
+                    Text("game.over_title")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(CupColors.espresso)
-                    Text("You scored \(finalScore) points")
+                    Text(verbatim: String(format: NSLocalizedString("game.you_scored", comment: ""), finalScore))
                         .font(.system(size: 17, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                 }
@@ -257,7 +257,7 @@ struct GameView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "star.fill")
                             .foregroundStyle(CupColors.star)
-                        Text("+\(pointsAwarded) loyalty points earned!")
+                        Text(verbatim: String(format: NSLocalizedString("game.points_earned", comment: ""), pointsAwarded))
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                             .foregroundStyle(CupColors.accent)
                     }
@@ -266,8 +266,8 @@ struct GameView: View {
                     .background(CupColors.accentTint)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .padding(.horizontal, 32)
-                } else if error != nil {
-                    Text(error!)
+                } else if let error {
+                    Text(verbatim: error)
                         .font(.system(size: 13, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                         .multilineTextAlignment(.center)
@@ -279,7 +279,7 @@ struct GameView: View {
                     Button {
                         Task { await resetAndPlay() }
                     } label: {
-                        Text("Play Again")
+                        Text("game.play_again")
                             .font(.system(size: 17, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -294,7 +294,7 @@ struct GameView: View {
                     Button {
                         dismiss()
                     } label: {
-                        Text("Back to Rewards")
+                        Text("game.back_to_rewards")
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .foregroundStyle(CupColors.primary)
                             .frame(maxWidth: .infinity)
@@ -323,10 +323,10 @@ struct GameView: View {
             gameSession = try await GameAPI.startSession()
             phase = .idle
         } catch APIError.http(403, _) {
-            error = "Games are for students only"
+            error = String(localized: "game.error_students")
             phase = .idle
         } catch APIError.http(429, _) {
-            error = "Daily session limit reached. Come back tomorrow!"
+            error = String(localized: "game.error_daily_limit")
             phase = .idle
         } catch {
             self.error = (error as? LocalizedError)?.errorDescription ?? "\(error)"
@@ -396,7 +396,7 @@ struct GameView: View {
                     pointsAwarded = result.pointsAwarded
                 }
             } catch {
-                self.error = "Score could not be submitted."
+                self.error = String(localized: "game.error_submit")
             }
         }
 
@@ -413,4 +413,3 @@ struct GameView: View {
         }
     }
 }
-

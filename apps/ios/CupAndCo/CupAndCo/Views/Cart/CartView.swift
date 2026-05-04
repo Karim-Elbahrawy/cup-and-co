@@ -29,7 +29,7 @@ struct CartView: View {
                 cartContent
             }
         }
-        .navigationTitle(Text("Cart"))
+        .navigationTitle(Text("cart.title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $showCheckout) {
             CheckoutView()
@@ -50,10 +50,10 @@ struct CartView: View {
                 MonogramView()
                     .frame(width: 48, height: 48)
             }
-            Text("Your cart is empty")
+            Text("cart.empty")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(CupColors.espresso)
-            Text("Browse the menu and add your favorites")
+            Text("cart.empty_subtitle")
                 .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(CupColors.muted)
                 .multilineTextAlignment(.center)
@@ -95,7 +95,7 @@ struct CartView: View {
             HStack {
                 Image(systemName: "star.circle.fill")
                     .foregroundStyle(CupColors.star)
-                Text("Redeem Points")
+                Text("cart.redeem_points")
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundStyle(CupColors.espresso)
                 Spacer()
@@ -109,7 +109,7 @@ struct CartView: View {
                 set: { cart.redeemPoints = Int($0) }
             ), in: 0...Double(loyaltyBalance), step: 10)
             .tint(CupColors.primary)
-            .accessibilityLabel(Text("Redeem points slider"))
+            .accessibilityLabel(Text("cart.redeem_slider_a11y"))
 
             HStack {
                 Text(verbatim: "0")
@@ -140,15 +140,15 @@ struct CartView: View {
 
     private var orderSummary: some View {
         VStack(spacing: 10) {
-            summaryRow(label: "Subtotal", value: "EGP \(Int(cart.subtotal.rounded()))")
+            summaryRow(label: "cart.subtotal", value: "EGP \(Int(cart.subtotal.rounded()))")
             if discount > 0 {
-                summaryRow(label: "Points Discount", value: "-EGP \(Int(discount.rounded()))",
+                summaryRow(label: "cart.points_discount", value: "-EGP \(Int(discount.rounded()))",
                            valueColor: CupColors.success)
             }
             Rectangle()
                 .fill(CupColors.stroke)
                 .frame(height: 1)
-            summaryRow(label: "Total", value: "EGP \(Int(total.rounded()))", isBold: true)
+            summaryRow(label: "cart.total", value: "EGP \(Int(total.rounded()))", isBold: true)
         }
         .padding(16)
         .background(CupColors.surface)
@@ -159,7 +159,7 @@ struct CartView: View {
         )
     }
 
-    private func summaryRow(label: String, value: String,
+    private func summaryRow(label: LocalizedStringKey, value: String,
                             valueColor: Color = CupColors.espresso,
                             isBold: Bool = false) -> some View {
         HStack {
@@ -184,7 +184,7 @@ struct CartView: View {
             showCheckout = true
         } label: {
             HStack {
-                Text("Continue to Checkout")
+                Text("cart.continue")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                 Spacer()
                 Text(verbatim: "EGP \(Int(total.rounded()))")
@@ -204,7 +204,7 @@ struct CartView: View {
                         radius: 16, x: 0, y: -4)
                 .ignoresSafeArea(edges: .bottom)
         )
-        .accessibilityLabel(Text("Continue to checkout"))
+        .accessibilityLabel(Text("cart.continue"))
     }
 
     // MARK: - Loyalty fetch
@@ -268,7 +268,7 @@ struct CartItemRow: View {
                         .background(CupColors.cream)
                         .clipShape(Circle())
                 }
-                .accessibilityLabel(Text(item.quantity == 1 ? "Remove item" : "Decrease quantity"))
+                .accessibilityLabel(item.quantity == 1 ? Text("cart.remove_item") : Text("cart.decrease_qty"))
 
                 Text(verbatim: "\(item.quantity)")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -287,7 +287,7 @@ struct CartItemRow: View {
                         .background(CupColors.primary)
                         .clipShape(Circle())
                 }
-                .accessibilityLabel(Text("Increase quantity"))
+                .accessibilityLabel(Text("cart.increase_qty"))
             }
         }
         .padding(14)

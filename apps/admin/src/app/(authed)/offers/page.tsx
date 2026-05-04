@@ -1,14 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Tag, Calendar, Users } from 'lucide-react';
 import { useToast } from '@/components/Toast';
+import { useSession } from '@/lib/useSession';
 import { adminApi, type AdminOffer } from '@/lib/api';
 
 const ROLES = ['student', 'faculty', 'office'] as const;
 
 export default function OffersPage() {
   const toast = useToast();
+  const session = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (session && session.role !== 'owner') router.replace('/');
+  }, [session, router]);
   const [offers, setOffers] = useState<AdminOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

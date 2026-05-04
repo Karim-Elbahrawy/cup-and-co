@@ -1,11 +1,23 @@
 import 'dotenv/config';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 function required(name: string, fallback?: string): string {
   const v = process.env[name] ?? fallback;
   if (v === undefined) {
     throw new Error(`Missing required env var: ${name}`);
   }
   return v;
+}
+
+/** Like required() but throws in production even when a dev fallback is provided. */
+function secret(name: string, devFallback: string): string {
+  if (isProd) {
+    const v = process.env[name];
+    if (!v) throw new Error(`Missing required production secret: ${name}`);
+    return v;
+  }
+  return process.env[name] ?? devFallback;
 }
 
 function num(name: string, fallback: number): number {
@@ -27,12 +39,12 @@ export const config = {
   },
 
   jwt: {
-    secret: required('JWT_SECRET', 'dev-only-secret-replace-me-in-production-32chars'),
+    secret: secret('JWT_SECRET', 'dev-only-secret-replace-me-in-production-32chars'),
   },
 
   paymob: {
     apiKey: process.env.PAYMOB_API_KEY ?? '',
-    hmacSecret: required('PAYMOB_HMAC_SECRET', 'local-dev-secret'),
+    hmacSecret: secret('PAYMOB_HMAC_SECRET', 'local-dev-secret'),
     integrationIdCard: process.env.PAYMOB_INTEGRATION_ID_CARD ?? '',
     integrationIdWallet: process.env.PAYMOB_INTEGRATION_ID_WALLET ?? '',
     iframeId: process.env.PAYMOB_IFRAME_ID ?? '',

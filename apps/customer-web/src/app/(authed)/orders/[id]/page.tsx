@@ -120,7 +120,7 @@ export default function OrderTrackingPage({
       controller.abort();
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [order?.status, id, refresh]);
+  }, [order?.id, id, refresh]);
 
   // Cancel order handler
   async function handleCancel() {
@@ -191,8 +191,8 @@ export default function OrderTrackingPage({
           </p>
           <p className="mt-2 text-sm text-cup-muted">
             {order.fulfillmentType === 'pickup'
-              ? 'Show this at the counter when you arrive.'
-              : 'Confirm with the courier on delivery.'}
+              ? t('orders.pickupInstruction')
+              : t('orders.deliveryInstruction')}
           </p>
         </div>
       </section>
@@ -213,7 +213,7 @@ export default function OrderTrackingPage({
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cup-error/30 bg-white px-5 py-3 font-heading text-sm font-semibold text-cup-error shadow-subtle transition active:scale-[0.98] disabled:opacity-60"
             >
               <XCircle className="h-4 w-4" />
-              {cancelling ? 'Cancelling...' : 'Cancel Order'}
+              {cancelling ? t('orders.cancelling') : t('orders.cancelOrder')}
             </button>
             {cancelError && (
               <p className="mt-2 text-center text-xs text-cup-error">{cancelError}</p>
@@ -225,7 +225,7 @@ export default function OrderTrackingPage({
       {/* Vertical timeline */}
       <section className="mx-auto mt-5 max-w-3xl px-5">
         <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
-          <ol className="relative space-y-6 pl-2" aria-label="Order status">
+          <ol className="relative space-y-6 ps-2" aria-label="Order status">
             {timeline.map((step, idx) => {
               const isLast = idx === timeline.length - 1;
               return (
@@ -269,9 +269,9 @@ export default function OrderTrackingPage({
         <button
           type="button"
           onClick={() => setShowItems((v) => !v)}
-          className="flex w-full items-center justify-between rounded-card border border-cup-stroke bg-white px-5 py-4 text-left text-sm font-semibold text-cup-brown-900 shadow-subtle"
+          className="flex w-full items-center justify-between rounded-card border border-cup-stroke bg-white px-5 py-4 text-start text-sm font-semibold text-cup-brown-900 shadow-subtle"
         >
-          {showItems ? 'Hide items' : `View items (${order.items.length})`}
+          {showItems ? t('orders.hideItems') : `${t('orders.viewItems')} (${order.items.length})`}
           <span className="text-cup-muted">{showItems ? '▲' : '▼'}</span>
         </button>
         {showItems && (
@@ -293,7 +293,7 @@ export default function OrderTrackingPage({
                   <div className="flex flex-1 flex-col">
                     <p className="text-sm font-semibold">
                       {language === 'ar' ? it.productNameAr : it.productNameEn}
-                      <span className="ml-2 text-xs text-cup-muted">×{it.quantity}</span>
+                      <span className="ms-2 text-xs text-cup-muted">×{it.quantity}</span>
                     </p>
                     {Object.keys(it.options).length > 0 && (
                       <p className="mt-0.5 text-[11px] text-cup-muted">

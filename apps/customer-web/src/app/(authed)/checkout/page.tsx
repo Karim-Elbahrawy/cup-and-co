@@ -330,7 +330,7 @@ function PaymentCard({
       type="button"
       onClick={onClick}
       whileTap={{ scale: 0.99 }}
-      className={`flex w-full items-center gap-3 rounded-card border-2 p-4 text-left text-sm font-semibold transition ${
+      className={`flex w-full items-center gap-3 rounded-card border-2 p-4 text-start text-sm font-semibold transition ${
         selected
           ? 'border-cup-orange-600 bg-[var(--cup-cream)] text-cup-brown-900 shadow-card'
           : 'border-cup-stroke bg-white text-cup-brown-700 hover:border-cup-orange-600/40'

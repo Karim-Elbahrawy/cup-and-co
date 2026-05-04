@@ -48,6 +48,13 @@ export const en: Translations = {
       office: 'Convenient coffee for the campus office team',
     },
   },
+  nav: {
+    home: 'Home',
+    usual: 'Usual',
+    cart: 'Cart',
+    rewards: 'Rewards',
+    profile: 'Profile',
+  },
   home: {
     todayOnly: 'Today Only',
     superDiscount: 'Super Discount',
@@ -115,6 +122,12 @@ export const en: Translations = {
     pickupCode: 'Pickup Code',
     noOrders: 'No orders yet',
     noOrdersMessage: 'Your first cup is waiting',
+    cancelOrder: 'Cancel Order',
+    cancelling: 'Cancelling...',
+    hideItems: 'Hide items',
+    viewItems: 'View items',
+    pickupInstruction: 'Show this at the counter when you arrive.',
+    deliveryInstruction: 'Confirm with the courier on delivery.',
   },
   loyalty: {
     rewards: 'Rewards',
@@ -129,6 +142,10 @@ export const en: Translations = {
     noScores: 'No scores yet this week. Be the first!',
     redeeming: 'Redeeming…',
     noPrizes: 'No prizes yet. Play the game to win!',
+    yourPoints: 'Your Points',
+    discountAvailable: 'Discount available',
+    noHistory: 'No points yet',
+    noHistoryMessage: 'Place an order or scan a receipt QR to start earning points.',
   },
   games: {
     play: 'Play',
@@ -146,6 +163,10 @@ export const en: Translations = {
     catchBeans: 'Catch beans — +10 pts each',
     missBean: 'Miss a bean — lose a heart',
     timeAndLives: '60 seconds · 3 hearts · earn loyalty points!',
+    playCoffeeCollector: 'Play Coffee Collector',
+    earnPoints: 'Catch beans, earn loyalty points',
+    you: 'You',
+    expired: 'Expired',
   },
   profile: {
     myProfile: 'My Profile',

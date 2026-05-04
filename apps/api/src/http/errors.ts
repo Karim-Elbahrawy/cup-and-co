@@ -11,7 +11,7 @@ export function errorHandler(
     res.status(400).json({ error: 'Validation error', details: err.flatten() });
     return;
   }
-  const status = (err as { status?: number })?.status ?? 400;
+  const status = (err as { status?: number })?.status ?? 500;
   const message = (err as Error)?.message ?? 'Unknown error';
   if (process.env.NODE_ENV !== 'production') {
     // eslint-disable-next-line no-console

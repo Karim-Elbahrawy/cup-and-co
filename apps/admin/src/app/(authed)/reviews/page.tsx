@@ -1,12 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Star, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/components/Toast';
+import { useSession } from '@/lib/useSession';
 import { adminApi, type AdminReview } from '@/lib/api';
 
 export default function ReviewsPage() {
   const toast = useToast();
+  const session = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (session && session.role !== 'owner') router.replace('/');
+  }, [session, router]);
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [loading, setLoading] = useState(true);
 

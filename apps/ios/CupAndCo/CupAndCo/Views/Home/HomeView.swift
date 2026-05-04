@@ -8,7 +8,7 @@ struct HomeView: View {
     @Environment(CatalogStore.self) private var catalog
 
     @State private var query: String = ""
-    @State private var roleFilter: UserRole = .student
+    @State private var selectedCategory: String? = nil
     @State private var showProfile: Bool = false
     @State private var showUsual: Bool = false
 
@@ -36,6 +36,13 @@ struct HomeView: View {
         GridItem(.flexible(), spacing: 14)
     ]
 
+    private var displayedProducts: [Product] {
+        if let cat = selectedCategory {
+            return catalog.products.filter { $0.categoryId == cat }
+        }
+        return catalog.popular
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -61,7 +68,7 @@ struct HomeView: View {
                                     .padding(.vertical, 6)
                                     .background(
                                         LinearGradient(
-                                            colors: [Color(hex: "#F4A261"), Color(hex: "#C2410C")],
+                                            colors: CupColors.sunriseStops,
                                             startPoint: .leading,
                                             endPoint: .trailing
                                         )
@@ -73,8 +80,12 @@ struct HomeView: View {
                     }
                 }
 
-                CategoryChipRow(selected: $roleFilter)
-                    .padding(.horizontal, 20)
+                CategoryChipRow(
+                    categories: catalog.categories,
+                    selected: $selectedCategory,
+                    language: session.user?.languagePref ?? .en
+                )
+                .padding(.horizontal, 20)
 
                 sectionHeader
                     .padding(.horizontal, 20)
@@ -88,7 +99,7 @@ struct HomeView: View {
                         .padding(.horizontal, 20)
                 } else {
                     LazyVGrid(columns: columns, spacing: 14) {
-                        ForEach(catalog.popular) { product in
+                        ForEach(displayedProducts) { product in
                             NavigationLink(value: product) {
                                 ProductCardView(
                                     product: product,

@@ -70,7 +70,7 @@ struct CheckoutView: View {
 
             placeOrderBar
         }
-        .navigationTitle(Text("Checkout"))
+        .navigationTitle(Text("checkout.title"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $showTracking) {
             if let response = placedOrderResponse {
@@ -83,10 +83,10 @@ struct CheckoutView: View {
     // MARK: - Fulfillment
 
     private var fulfillmentSection: some View {
-        sectionCard(title: "Fulfillment") {
+        sectionCard(title: "checkout.fulfillment") {
             HStack(spacing: 0) {
-                fulfillmentButton(type: .pickup, label: "Pickup", icon: "bag.fill")
-                fulfillmentButton(type: .delivery, label: "Delivery", icon: "bicycle")
+                fulfillmentButton(type: .pickup, label: "checkout.pickup", icon: "bag.fill")
+                fulfillmentButton(type: .delivery, label: "checkout.delivery", icon: "bicycle")
             }
             .padding(4)
             .background(CupColors.cream)
@@ -94,7 +94,7 @@ struct CheckoutView: View {
         }
     }
 
-    private func fulfillmentButton(type: FulfillmentType, label: String, icon: String) -> some View {
+    private func fulfillmentButton(type: FulfillmentType, label: LocalizedStringKey, icon: String) -> some View {
         let isSelected = fulfillment == type
         return Button {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
@@ -121,17 +121,18 @@ struct CheckoutView: View {
     // MARK: - Time slot
 
     private var timeSlotSection: some View {
-        sectionCard(title: "Time") {
+        sectionCard(title: "checkout.time") {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(timeSlots, id: \.self) { slot in
                         let isSelected = selectedTimeSlot == slot
+                        let displayLabel = slot == "ASAP" ? String(localized: "checkout.asap") : slot
                         Button {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
                                 selectedTimeSlot = slot
                             }
                         } label: {
-                            Text(slot)
+                            Text(verbatim: displayLabel)
                                 .font(.system(size: 13, weight: isSelected ? .bold : .medium, design: .rounded))
                                 .foregroundStyle(isSelected ? .white : CupColors.espresso)
                                 .padding(.horizontal, 16)
@@ -140,7 +141,7 @@ struct CheckoutView: View {
                                 .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(Text("Time: \(slot)"))
+                        .accessibilityLabel(Text(verbatim: displayLabel))
                         .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : [.isButton])
                     }
                 }
@@ -151,7 +152,7 @@ struct CheckoutView: View {
     // MARK: - Payment method
 
     private var paymentSection: some View {
-        sectionCard(title: "Payment Method") {
+        sectionCard(title: "checkout.payment_method") {
             HStack(spacing: 10) {
                 ForEach([PaymentMethod.paymobCard, .paymobWallet, .cash], id: \.rawValue) { method in
                     paymentCard(method: method)
@@ -188,15 +189,15 @@ struct CheckoutView: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Text("Pay with \(method.label)"))
+        .accessibilityLabel(Text(verbatim: "Pay with \(method.label)"))
         .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : [.isButton])
     }
 
     // MARK: - Notes
 
     private var notesSection: some View {
-        sectionCard(title: "Notes") {
-            TextField("Any special requests?", text: $notes, axis: .vertical)
+        sectionCard(title: "checkout.notes") {
+            TextField("checkout.notes_placeholder", text: $notes, axis: .vertical)
                 .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(CupColors.espresso)
                 .lineLimit(3...5)
@@ -221,7 +222,7 @@ struct CheckoutView: View {
     // MARK: - Summary
 
     private var summarySection: some View {
-        sectionCard(title: "Order Summary") {
+        sectionCard(title: "checkout.order_summary") {
             VStack(spacing: 8) {
                 HStack {
                     Text(verbatim: "\(cart.itemCount) item\(cart.itemCount == 1 ? "" : "s")")
@@ -273,7 +274,7 @@ struct CheckoutView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 18, weight: .bold))
                 }
-                Text("Place Order")
+                Text("checkout.place_order")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
             }
             .foregroundStyle(.white)
@@ -291,13 +292,13 @@ struct CheckoutView: View {
                         radius: 16, x: 0, y: -4)
                 .ignoresSafeArea(edges: .bottom)
         )
-        .accessibilityLabel(Text("Place order"))
+        .accessibilityLabel(Text("checkout.place_order"))
     }
 
     // MARK: - Section card helper
 
     @ViewBuilder
-    private func sectionCard<Content: View>(title: String,
+    private func sectionCard<Content: View>(title: LocalizedStringKey,
                                              @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)

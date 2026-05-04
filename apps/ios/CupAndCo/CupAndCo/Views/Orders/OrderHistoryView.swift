@@ -17,7 +17,7 @@ struct OrderHistoryView: View {
                 orderList
             }
         }
-        .navigationTitle(Text("My Orders"))
+        .navigationTitle(Text("orders.title"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await orderStore.fetchOrders()
@@ -39,10 +39,10 @@ struct OrderHistoryView: View {
                     .font(.system(size: 38, weight: .semibold))
                     .foregroundStyle(CupColors.primary)
             }
-            Text("No orders yet")
+            Text("orders.empty")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(CupColors.espresso)
-            Text("Your order history will appear here")
+            Text("orders.empty_subtitle")
                 .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(CupColors.muted)
         }
