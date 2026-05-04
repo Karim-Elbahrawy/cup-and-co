@@ -745,7 +745,7 @@ export function createApp(): express.Express {
 
   app.post('/admin/leaderboard/settle', requireAuth, requireAdmin, (req, res, next) => {
     try {
-      assertAdminPermission(getAdminRole(req), 'orders:update_status'); // owner check via permission matrix
+      assertAdminPermission(getAdminRole(req), 'leaderboard:settle');
       const { weekKey } = z.object({ weekKey: z.string().min(1).optional() }).parse(req.body);
       const targetWeek = weekKey ?? games.getCurrentLeaderboard()[0]?.weekKey ?? new Date().toISOString().slice(0, 10);
       const result = settleLeaderboard(targetWeek);
