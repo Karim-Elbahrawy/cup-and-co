@@ -581,9 +581,14 @@ export function createApp(): express.Express {
   // -------- Payments --------
   app.post('/payments/paymob/intention', requireAuth, (req, res, next) => {
     try {
+      const user = getRequestUser(req);
       const input = paymobIntentionSchema.parse(req.body);
       const order = orders.get(input.orderId);
-      if (!order) throw new Error('Order not found.');
+      if (!order || order.userId !== user.id) {
+        const e = new Error('Order not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
       const intention = paymob.createIntention({
         orderId: order.id,
         userId: order.userId,
