@@ -4,7 +4,7 @@ import SwiftUI
 struct CategoryChipRow: View {
     let categories: [Category]
     @Binding var selected: String?
-    let language: LanguagePreference
+    let language: LanguagePref
     
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
