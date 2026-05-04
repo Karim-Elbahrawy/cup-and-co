@@ -176,11 +176,18 @@ export default function CheckoutPage() {
             />
             <button
               type="button"
-              onClick={() => {
-                // Phase 5 MVP: client-side placeholder. Wire to /coupons/validate in Phase 6.
-                if (couponCode.trim().toUpperCase() === 'STUDENT15') {
-                  setCouponDiscount(Math.floor(subtotal * 0.15));
-                } else {
+              onClick={async () => {
+                try {
+                  const res = await api.validateCoupon(couponCode.trim());
+                  if (res.ok && res.type === 'percentage' && res.value) {
+                    setCouponDiscount(Math.floor(subtotal * (res.value / 100)));
+                  } else if (res.ok && res.type === 'fixed' && res.value) {
+                    setCouponDiscount(Math.min(res.value * 100, subtotal));
+                  } else {
+                    setCouponDiscount(0);
+                    setError(res.reason ?? (language === 'ar' ? 'كود غير صالح' : 'Invalid coupon code'));
+                  }
+                } catch {
                   setCouponDiscount(0);
                   setError(language === 'ar' ? 'كود غير صالح' : 'Invalid coupon code');
                 }
