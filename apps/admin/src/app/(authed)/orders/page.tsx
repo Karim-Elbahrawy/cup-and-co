@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { OrderStatus } from '@cup-and-co/types';
 import { OrderCard } from '@/components/OrderCard';
 import { adminApi, ApiError, type AdminOrder } from '@/lib/api';
+import { useOrdersSSE, type SSEConnectionState } from '@/lib/useOrdersSSE';
 
 /** Five visible kanban columns in order. Out_for_delivery rolls into Ready visually. */
 const COLUMNS: { status: OrderStatus; label: string; tone: string }[] = [
@@ -20,33 +21,24 @@ function bucketFor(order: AdminOrder): OrderStatus {
   return order.status;
 }
 
+/** Label + dot colour for the connection state indicator. */
+function connectionIndicator(state: SSEConnectionState) {
+  switch (state) {
+    case 'connecting':
+      return { label: 'Connecting...', dotClass: 'bg-cup-orange-400 animate-pulse' };
+    case 'open':
+      return { label: 'Live', dotClass: 'bg-cup-teal-700 animate-pulse' };
+    case 'reconnecting':
+      return { label: 'Reconnecting...', dotClass: 'bg-cup-orange-500 animate-pulse' };
+    case 'fallback':
+      return { label: 'Auto-refresh 5s', dotClass: 'bg-cup-brown-400 animate-pulse' };
+  }
+}
+
 export default function OrdersKanbanPage() {
-  const [orders, setOrders] = useState<AdminOrder[] | null>(null);
+  const { orders, setOrders, connectionState, lastRefresh } = useOrdersSSE();
   const [error, setError] = useState<string | null>(null);
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-
-  const refresh = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const res = await adminApi.listOrders(signal);
-      setOrders(res.orders);
-      setLastRefresh(new Date());
-      setError(null);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      setError(err instanceof ApiError ? err.message : 'Could not load orders.');
-    }
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    refresh(controller.signal);
-    const id = setInterval(() => refresh(), 5000);
-    return () => {
-      controller.abort();
-      clearInterval(id);
-    };
-  }, [refresh]);
 
   async function changeStatus(orderId: string, target: OrderStatus) {
     if (!orders) return;
@@ -96,8 +88,8 @@ export default function OrdersKanbanPage() {
               : 'Loading…'}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-cup-teal-700" />
-            Auto-refresh 5s
+            <span className={`inline-block h-2 w-2 rounded-full ${connectionIndicator(connectionState).dotClass}`} />
+            {connectionIndicator(connectionState).label}
           </span>
         </div>
       </header>

@@ -1,10 +1,10 @@
 'use client';
 
-import { use, useCallback, useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { OrderStatus } from '@cup-and-co/types';
-import { adminApi, type AdminOrder, type AdminTimelineStep } from '@/lib/api';
+import { adminApi } from '@/lib/api';
 import { OrderTimeline } from '@/components/OrderTimeline';
 import { ItemsTable } from '@/components/ItemsTable';
 import { StatusPill } from '@/components/StatusPill';
@@ -13,8 +13,7 @@ import { useSession } from '@/lib/useSession';
 import { isOwner } from '@/lib/session';
 import { formatEgp, formatTime, timeAgo } from '@/lib/format';
 import { nextStatus, previousStatus } from '@/components/OrderCard';
-
-const POLL_MS = 5000;
+import { useOrderSSE } from '@/lib/useOrdersSSE';
 
 export default function OrderDetailPage({
   params,
@@ -26,41 +25,14 @@ export default function OrderDetailPage({
   const session = useSession();
   const toast = useToast();
 
-  const [order, setOrder] = useState<AdminOrder | null>(null);
-  const [timeline, setTimeline] = useState<AdminTimelineStep[]>([]);
+  const {
+    order,
+    setOrder,
+    timeline,
+    setTimeline,
+    connectionState,
+  } = useOrderSSE(id);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(
-    async (signal?: AbortSignal) => {
-      try {
-        const res = await adminApi.getOrder(id, signal);
-        setOrder(res.order);
-        setTimeline(res.timeline);
-        setError(null);
-      } catch (e) {
-        if ((e as Error).name === 'AbortError') return;
-        setError((e as Error).message);
-      }
-    },
-    [id],
-  );
-
-  useEffect(() => {
-    const controller = new AbortController();
-    refresh(controller.signal);
-    return () => controller.abort();
-  }, [refresh]);
-
-  // Poll while non-terminal
-  useEffect(() => {
-    if (!order) return;
-    if (['completed', 'cancelled', 'refunded'].includes(order.status)) return;
-    const interval = setInterval(() => {
-      refresh();
-    }, POLL_MS);
-    return () => clearInterval(interval);
-  }, [order, refresh]);
 
   // Keyboard shortcuts: ←/→ for prev/next status, c for cancel
   useEffect(() => {
@@ -133,22 +105,6 @@ export default function OrderDetailPage({
     }
   }
 
-  if (error && !order) {
-    return (
-      <div className="rounded-card border border-cup-error bg-white p-6 text-cup-error">
-        <p className="font-semibold">Couldn&apos;t load this order</p>
-        <p className="mt-1 text-sm">{error}</p>
-        <button
-          type="button"
-          onClick={() => refresh()}
-          className="mt-3 rounded-pill border border-cup-stroke bg-white px-3 py-1 text-xs font-semibold text-cup-brown-700"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
   if (!order) {
     return (
       <div className="space-y-4 animate-pulse">
@@ -179,6 +135,12 @@ export default function OrderDetailPage({
             Order <code className="rounded bg-cup-cream-100 px-1.5 py-0.5">{order.id.slice(0, 8)}</code>
           </span>
           <span className="text-xs text-cup-muted">{timeAgo(order.createdAt)}</span>
+          {connectionState === 'reconnecting' && (
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-cup-orange-50 px-2 py-0.5 text-[11px] font-semibold text-cup-orange-600">
+              <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-cup-orange-500" />
+              Reconnecting...
+            </span>
+          )}
         </div>
         <button
           type="button"
