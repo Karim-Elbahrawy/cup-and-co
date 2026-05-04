@@ -38,6 +38,13 @@ User-shared reference images (in chat history):
 **Phase 1 — Auth + Catalog + Home: ✅ COMPLETE**
 **Phase 2 — Ordering Vertical Slice: ✅ COMPLETE**
 **Phase 3 — Loyalty + QR + iOS Catch-up + SSE Real-time: ✅ COMPLETE**
+**Phase 4 — Games + Leaderboard: ✅ COMPLETE**
+
+### Phase 4 highlights
+- **API**: Game sessions (`POST /games/sessions`) with server-calculated `serverMaxScore` anti-cheat. Score submission (`POST /games/scores`) rejects impossible scores. Weekly leaderboard (`GET /leaderboard/current`, `/leaderboard/me`). Prize issuance (`GET /prizes`, `POST /admin/leaderboard/settle`). **102/102 Vitest tests passing.**
+- **iOS**: SpriteKit `CoffeeCollectorScene` with physics-based falling beans (good/bad/golden), increasing spawn rate, particle effects. `GameView` wrapper + `LeaderboardView` with rank badges. Prizes displayed in `RewardsView`.
+- **Customer Web**: Canvas `CoffeeCollectorGame` with identical rules and `requestAnimationFrame`. Leaderboard sidebar + user's rank. Prize section on `/rewards` with copy-to-clipboard coupon codes.
+- **Anti-cheat**: Server token + max score validation, daily session limit (3), time-velocity sanity checks.
 
 ### Phase 3 highlights
 - **API**: SSE real-time endpoints (`GET /orders/:id/events`, `GET /admin/orders/events`) via EventEmitter. Customer cancel (`POST /orders/:id/cancel`). Reviews (`POST /reviews`). Favorites (`POST/DELETE /favorites/:productId`). Loyalty history in `GET /loyalty`. **102/102 Vitest tests passing.**
@@ -46,7 +53,7 @@ User-shared reference images (in chat history):
 - **Admin**: SSE replaces 5s polling on kanban + order detail. `useOrdersSSE` hook with exponential backoff reconnect + polling fallback. Live/reconnecting/polling status indicator.
 
 ### Next phase
-**Phase 4 — Games + Leaderboard**. iOS SpriteKit Coffee Collector + Web Canvas game, server session token + score validation, weekly leaderboard + cron-settled prizes.
+**Phase 5 — Reviews + Offers + Admin polish**. Admin reviews page, users verification queue, offers CRUD with role targeting, reports (revenue/top-items/role-breakdown). Web + iOS: offer display on home, coupon redemption at checkout.
 
 ## How to run locally
 
@@ -67,7 +74,7 @@ pnpm dev
 # → admin:         http://localhost:3001
 
 # Run tests
-pnpm test            # 42 backend Vitest tests pass
+pnpm test            # 102 backend Vitest tests pass
 pnpm test:web        # Playwright (requires apps running)
 ```
 
