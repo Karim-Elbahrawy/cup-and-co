@@ -10,5 +10,5 @@ test('unauthenticated visit redirects to login and shows the welcome screen', as
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { name: /Welcome back/i })).toBeVisible();
   await expect(page.getByLabel(/Phone number/i)).toBeVisible();
-  await expect(page.getByText(/\+20/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Country code: Egypt/i })).toBeVisible();
 });
