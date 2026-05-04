@@ -46,6 +46,17 @@ html[dir="rtl"] body {
 * { box-sizing: border-box; }
 button { cursor: pointer; }
 
+/* Accessibility — focus-visible rings */
+:focus-visible {
+  outline: 2px solid var(--cup-primary);
+  outline-offset: 2px;
+}
+
+/* Remove default focus outline where we use focus-visible */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* Selection */
 ::selection { background: var(--cup-primary-tint); color: var(--cup-espresso); }
 

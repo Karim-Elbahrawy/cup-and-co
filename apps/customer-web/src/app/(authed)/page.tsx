@@ -9,7 +9,8 @@ import { ProductCard } from '@/components/ProductCard';
 import { CategoryChip } from '@/components/CategoryChip';
 import { SearchBar } from '@/components/SearchBar';
 import { PageTransition } from '@/components/PageTransition';
-import { LoadingDots } from '@/components/LoadingDots';
+import { SkeletonProductGrid } from '@/components/Skeleton';
+import { ErrorState } from '@/components/ErrorState';
 import { UserAvatar } from '@/components/UserAvatar';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -196,16 +197,19 @@ export default function HomePage() {
           </div>
 
           {loading ? (
-            <div className="mt-6 flex items-center justify-center py-12 text-[var(--cup-muted)]" role="status">
-              <LoadingDots />
+            <div className="mt-6" role="status" aria-label={t('common.loading')}>
+              <SkeletonProductGrid count={4} />
             </div>
           ) : error ? (
-            <div className="mt-6 rounded-card border border-[var(--cup-stroke)] bg-white p-6 text-center">
-              <p className="text-sm font-medium text-[var(--cup-error)]">{error}</p>
-              <p className="mt-1 text-xs text-[var(--cup-muted)]">
-                Make sure the API is running on{' '}
-                <code className="font-mono">{process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'}</code>.
-              </p>
+            <div className="mt-6">
+              <ErrorState
+                message={error}
+                onRetry={() => {
+                  setLoading(true);
+                  setError(null);
+                  api.catalog().then(setCatalog).catch((err: unknown) => setError(err instanceof Error ? err.message : t('common.error'))).finally(() => setLoading(false));
+                }}
+              />
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="mt-6 rounded-card border border-[var(--cup-stroke)] bg-white p-8 text-center text-sm text-[var(--cup-muted)]">
