@@ -1,6 +1,6 @@
 # Cup & Co — Working Context
 
-> **For any AI chat resuming work on this project: read this file first, then `docs/MASTER-PLAN.md`, then `docs/PHASES/PHASE-0-COMPLETE.md`. They contain everything you need to continue without re-asking the user.**
+> **For any AI chat resuming work on this project: read this file first, then `docs/MASTER-PLAN.md`, then `docs/PHASES/PHASE-3-COMPLETE.md`. They contain everything you need to continue without re-asking the user.**
 
 ## What this project is
 
@@ -36,16 +36,17 @@ User-shared reference images (in chat history):
 
 **Phase 0 — Foundation: ✅ COMPLETE**
 **Phase 1 — Auth + Catalog + Home: ✅ COMPLETE**
-**Phase 2 — Ordering Vertical Slice: ✅ COMPLETE on web + admin / 🔜 iOS pending**
+**Phase 2 — Ordering Vertical Slice: ✅ COMPLETE**
+**Phase 3 — Loyalty + QR + iOS Catch-up + SSE Real-time: ✅ COMPLETE**
 
-### Phase 2 highlights
-- **API enrichment**: Order model with `items[]`, `statusHistory[]`, `pickupCode`, `scheduledFor`, `notes`. State machine validates transitions. New endpoints: GET `/admin/orders/:id`, GET/PATCH `/admin/kiosk/status`, PATCH `/admin/menu/products/:id/availability`. Push helper logs in dev (real APNs/Web Push lands Phase 3). EN/AR notification copy. **102/102 Vitest tests passing** (was 62; +19 orders + 4 push + 17 routes).
-- **Customer Web**: Product detail (pixel-faithful to Figma + upgraded — circular hero, warm glow, heart, qty stepper, Size/Sugar/Ice spring chips, sticky add-to-cart with animated total), Cart (line items, qty, swipe-delete, points-redeem slider), Checkout (Pickup/Delivery, time slots, 3 payment cards, notes, Paymob `checkoutUrl` redirect), Order Tracking (massive 64px pickup code, vertical timeline with active-pulse + done-check, 5s polling), Order History.
-- **Admin**: Order detail page with 64px pickup code + horizontal timeline + items table + summary panel + advance/cancel/refund actions + ←/→/c keyboard shortcuts + window.print() receipt. ToastHost for optimistic-revert errors. OrderCard upgraded with real line item summaries.
-- **iOS Phase 2**: deferred — agent hit Anthropic rate limit before completing. Resume after limit reset.
+### Phase 3 highlights
+- **API**: SSE real-time endpoints (`GET /orders/:id/events`, `GET /admin/orders/events`) via EventEmitter. Customer cancel (`POST /orders/:id/cancel`). Reviews (`POST /reviews`). Favorites (`POST/DELETE /favorites/:productId`). Loyalty history in `GET /loyalty`. **102/102 Vitest tests passing.**
+- **iOS Phase 2+3**: Full ordering flow (ProductDetail with option chips + spring bounce, Cart with points slider, Checkout with time slots + payment cards, OrderTracking with 64px pickup code + vertical timeline, OrderHistory). Rewards screen with points balance card + history. QR Scanner via AVCaptureSession. CartStore + OrderStore (@Observable). Cart badge on BottomTabBar. NavigationLink from home to product detail.
+- **Customer Web**: Rewards page with points balance hero + history list + QR Scanner (BarcodeDetector API). Reviews section on product detail with star selector. Cancel button on order tracking. Favorite toggle wired to API. **SSE replaces 5s polling** on order tracking (fetch-based ReadableStream parser with polling fallback).
+- **Admin**: SSE replaces 5s polling on kanban + order detail. `useOrdersSSE` hook with exponential backoff reconnect + polling fallback. Live/reconnecting/polling status indicator.
 
 ### Next phase
-**Phase 3 — Loyalty + QR + iOS Phase 2 catch-up**. Real APNs/Web Push wiring, points-history UI, QR scanner, admin QR receipt printable, kiosk-status realtime via Supabase Realtime (replaces 5s polling), iOS ordering flow.
+**Phase 4 — Games + Leaderboard**. iOS SpriteKit Coffee Collector + Web Canvas game, server session token + score validation, weekly leaderboard + cron-settled prizes.
 
 ## How to run locally
 
