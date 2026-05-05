@@ -8,6 +8,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-body' });
 const cairo = Cairo({ subsets: ['arabic'], variable: '--font-arabic' });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cup-and-co-customer.vercel.app'),
   title: 'Cup & Co — Your morning, handled',
   description: 'Order ahead, skip the line. Coffee, breakfast, and desserts on campus.',
   manifest: '/manifest.webmanifest',
@@ -19,13 +20,26 @@ export const metadata: Metadata = {
   icons: {
     apple: '/brand/app-icon-180.png',
   },
+  openGraph: {
+    type: 'website',
+    siteName: 'Cup & Co',
+    title: 'Cup & Co — Your morning, handled',
+    description: 'Order ahead, skip the line. Coffee, breakfast, and desserts on campus.',
+    images: [{ url: '/brand/og-card.svg', width: 1200, height: 630, alt: 'Cup & Co' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Cup & Co — Your morning, handled',
+    description: 'Order ahead, skip the line.',
+    images: ['/brand/og-card.svg'],
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: '#C2410C',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  // Don't disable user-scaling — that blocks zoom for low-vision users.
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

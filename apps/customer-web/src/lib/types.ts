@@ -118,6 +118,9 @@ export interface OrderResponse {
 
 export interface OrdersListResponse {
   orders: ApiOrder[];
+  total?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export interface CreateOrderRequest {
@@ -164,6 +167,9 @@ export interface LoyaltyHistoryResponse {
   balance: number;
   discountAvailableEgp: number;
   history: LoyaltyEntry[];
+  total?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export interface ReviewInput {
