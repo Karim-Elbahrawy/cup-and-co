@@ -192,7 +192,14 @@ export function createApp(): express.Express {
     hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
   }));
 
-  app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*' }));
+  app.use(cors({
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-user-id', 'x-user-role'],
+    exposedHeaders: ['ETag'],
+    credentials: false,
+    maxAge: 86400,
+  }));
 
   // Simple sliding-window rate limiter for OTP endpoints (per source IP)
   const otpHits = new Map<string, number[]>();
