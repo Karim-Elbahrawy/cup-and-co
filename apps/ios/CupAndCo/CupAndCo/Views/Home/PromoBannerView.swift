@@ -10,6 +10,10 @@ struct PromoBannerView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var blobAnim = false
 
+    // Dynamic Type
+    @ScaledMetric(relativeTo: .largeTitle) private var pctSize: CGFloat = 40
+    @ScaledMetric(relativeTo: .body) private var subSize = CupTypography.bodyMd
+
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             // Gradient background
@@ -38,14 +42,14 @@ struct PromoBannerView: View {
                     .foregroundStyle(.white.opacity(0.92))
 
                 Text(verbatim: "\(percent)% OFF")
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .font(.system(size: pctSize, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .accessibilityLabel(Text(String(format: NSLocalizedString("home.off_percent_a11y",
                                                                               comment: ""),
                                                     percent)))
 
                 Text("home.super_discount")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(.system(size: subSize, weight: .medium, design: .rounded))
                     .foregroundStyle(.white.opacity(0.92))
 
                 Button(action: onTap) {
