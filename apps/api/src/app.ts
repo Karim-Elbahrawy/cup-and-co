@@ -20,7 +20,13 @@ import {
 } from './services/orders.js';
 import { createPushService, statusNotificationCopy } from './services/push.js';
 import { catalogRouter } from './routes/catalog.js';
-import { getProductDetail, addProduct } from './db/catalogRepo.js';
+import {
+  getProductDetail,
+  addProduct,
+  updateExtraProduct,
+  deleteExtraProduct,
+  isExtraProduct,
+} from './db/catalogRepo.js';
 import { adminOffers } from './db/offersStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
@@ -1051,6 +1057,45 @@ export function createApp(): express.Express {
       }).parse(req.body);
       const product = addProduct(input);
       res.status(201).json({ product });
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/admin/menu/products/:id', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const id = req.params.id as string;
+      if (!isExtraProduct(id)) {
+        res.status(400).json({ error: 'Seed products are read-only. Toggle availability instead.' });
+        return;
+      }
+      const input = z.object({
+        category_id: z.string().min(1).optional(),
+        name_en: z.string().min(1).max(80).optional(),
+        name_ar: z.string().min(1).max(80).optional(),
+        description_en: z.string().max(500).optional().nullable(),
+        description_ar: z.string().max(500).optional().nullable(),
+        base_price_egp: z.number().positive().max(10_000).optional(),
+        image_url: z.string().max(500).optional().nullable(),
+        prep_minutes: z.number().int().min(1).max(60).optional().nullable(),
+        is_available: z.boolean().optional(),
+      }).parse(req.body);
+      const product = updateExtraProduct(id, input);
+      if (!product) { res.status(404).json({ error: 'Product not found.' }); return; }
+      res.json({ product });
+    } catch (e) { next(e); }
+  });
+
+  app.delete('/admin/menu/products/:id', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const id = req.params.id as string;
+      if (!isExtraProduct(id)) {
+        res.status(400).json({ error: 'Seed products cannot be deleted. Mark them out of stock instead.' });
+        return;
+      }
+      const ok = deleteExtraProduct(id);
+      if (!ok) { res.status(404).json({ error: 'Product not found.' }); return; }
+      res.status(204).end();
     } catch (e) { next(e); }
   });
 

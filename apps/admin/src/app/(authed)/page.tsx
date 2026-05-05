@@ -7,10 +7,12 @@ import type { OrderStatus } from '@cup-and-co/types';
 import { StatCard } from '@/components/StatCard';
 import { OrderCard } from '@/components/OrderCard';
 import { KioskToggle } from '@/components/KioskToggle';
-import { adminApi, ApiError, type AdminOrder, type AdminSummary } from '@/lib/api';
+import { adminApi, ApiError, type AdminKioskStatus, type AdminOrder, type AdminSummary } from '@/lib/api';
 import { formatEgp } from '@/lib/format';
 import { useSession } from '@/lib/useSession';
 import { isOwner } from '@/lib/session';
+import { useToast } from '@/components/Toast';
+import { SkeletonCard } from '@/components/Skeleton';
 
 const ACTIVE_STATUSES: OrderStatus[] = ['received', 'accepted', 'preparing', 'ready'];
 
@@ -25,19 +27,23 @@ const ACTIVE_STATUSES: OrderStatus[] = ['received', 'accepted', 'preparing', 're
  */
 export default function TodayOverviewPage() {
   const session = useSession();
+  const toast = useToast();
   const [summary, setSummary] = useState<AdminSummary | null>(null);
   const [orders, setOrders] = useState<AdminOrder[] | null>(null);
+  const [kiosk, setKiosk] = useState<AdminKioskStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
     try {
-      const [summaryRes, ordersRes] = await Promise.all([
+      const [summaryRes, ordersRes, kioskRes] = await Promise.all([
         adminApi.summary(signal),
         adminApi.listOrders(signal),
+        adminApi.getKioskStatus(signal),
       ]);
       setSummary(summaryRes);
       setOrders(ordersRes.orders);
+      setKiosk(kioskRes);
       setError(null);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
@@ -48,6 +54,21 @@ export default function TodayOverviewPage() {
       );
     }
   }, []);
+
+  async function handleKioskToggle(open: boolean) {
+    if (!kiosk) return;
+    const previous = kiosk;
+    setKiosk({ ...kiosk, is_open: open });
+    try {
+      const next = await adminApi.updateKioskStatus({ is_open: open });
+      setKiosk(next);
+      toast('success', open ? 'Kiosk is open. Orders flowing.' : 'Kiosk closed. New orders blocked.');
+    } catch (err) {
+      setKiosk(previous);
+      toast('error', err instanceof ApiError ? err.message : 'Could not update kiosk status.');
+      throw err; // KioskToggle reverts its own state too
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -166,14 +187,28 @@ export default function TodayOverviewPage() {
           label="Kiosk status"
           value={
             <div className="flex items-center justify-between gap-3">
-              <span className="font-heading text-3xl font-bold text-cup-teal-700">Open</span>
-              <KioskToggle initialOpen onChange={async () => undefined} />
+              <span
+                className={`font-heading text-3xl font-bold ${
+                  kiosk?.is_open ? 'text-cup-teal-700' : 'text-cup-error'
+                }`}
+              >
+                {kiosk ? (kiosk.is_open ? 'Open' : 'Closed') : '—'}
+              </span>
+              {kiosk && (
+                <KioskToggle
+                  key={String(kiosk.is_open)}
+                  initialOpen={kiosk.is_open}
+                  onChange={handleKioskToggle}
+                />
+              )}
             </div>
           }
           hint={
-            // TODO Phase 2: PATCH /admin/kiosk/status — endpoint not yet in API,
-            // toggle is currently UI-only state.
-            <span className="text-xs text-cup-muted">Toggle is UI-only until Phase 2 ships /admin/kiosk/status.</span>
+            <span className="text-xs text-cup-muted">
+              {kiosk
+                ? `Hours ${kiosk.opens_at}–${kiosk.closes_at} · capacity ${kiosk.capacity_per_slot}/${kiosk.slot_minutes}min`
+                : 'Loading kiosk status…'}
+            </span>
           }
         />
       </section>

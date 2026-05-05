@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, XCircle, Shield, ShieldAlert } from 'lucide-react';
+import { CheckCircle, XCircle, Shield, ShieldAlert, Search, Users as UsersIcon } from 'lucide-react';
 import { useToast } from '@/components/Toast';
 import { useSession } from '@/lib/useSession';
 import { adminApi, type AdminUser } from '@/lib/api';
+import { Skeleton } from '@/components/Skeleton';
+import { EmptyState } from '@/components/EmptyState';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function UsersPage() {
   const toast = useToast();
@@ -18,6 +21,9 @@ export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
+  const [blockTarget, setBlockTarget] = useState<AdminUser | null>(null);
+  const [blockBusy, setBlockBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,12 +53,21 @@ export default function UsersPage() {
   async function toggleBlock(id: string, blocked: boolean) {
     try {
       await adminApi.blockUser(id, blocked);
-      setUsers((prev) =>
-        prev.map((u) => (u.id === id ? { ...u, blocked } : u)),
-      );
-      toast('success', blocked ? 'User blocked' : 'User unblocked');
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, blocked } : u)));
+      toast('success', blocked ? 'User blocked.' : 'User unblocked.');
     } catch (err: unknown) {
       toast('error', (err as Error).message);
+    }
+  }
+
+  async function confirmBlockToggle() {
+    if (!blockTarget) return;
+    setBlockBusy(true);
+    try {
+      await toggleBlock(blockTarget.id, !blockTarget.blocked);
+      setBlockTarget(null);
+    } finally {
+      setBlockBusy(false);
     }
   }
 
@@ -60,24 +75,66 @@ export default function UsersPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[60vh] place-items-center text-cup-muted">
-        Loading users…
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-72" />
       </div>
     );
   }
 
+  const filtered = users.filter((u) => {
+    if (!search.trim()) return true;
+    const q = search.trim().toLowerCase();
+    return (
+      u.phone.toLowerCase().includes(q) ||
+      (u.full_name?.toLowerCase().includes(q) ?? false)
+    );
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-cup-brown-900">Users</h1>
-        <div className="flex gap-2">
+      <ConfirmDialog
+        open={Boolean(blockTarget)}
+        title={blockTarget?.blocked ? 'Unblock this user?' : 'Block this user?'}
+        message={
+          blockTarget?.blocked
+            ? `${blockTarget.phone} will be able to sign in and place orders again.`
+            : `${blockTarget?.phone} won't be able to sign in or place orders. You can unblock anytime.`
+        }
+        confirmLabel={blockTarget?.blocked ? 'Unblock' : 'Block'}
+        destructive={!blockTarget?.blocked}
+        busy={blockBusy}
+        onConfirm={confirmBlockToggle}
+        onCancel={() => !blockBusy && setBlockTarget(null)}
+      />
+
+      <header>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cup-muted">Directory</p>
+        <h1 className="font-heading text-3xl font-bold text-cup-brown-900">Users</h1>
+        <p className="mt-1 text-sm text-cup-muted">
+          Verify pending students, manage blocks, audit roles.
+        </p>
+      </header>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="relative flex flex-1 min-w-[200px] items-center">
+          <Search className="absolute left-3 h-4 w-4 text-cup-muted" aria-hidden />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by phone or name…"
+            className="h-10 w-full rounded-pill border border-cup-stroke bg-cup-surface pl-9 pr-3 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+          />
+        </label>
+        <div className="flex gap-2 overflow-x-auto">
           {filters.map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded-pill px-3 py-1.5 text-xs font-semibold capitalize transition ${
+              className={`shrink-0 rounded-pill px-3 py-1.5 text-xs font-semibold capitalize transition ${
                 filter === f
-                  ? 'bg-cup-orange-600 text-white'
+                  ? 'bg-cup-orange-600 text-white shadow-subtle'
                   : 'border border-cup-stroke bg-white text-cup-brown-700 hover:bg-cup-cream-100'
               }`}
             >
@@ -87,10 +144,12 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {users.length === 0 ? (
-        <div className="rounded-card border border-cup-stroke bg-white p-12 text-center text-cup-muted">
-          No users found.
-        </div>
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={UsersIcon}
+          title={search ? 'No users match that search.' : 'No users found.'}
+          description={search ? 'Try a different phone or name.' : 'New users appear here once they sign up.'}
+        />
       ) : (
         <div className="overflow-hidden rounded-card border border-cup-stroke bg-white shadow-sm">
           <table className="w-full text-left text-sm">
@@ -104,7 +163,7 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-cup-stroke">
-              {users.map((user) => (
+              {filtered.map((user) => (
                 <tr key={user.id} className={user.blocked ? 'bg-red-50' : ''}>
                   <td className="px-4 py-3 font-medium text-cup-brown-900">{user.phone}</td>
                   <td className="px-4 py-3 capitalize text-cup-brown-700">{user.role}</td>
@@ -147,7 +206,7 @@ export default function UsersPage() {
                         </>
                       )}
                       <button
-                        onClick={() => toggleBlock(user.id, !user.blocked)}
+                        onClick={() => setBlockTarget(user)}
                         className={`rounded-pill px-2.5 py-1 text-[10px] font-semibold transition ${
                           user.blocked
                             ? 'border border-cup-stroke bg-white text-cup-brown-700 hover:bg-cup-cream-100'

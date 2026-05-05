@@ -271,6 +271,26 @@ export const adminApi = {
       method: 'POST',
       body: input,
     }),
+  updateProduct: (
+    id: string,
+    input: Partial<{
+      category_id: string;
+      name_en: string;
+      name_ar: string;
+      description_en: string | null;
+      description_ar: string | null;
+      base_price_egp: number;
+      image_url: string | null;
+      prep_minutes: number | null;
+      is_available: boolean;
+    }>,
+  ) =>
+    api<{ product: import('@cup-and-co/types').Product }>(`/admin/menu/products/${id}`, {
+      method: 'PATCH',
+      body: input,
+    }),
+  deleteProduct: (id: string) =>
+    api<void>(`/admin/menu/products/${id}`, { method: 'DELETE' }),
   // Phase 5: Reviews
   listReviews: (signal?: AbortSignal) =>
     api<{ reviews: AdminReview[] }>('/admin/reviews', { signal }),
