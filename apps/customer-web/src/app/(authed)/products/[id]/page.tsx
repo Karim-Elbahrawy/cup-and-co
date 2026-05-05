@@ -357,7 +357,7 @@ export default function ProductDetailPage({
 
       {/* Reviews section */}
       <section className="mx-auto mt-8 max-w-[1080px] space-y-4 px-6">
-        <h2 className="font-heading text-lg font-bold text-cup-brown-900">Reviews</h2>
+        <h2 className="font-heading text-lg font-bold text-cup-brown-900">{t('product.reviews.header')}</h2>
 
         {/* Rating distribution */}
         {data.reviews.filter((r) => !r.hidden).length > 0 && (
@@ -386,7 +386,7 @@ export default function ProductDetailPage({
         {/* Write a review */}
         <div className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle">
           <p className="font-heading text-sm font-semibold text-cup-brown-900">
-            Write a Review
+            {t('product.reviews.writeAReview')}
           </p>
 
           {/* Star rating selector */}
@@ -414,7 +414,7 @@ export default function ProductDetailPage({
           <textarea
             value={reviewComment}
             onChange={(e) => setReviewComment(e.target.value)}
-            placeholder="Share your experience..."
+            placeholder={t('product.reviews.placeholder')}
             rows={3}
             className="mt-3 w-full resize-none rounded-xl border border-cup-stroke bg-cup-paper px-4 py-3 font-body text-sm text-cup-brown-900 placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none focus:ring-1 focus:ring-cup-orange-600"
           />
@@ -429,7 +429,7 @@ export default function ProductDetailPage({
               animate={{ opacity: 1, y: 0 }}
               className="mt-2 text-xs font-semibold text-cup-teal-600"
             >
-              Review submitted! Thank you.
+              {t('product.reviews.submittedThankYou')}
             </motion.p>
           )}
 
@@ -440,7 +440,7 @@ export default function ProductDetailPage({
             className="mt-3 flex items-center gap-2 rounded-full bg-cup-orange-600 px-6 py-3 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-95 disabled:opacity-50"
           >
             <Send className="h-4 w-4" />
-            {submittingReview ? 'Submitting...' : 'Submit Review'}
+            {submittingReview ? `${t('product.reviews.submitButton')}...` : t('product.reviews.submitButton')}
           </button>
         </div>
 
