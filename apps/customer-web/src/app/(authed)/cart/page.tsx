@@ -102,9 +102,9 @@ export default function CartPage() {
                   />
                 ) : null}
               </div>
-              <div className="flex flex-1 flex-col">
+              <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-heading text-sm font-semibold text-cup-brown-900">
+                  <p className="line-clamp-2 font-heading text-sm font-semibold text-cup-brown-900">
                     {language === 'ar' ? item.productNameAr : item.productNameEn}
                   </p>
                   <button
