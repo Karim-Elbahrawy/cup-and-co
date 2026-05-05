@@ -232,7 +232,7 @@ export default function HomePage() {
                 },
               }}
             >
-              {filteredProducts.slice(0, 8).map((product) => (
+              {filteredProducts.slice(0, 12).map((product) => (
                 <motion.div
                   key={product.id}
                   variants={{

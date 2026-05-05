@@ -39,7 +39,7 @@ export default function SearchPage() {
 
   return (
     <PageTransition>
-      <main className="min-h-screen bg-[var(--cup-paper)] px-4 pb-28 pt-6">
+      <main className="mx-auto min-h-screen max-w-[1080px] bg-[var(--cup-paper)] px-4 pb-28 pt-6">
         <div className="relative mb-6">
           <Search
             size={18}
@@ -68,7 +68,7 @@ export default function SearchPage() {
         )}
 
         {!loading && results.length > 0 && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {results.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
