@@ -218,6 +218,27 @@ export function createApp(): express.Express {
     next();
   }
 
+  // Generic per-IP rate limit on every request — defends against accidental
+  // floods. Skipped in tests so they can hammer endpoints. Production should
+  // swap this for a Redis-backed limiter behind a load balancer.
+  if (config.nodeEnv !== 'test') {
+    const REQ_WINDOW_MS = 60_000;
+    const REQ_MAX = 300; // 5 req/sec sustained
+    const reqHits = new Map<string, number[]>();
+    app.use((req, res, next) => {
+      const ip = req.ip ?? 'unknown';
+      const now = Date.now();
+      const hits = (reqHits.get(ip) ?? []).filter((t) => now - t < REQ_WINDOW_MS);
+      if (hits.length >= REQ_MAX) {
+        res.status(429).json({ error: 'Too many requests. Please slow down.' });
+        return;
+      }
+      hits.push(now);
+      reqHits.set(ip, hits);
+      next();
+    });
+  }
+
   /** requireAuth + blocked-account check in one step. */
   function requireActiveUser(req: express.Request, res: express.Response, next: express.NextFunction): void {
     requireAuth(req, res, () => {
