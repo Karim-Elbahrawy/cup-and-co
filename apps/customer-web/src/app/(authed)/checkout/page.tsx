@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ChevronLeft, CreditCard, Wallet, Banknote } from 'lucide-react';
+import { ChevronLeft, CreditCard, Wallet, Banknote, Loader2 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useCart, cartSubtotal } from '@/lib/cart';
 import { useT } from '@/lib/i18n';
@@ -177,7 +177,7 @@ export default function CheckoutPage() {
                 setCouponDiscount(0);
               }}
               placeholder={t('checkout.enterCode')}
-              className="flex-1 rounded-lg border border-cup-stroke bg-white px-3 py-2 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+              className="h-11 flex-1 rounded-pill border border-cup-stroke bg-white px-4 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
             />
             <button
               type="button"
@@ -197,7 +197,7 @@ export default function CheckoutPage() {
                   setError(language === 'ar' ? 'كود غير صالح' : 'Invalid coupon code');
                 }
               }}
-              className="rounded-pill bg-cup-orange-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cup-orange-700"
+              className="h-11 rounded-pill bg-cup-orange-600 px-5 text-xs font-semibold text-white transition hover:bg-cup-orange-700"
             >
               {t('checkout.apply')}
             </button>
@@ -233,9 +233,14 @@ export default function CheckoutPage() {
           type="button"
           onClick={placeOrder}
           disabled={submitting}
-          className="mx-auto flex w-full max-w-3xl items-center justify-center rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98] disabled:opacity-70"
+          className="mx-auto flex w-full max-w-3xl items-center justify-center gap-2 rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98] disabled:opacity-70"
         >
-          {submitting ? 'Placing order…' : `${t('checkout.placeOrder')} — EGP ${total}`}
+          {submitting && (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          )}
+          {submitting
+            ? language === 'ar' ? 'جاري الطلب…' : 'Placing order…'
+            : `${t('checkout.placeOrder')} — EGP ${total}`}
         </button>
       </div>
     </main>
