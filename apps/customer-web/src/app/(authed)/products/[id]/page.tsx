@@ -237,13 +237,17 @@ export default function ProductDetailPage({
       <section className="relative mx-auto max-w-[1080px] px-6 pt-2 pb-6">
         <div
           aria-hidden="true"
-          className="absolute left-1/2 top-1/2 h-[280px] w-[280px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cup-orange-600/12 blur-3xl"
+          className="absolute left-1/2 top-1/2 h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle at center, rgba(194,65,12,0.18) 0%, rgba(194,65,12,0.04) 60%, transparent 100%)',
+          }}
         />
         <motion.div
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', stiffness: 240, damping: 22 }}
-          className="relative mx-auto h-[260px] w-[260px] overflow-hidden rounded-full bg-white shadow-elevated"
+          className="relative mx-auto h-[260px] w-[260px] overflow-hidden rounded-full bg-white shadow-elevated ring-1 ring-[rgba(28,25,23,0.04)]"
         >
           {product.image_url ? (
             <Image
