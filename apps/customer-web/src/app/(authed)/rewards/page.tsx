@@ -363,6 +363,32 @@ function LeaderboardSection({
         </h2>
       </div>
 
+      {/* Top-3 podium */}
+      {top10.length >= 3 && (
+        <div className="mt-3 flex items-end justify-center gap-2 px-2">
+          {[1, 0, 2].map((idx) => {
+            const e = top10[idx];
+            const heights = [110, 80, 65];
+            const colors = ['bg-yellow-400', 'bg-gray-300', 'bg-amber-600/80'];
+            const h = heights[idx];
+            return (
+              <div key={e.userId} className="flex flex-1 flex-col items-center">
+                <p className="truncate font-heading text-xs font-semibold text-cup-brown-900" title={e.displayName ?? e.userId}>
+                  {e.displayName ?? `…${e.userId.slice(-4)}`}
+                </p>
+                <p className="text-[10px] font-bold text-cup-muted">{e.totalScore} pts</p>
+                <div
+                  className={`mt-1 grid w-full place-items-center rounded-t-xl ${colors[idx]} text-white shadow-subtle`}
+                  style={{ height: h }}
+                >
+                  <span className="font-heading text-2xl font-bold">{e.rank}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Prize key */}
       <div className="mt-3 flex flex-wrap gap-2">
         {Object.values(RANK_PRIZE).map((label) => (
