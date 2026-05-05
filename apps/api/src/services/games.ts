@@ -152,5 +152,13 @@ export function createGameService(opts: { now?: () => Date } = {}) {
         ? { rank: me.rank, totalScore: me.totalScore, weekKey }
         : { rank: null, totalScore: null, weekKey };
     },
+
+    getDailyStatus(userId: string): { sessionsUsed: number; sessionsLeft: number; dailyLimit: number } {
+      const dayKey = getDayKey(now());
+      const dayMap = dailyCounts.get(dayKey) ?? new Map<string, number>();
+      const used = dayMap.get(userId) ?? 0;
+      const limit = config.game.dailySessionsPerUser;
+      return { sessionsUsed: used, sessionsLeft: Math.max(0, limit - used), dailyLimit: limit };
+    },
   };
 }

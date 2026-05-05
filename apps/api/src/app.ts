@@ -703,6 +703,11 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  app.get('/games/sessions/me', requireAuth, (req, res) => {
+    const user = getRequestUser(req);
+    res.json(games.getDailyStatus(user.id));
+  });
+
   app.post('/games/scores', requireAuth, (req, res, next) => {
     try {
       const user = getRequestUser(req);

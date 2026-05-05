@@ -29,7 +29,8 @@ export default function GamePage() {
     try {
       const s = await api.createGameSession();
       setSession(s);
-      setSessionsUsed((prev) => prev + 1);
+      // Refresh server-truth daily status after starting a session
+      void api.gameDailyStatus().then((d) => setSessionsUsed(d.sessionsUsed)).catch(() => {});
     } catch (e) {
       if (e instanceof ApiError) {
         setError(e.message);
@@ -46,6 +47,8 @@ export default function GamePage() {
       setLoading(false);
       return;
     }
+    // Read server truth for sessionsUsed before starting a new one.
+    void api.gameDailyStatus().then((d) => setSessionsUsed(d.sessionsUsed)).catch(() => {});
     void fetchSession();
   }, [isStudent, fetchSession]);
 

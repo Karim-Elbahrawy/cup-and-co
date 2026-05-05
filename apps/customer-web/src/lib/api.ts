@@ -160,6 +160,9 @@ export const api = {
   createGameSession: () =>
     apiFetch<GameSession>('/games/sessions', { method: 'POST' }),
 
+  gameDailyStatus: () =>
+    apiFetch<{ sessionsUsed: number; sessionsLeft: number; dailyLimit: number }>('/games/sessions/me'),
+
   submitGameScore: (sessionId: string, score: number, durationSeconds: number) =>
     apiFetch<GameScoreResponse>('/games/scores', {
       method: 'POST',
