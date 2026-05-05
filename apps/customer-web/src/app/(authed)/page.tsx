@@ -7,6 +7,7 @@ import { PromoCard } from '@/components/PromoCard';
 import { ProductCard } from '@/components/ProductCard';
 import { CategoryChip } from '@/components/CategoryChip';
 import { DailyOrderBar } from '@/components/DailyOrderBar';
+import { OffersCarousel } from '@/components/OffersCarousel';
 import { PageTransition } from '@/components/PageTransition';
 import { SkeletonProductGrid } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
@@ -139,33 +140,13 @@ export default function HomePage() {
           onCtaClick={() => document.getElementById('popular-heading')?.scrollIntoView({ behavior: 'smooth' })}
         />
 
-        {/* Active offers — max 2 visible, "+N more" overflow */}
+        {/* Active offers — outstanding swipe carousel */}
         {catalog && catalog.offers.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--cup-muted)]">
-              {t('common.activeOffers')}
-            </p>
-            <div className="flex flex-wrap gap-2 pb-1">
-              {catalog.offers.slice(0, 2).map((offer) => (
-                <div
-                  key={offer.id}
-                  className="shrink-0 rounded-pill bg-gradient-to-r from-[#F4A261] to-[#C2410C] px-4 py-2 text-xs font-bold text-white shadow-warm-glow"
-                >
-                  {language === 'ar' ? offer.name_ar : offer.name_en}
-                  {offer.code && (
-                    <span className="ms-2 rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px]">
-                      {offer.code}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {catalog.offers.length > 2 && (
-                <div className="shrink-0 rounded-pill border border-cup-stroke bg-white px-4 py-2 text-xs font-semibold text-cup-muted">
-                  +{catalog.offers.length - 2} {language === 'ar' ? 'أخرى' : 'more'}
-                </div>
-              )}
-            </div>
-          </div>
+          <OffersCarousel
+            offers={catalog.offers}
+            language={language}
+            label={t('common.activeOffers')}
+          />
         )}
 
         {/* Category tabs */}

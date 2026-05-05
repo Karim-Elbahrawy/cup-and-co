@@ -54,11 +54,12 @@ export default function CartPage() {
         <CartHeader t={t} />
         <div className="mx-auto mt-16 max-w-sm rounded-card border border-cup-stroke bg-white p-8 text-center shadow-card">
           <Image
-            src="/brand/empty-cart.svg"
+            src="/brand/empty-cart.png"
             alt=""
-            width={140}
-            height={140}
+            width={180}
+            height={180}
             className="mx-auto"
+            priority
           />
           <h2 className="mt-4 font-heading text-xl font-bold text-cup-brown-900">
             {t('cart.emptyCart')}
