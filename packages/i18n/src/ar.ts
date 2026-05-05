@@ -140,6 +140,7 @@ export const ar: Translations = {
     viewItems: 'عرض العناصر',
     pickupInstruction: 'أظهر هذا عند الكاونتر عند وصولك.',
     deliveryInstruction: 'أكد مع المندوب عند التوصيل.',
+    reorder: 'إعادة الطلب',
   },
   loyalty: {
     rewards: 'المكافآت',

@@ -265,7 +265,7 @@ export default function OrderTrackingPage({
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-cup-orange-600 px-5 py-3 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-[0.98]"
           >
             <RotateCcw className="h-4 w-4" />
-            {language === 'ar' ? 'إعادة الطلب' : 'Reorder'}
+            {t('orders.reorder')}
           </button>
         </section>
       )}

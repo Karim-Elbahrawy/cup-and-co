@@ -138,6 +138,7 @@ export interface Translations {
     viewItems: string;
     pickupInstruction: string;
     deliveryInstruction: string;
+    reorder: string;
   };
   loyalty: {
     rewards: string;
