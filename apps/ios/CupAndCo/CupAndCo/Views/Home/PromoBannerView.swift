@@ -72,6 +72,11 @@ struct PromoBannerView: View {
                 blobAnim.toggle()
             }
         }
+        .onDisappear {
+            // Stop the implicit animation when the view leaves screen so it
+            // doesn't keep ticking off-screen (cheap CPU + battery win).
+            withAnimation(nil) { blobAnim = false }
+        }
         .accessibilityElement(children: .combine)
     }
 }
