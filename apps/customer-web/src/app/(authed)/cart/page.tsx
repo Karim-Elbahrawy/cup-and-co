@@ -171,9 +171,10 @@ export default function CartPage() {
           <p className="mt-2 text-[10px] text-cup-muted">
             (Max usable for this order: {maxRedeemPoints} pts = {pointsToEgp(maxRedeemPoints)} EGP)
           </p>
-          <p className="mt-1 text-[10px] italic text-cup-muted">
-            Discount cap: {discountAvailable} EGP available globally.
-          </p>
+          <div className="mt-3 flex items-center gap-2 rounded-card bg-cup-paper px-3 py-2 text-[11px] font-medium text-cup-muted">
+            <span aria-hidden="true">💡</span>
+            <span>Discount cap: {discountAvailable} EGP available across all orders today.</span>
+          </div>
         </section>
       )}
 
