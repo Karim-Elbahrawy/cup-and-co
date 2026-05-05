@@ -275,12 +275,14 @@ export default function OrderTrackingPage({
               const isLast = idx === timeline.length - 1;
               return (
                 <li key={`${step.status}-${idx}`} className="relative flex gap-4">
-                  {/* connector */}
+                  {/* connector — solid for completed, dotted for pending */}
                   {!isLast && (
                     <span
                       aria-hidden="true"
-                      className={`absolute left-[18px] top-9 h-[calc(100%+8px)] w-0.5 ${
-                        step.done ? 'bg-cup-orange-600' : 'bg-cup-stroke'
+                      className={`absolute left-[17px] top-9 h-[calc(100%+8px)] w-[3px] ${
+                        step.done
+                          ? 'bg-cup-orange-600'
+                          : 'border-l-[3px] border-dotted border-cup-stroke'
                       }`}
                     />
                   )}
