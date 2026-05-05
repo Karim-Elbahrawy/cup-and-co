@@ -518,8 +518,13 @@ export function createApp(): express.Express {
 
   app.get('/orders', requireAuth, (req, res) => {
     const user = getRequestUser(req);
-    const own = Array.from(orders.values()).filter((o) => o.userId === user.id);
-    res.json({ orders: own.sort((a, b) => b.createdAt.localeCompare(a.createdAt)) });
+    const all = Array.from(orders.values())
+      .filter((o) => o.userId === user.id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    const page = all.slice(offset, offset + limit);
+    res.json({ orders: page, total: all.length, limit, offset });
   });
 
   // Phase 3: SSE stream for a single order (replaces 5s polling on customer tracking)

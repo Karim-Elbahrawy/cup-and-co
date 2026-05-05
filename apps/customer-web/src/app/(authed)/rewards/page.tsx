@@ -139,7 +139,10 @@ export default function RewardsPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">
                   {t('loyalty.yourPoints')}
                 </p>
-                <p className="mt-1 font-heading text-[56px] font-bold leading-none">
+                <p
+                  className="mt-1 font-heading font-bold leading-none"
+                  style={{ fontSize: 'clamp(2.5rem, 12vw, 3.5rem)' }}
+                >
                   {data.balance}
                 </p>
               </div>

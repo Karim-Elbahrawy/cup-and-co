@@ -217,7 +217,10 @@ export default function OrderTrackingPage({
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cup-muted">
             {t('orders.pickupCode')}
           </p>
-          <p className="mt-1 font-heading text-[64px] font-bold leading-none text-cup-orange-600">
+          <p
+            className="mt-1 font-heading font-bold leading-none text-cup-orange-600"
+            style={{ fontSize: 'clamp(2.5rem, 14vw, 4rem)' }}
+          >
             {order.pickupCode ?? '—'}
           </p>
           <p className="mt-2 text-sm text-cup-muted">
