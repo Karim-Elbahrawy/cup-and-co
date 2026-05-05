@@ -7,6 +7,7 @@ struct ProductDetailView: View {
 
     @Environment(CartStore.self) private var cart
     @Environment(SessionStore.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
 
     @State private var quantity: Int = 1
@@ -62,7 +63,7 @@ struct ProductDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
+                    withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.65)) {
                         isFavorite.toggle()
                     }
                     Task {
@@ -197,7 +198,7 @@ struct ProductDetailView: View {
             HStack(spacing: 0) {
                 Button {
                     if quantity > 1 {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
+                        withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.65)) {
                             quantity -= 1
                         }
                     }
@@ -218,7 +219,7 @@ struct ProductDetailView: View {
                     .frame(width: 44)
 
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
+                    withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.65)) {
                         quantity += 1
                     }
                 } label: {
@@ -257,7 +258,7 @@ struct ProductDetailView: View {
                 ForEach(options, id: \.self) { option in
                     let isSelected = selection.wrappedValue == option
                     Button {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
+                        withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.65)) {
                             selection.wrappedValue = option
                         }
                     } label: {
@@ -311,7 +312,7 @@ struct ProductDetailView: View {
                     options: options,
                     optionDeltas: deltas
                 )
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
+                withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.65)) {
                     addedToCart = true
                 }
                 // Reset after brief feedback
