@@ -110,6 +110,16 @@ export default function ProfilePage() {
                 type="text"
                 value={user.fullName ?? ''}
                 onChange={(e) => setFullName(e.target.value)}
+                onBlur={async (e) => {
+                  const trimmed = e.target.value.trim();
+                  if (!trimmed || trimmed === user.fullName) return;
+                  try {
+                    const res = await api.patchMe({ full_name: trimmed });
+                    if (res.user) setUser(res.user);
+                  } catch {
+                    // Keep local edit; user can retry on next blur
+                  }
+                }}
                 placeholder="Add your name"
                 aria-label="Full name"
                 className="w-full bg-transparent font-heading text-lg font-bold text-[var(--cup-espresso)] placeholder:text-[var(--cup-muted)] outline-none focus:underline focus:decoration-[var(--cup-primary)] focus:underline-offset-4"
@@ -137,41 +147,11 @@ export default function ProfilePage() {
         <div>
           <SectionLabel>{t('profile.myProfile')}</SectionLabel>
           <div className="rounded-card bg-white shadow-card overflow-hidden">
-            <NavRow icon={<User size={16} />} label={t('profile.personalInfo')} />
-            <NavRow icon={<CreditCard size={16} />} label={t('profile.cardsAndPayments')} />
-            <NavRow icon={<History size={16} />} label={t('profile.transactionHistory')} />
-            <NavRow icon={<Shield size={16} />} label={t('profile.privacyAndData')} />
             <NavRow icon={<Tag size={16} />} label={t('profile.accountId')} last />
           </div>
         </div>
 
-        {/* Security section */}
-        <div>
-          <SectionLabel>{t('profile.security')}</SectionLabel>
-          <div className="rounded-card bg-white shadow-card overflow-hidden">
-            <ToggleRow
-              icon={<ShieldCheck size={16} />}
-              label={t('profile.twoFactor')}
-              checked={twoFactor}
-              onChange={setTwoFactor}
-            />
-            <ToggleRow
-              icon={<Fingerprint size={16} />}
-              label={t('profile.faceId')}
-              sublabel={t('profile.iOSOnly')}
-              checked={false}
-              onChange={() => {}}
-              disabled
-            />
-            <ToggleRow
-              icon={<KeyRound size={16} />}
-              label={t('profile.passcode')}
-              checked={passcode}
-              onChange={setPasscode}
-              last
-            />
-          </div>
-        </div>
+        {/* Security section — hidden until APNs + biometric impl */}
 
         {/* Notification Preferences section */}
         <div>

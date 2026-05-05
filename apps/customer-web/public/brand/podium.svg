@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200">
+  <rect width="300" height="200" fill="#FAF6F0" rx="16"/>
+  <circle cx="150" cy="80" r="50" fill="none" stroke="#C2410C" stroke-width="3" stroke-dasharray="8 4"/>
+  <text x="150" y="130" text-anchor="middle" font-family="system-ui" font-size="16" fill="#78716C">1st  2nd  3rd</text>
+</svg>

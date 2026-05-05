@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import plugin from 'tailwindcss/plugin';
 import { tailwindColors, radius, shadows, fontSizes } from '@cup-and-co/design-tokens';
 
 const config: Config = {
@@ -15,6 +16,7 @@ const config: Config = {
         card: shadows.card,
         elevated: shadows.elevated,
         subtle: shadows.subtle,
+        'warm-glow': shadows.warmGlow,
       },
       fontSize: Object.fromEntries(
         Object.entries(fontSizes).map(([k, v]) => [k, `${v}px`]),
@@ -26,7 +28,17 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    plugin(function ({ addUtilities }) {
+      addUtilities({
+        '.scrollbar-hide': {
+          '-ms-overflow-style': 'none',
+          'scrollbar-width': 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+        },
+      });
+    }),
+  ],
 };
 
 export default config;

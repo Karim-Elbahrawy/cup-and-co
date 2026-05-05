@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
@@ -39,6 +40,14 @@ const usersRegistry = new Map<string, { id: string; phone: string; full_name: st
 
 // Reverse-lookup: phone → userId (so returning users keep their data across verify calls)
 const phoneToUserId = new Map<string, string>();
+
+// OTP store: phone → { code, expiresAt }
+const otpStore = new Map<string, { code: string; expiresAt: number }>();
+const OTP_TTL_MS = 5 * 60 * 1000;
+
+function generateOtp(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
 
 // Phase 4: prizes store keyed by userId
 interface Prize {
@@ -171,7 +180,26 @@ async function notifyOrderStatus(order: Order, status: Parameters<typeof statusN
 
 export function createApp(): express.Express {
   const app = express();
-  app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*' }));
+
+  // Security hardening: Helmet headers (CSP off — API responses are JSON,
+  // and CSP would only fire if a browser were misled into rendering them),
+  // HSTS forced on, x-powered-by disabled.
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1); // honor X-Forwarded-* from a single hop (load balancer)
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  }));
+
+  app.use(cors({
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-user-id', 'x-user-role'],
+    exposedHeaders: ['ETag'],
+    credentials: false,
+    maxAge: 86400,
+  }));
 
   // Simple sliding-window rate limiter for OTP endpoints (per source IP)
   const otpHits = new Map<string, number[]>();
@@ -190,6 +218,27 @@ export function createApp(): express.Express {
     next();
   }
 
+  // Generic per-IP rate limit on every request — defends against accidental
+  // floods. Skipped in tests so they can hammer endpoints. Production should
+  // swap this for a Redis-backed limiter behind a load balancer.
+  if (config.nodeEnv !== 'test') {
+    const REQ_WINDOW_MS = 60_000;
+    const REQ_MAX = 300; // 5 req/sec sustained
+    const reqHits = new Map<string, number[]>();
+    app.use((req, res, next) => {
+      const ip = req.ip ?? 'unknown';
+      const now = Date.now();
+      const hits = (reqHits.get(ip) ?? []).filter((t) => now - t < REQ_WINDOW_MS);
+      if (hits.length >= REQ_MAX) {
+        res.status(429).json({ error: 'Too many requests. Please slow down.' });
+        return;
+      }
+      hits.push(now);
+      reqHits.set(ip, hits);
+      next();
+    });
+  }
+
   /** requireAuth + blocked-account check in one step. */
   function requireActiveUser(req: express.Request, res: express.Response, next: express.NextFunction): void {
     requireAuth(req, res, () => {
@@ -204,6 +253,20 @@ export function createApp(): express.Express {
     });
   }
   app.use(express.json({ limit: '1mb' }));
+
+  // Minimal request log: method, path, status, duration. Skipped during tests
+  // to keep their output clean. Pino-http would be the next-pass upgrade.
+  if (config.nodeEnv !== 'test') {
+    app.use((req, res, next) => {
+      const start = Date.now();
+      res.on('finish', () => {
+        const ms = Date.now() - start;
+        // eslint-disable-next-line no-console
+        console.log(`[api] ${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`);
+      });
+      next();
+    });
+  }
 
   app.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'cup-and-co-api', time: new Date().toISOString() });
@@ -221,8 +284,11 @@ export function createApp(): express.Express {
         throw e;
       }
       const { phone } = otpSendSchema.parse(req.body);
-      // TODO: replace with supabase.auth.signInWithOtp({ phone }) when Supabase phone auth is enabled
-      res.json({ ok: true, phone, devCode: '000000', message: 'OTP sent (dev stub).' });
+      const code = process.env.DEV_OTP_OVERRIDE ?? generateOtp();
+      otpStore.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS });
+      const response: Record<string, unknown> = { ok: true, phone, message: 'OTP sent.' };
+      if (process.env.DEV_OTP_OVERRIDE) response.devCode = code;
+      res.json(response);
     } catch (e) { next(e); }
   });
 
@@ -234,11 +300,16 @@ export function createApp(): express.Express {
         throw e;
       }
       const { phone, code } = otpVerifySchema.parse(req.body);
-      if (code !== '000000') {
-        const e = new Error('Invalid OTP') as Error & { status?: number };
-        e.status = 401;
-        throw e;
+      const stored = otpStore.get(phone);
+      const validOverride = process.env.DEV_OTP_OVERRIDE && code === process.env.DEV_OTP_OVERRIDE;
+      if (!validOverride) {
+        if (!stored || stored.code !== code || Date.now() > stored.expiresAt) {
+          const e = new Error('Invalid OTP') as Error & { status?: number };
+          e.status = 401;
+          throw e;
+        }
       }
+      otpStore.delete(phone);
       // Reuse existing userId for this phone so returning users keep their data
       const existingId = phoneToUserId.get(phone);
       const userId = existingId ?? randomUUID();
@@ -365,9 +436,23 @@ export function createApp(): express.Express {
   });
 
   // -------- Orders (customer) --------
+  // Idempotency cache for POST /orders — keyed by user + Idempotency-Key header.
+  // 5-min TTL is plenty for a flaky network retry without holding state forever.
+  const orderIdempotency = new Map<string, { at: number; response: unknown }>();
+  const IDEMPOTENCY_TTL_MS = 5 * 60_000;
+
   app.post('/orders', requireAuth, async (req, res, next) => {
     try {
       const user = getRequestUser(req);
+      const idempotencyKey = req.header('Idempotency-Key')?.trim();
+      if (idempotencyKey) {
+        const cacheKey = `${user.id}::${idempotencyKey}`;
+        const hit = orderIdempotency.get(cacheKey);
+        if (hit && Date.now() - hit.at < IDEMPOTENCY_TTL_MS) {
+          res.status(201).json(hit.response);
+          return;
+        }
+      }
       const input = createOrderSchema.parse(req.body);
       if (!kioskState.is_open) {
         const e = new Error('Kiosk ordering is closed.') as Error & { status?: number };
@@ -444,7 +529,14 @@ export function createApp(): express.Express {
       }
 
       emitOrderUpdate(order);
-      res.status(201).json({ order, timeline: trackingTimelineFor(order) });
+      const responseBody = { order, timeline: trackingTimelineFor(order) };
+      if (idempotencyKey) {
+        orderIdempotency.set(`${user.id}::${idempotencyKey}`, {
+          at: Date.now(),
+          response: responseBody,
+        });
+      }
+      res.status(201).json(responseBody);
     } catch (e) { next(e); }
   });
 
@@ -468,8 +560,13 @@ export function createApp(): express.Express {
 
   app.get('/orders', requireAuth, (req, res) => {
     const user = getRequestUser(req);
-    const own = Array.from(orders.values()).filter((o) => o.userId === user.id);
-    res.json({ orders: own.sort((a, b) => b.createdAt.localeCompare(a.createdAt)) });
+    const all = Array.from(orders.values())
+      .filter((o) => o.userId === user.id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    const page = all.slice(offset, offset + limit);
+    res.json({ orders: page, total: all.length, limit, offset });
   });
 
   // Phase 3: SSE stream for a single order (replaces 5s polling on customer tracking)
@@ -541,16 +638,23 @@ export function createApp(): express.Express {
       const user = getRequestUser(req);
       const input = z.object({
         productId: z.string().min(1),
-        orderId: z.string().min(1).nullable().optional(),
+        orderId: z.string().min(1),
         rating: z.number().int().min(1).max(5),
         comment: z.string().max(500).default(''),
       }).parse(req.body);
+      const order = orders.get(input.orderId);
+      if (!order || order.userId !== user.id || order.status !== 'completed' ||
+          !order.items.some((i) => i.productId === input.productId)) {
+        const e = new Error('You can only review products from your completed orders.') as Error & { status?: number };
+        e.status = 403;
+        throw e;
+      }
       const productReviews = reviews.get(input.productId) ?? [];
       const review = {
         id: randomUUID(),
         userId: user.id,
         productId: input.productId,
-        orderId: input.orderId ?? null,
+        orderId: input.orderId,
         rating: input.rating,
         comment: input.comment,
         hidden: false,
@@ -562,12 +666,43 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  // -------- Coupons --------
+  interface CouponDefinition {
+    code: string;
+    type: 'percentage' | 'fixed';
+    value: number;
+    descriptionEn: string;
+    descriptionAr: string;
+  }
+  const couponStore = new Map<string, CouponDefinition>([
+    ['WELCOME10', { code: 'WELCOME10', type: 'percentage', value: 10, descriptionEn: '10% off your first order', descriptionAr: '١٠٪ خصم على أول طلب' }],
+    ['STUDENT15', { code: 'STUDENT15', type: 'percentage', value: 15, descriptionEn: '15% student discount', descriptionAr: '١٥٪ خصم الطلاب' }],
+    ['COFFEE20', { code: 'COFFEE20', type: 'fixed', value: 20, descriptionEn: 'EGP 20 off', descriptionAr: '٢٠ جنيه خصم' }],
+  ]);
+
+  app.post('/coupons/validate', requireAuth, (req, res, next) => {
+    try {
+      const { code } = z.object({ code: z.string().min(1).max(40) }).parse(req.body);
+      const coupon = couponStore.get(code.toUpperCase());
+      if (!coupon) {
+        res.json({ ok: false, reason: 'Invalid or expired coupon code.' });
+        return;
+      }
+      res.json({ ok: true, type: coupon.type, value: coupon.value, descriptionEn: coupon.descriptionEn, descriptionAr: coupon.descriptionAr });
+    } catch (e) { next(e); }
+  });
+
   // -------- Payments --------
   app.post('/payments/paymob/intention', requireAuth, (req, res, next) => {
     try {
+      const user = getRequestUser(req);
       const input = paymobIntentionSchema.parse(req.body);
       const order = orders.get(input.orderId);
-      if (!order) throw new Error('Order not found.');
+      if (!order || order.userId !== user.id) {
+        const e = new Error('Order not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
       const intention = paymob.createIntention({
         orderId: order.id,
         userId: order.userId,
@@ -585,9 +720,12 @@ export function createApp(): express.Express {
       const result = paymob.handleCallback(payload, hmac);
       const order = orders.get(result.orderId);
       if (order) {
-        // Idempotency: skip if already processed
         if (order.paymentStatus === 'paid') {
           res.json({ already_processed: true });
+          return;
+        }
+        if (Number(payload.amountEgp) !== order.totalEgp) {
+          res.status(422).json({ error: 'Amount mismatch.' });
           return;
         }
         order.paymentStatus = result.paymentStatus;
@@ -613,8 +751,18 @@ export function createApp(): express.Express {
   app.get('/loyalty', requireAuth, (req, res) => {
     const user = getRequestUser(req);
     const balance = userPoints.get(user.id) ?? 0;
-    const history = (loyaltyHistory.get(user.id) ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    res.json({ balance, discountAvailableEgp: calculateDiscountEgp(balance), history });
+    const all = (loyaltyHistory.get(user.id) ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    const history = all.slice(offset, offset + limit);
+    res.json({
+      balance,
+      discountAvailableEgp: calculateDiscountEgp(balance),
+      history,
+      total: all.length,
+      limit,
+      offset,
+    });
   });
 
   app.post('/loyalty/redeem-qr', requireAuth, (req, res, next) => {
@@ -646,6 +794,11 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  app.get('/games/sessions/me', requireAuth, (req, res) => {
+    const user = getRequestUser(req);
+    res.json(games.getDailyStatus(user.id));
+  });
+
   app.post('/games/scores', requireAuth, (req, res, next) => {
     try {
       const user = getRequestUser(req);
@@ -661,7 +814,16 @@ export function createApp(): express.Express {
   });
 
   app.get('/leaderboard/current', (_req, res) => {
-    res.json({ entries: games.getCurrentLeaderboard() });
+    const entries = games.getCurrentLeaderboard().map((e) => {
+      const user = usersRegistry.get(e.userId);
+      const fullName = user?.full_name ?? '';
+      // Initials from full name, or last-4 of userId as a privacy-preserving fallback.
+      const displayName = fullName
+        ? fullName.split(' ').slice(0, 2).map((p) => p[0] ?? '').join('').toUpperCase() || `…${e.userId.slice(-4)}`
+        : `…${e.userId.slice(-4)}`;
+      return { ...e, displayName };
+    });
+    res.json({ entries });
   });
 
   app.get('/leaderboard/me', requireAuth, (req, res) => {
@@ -717,7 +879,7 @@ export function createApp(): express.Express {
 
   app.post('/admin/leaderboard/settle', requireAuth, requireAdmin, (req, res, next) => {
     try {
-      assertAdminPermission(getAdminRole(req), 'orders:update_status'); // owner check via permission matrix
+      assertAdminPermission(getAdminRole(req), 'leaderboard:settle');
       const { weekKey } = z.object({ weekKey: z.string().min(1).optional() }).parse(req.body);
       const targetWeek = weekKey ?? games.getCurrentLeaderboard()[0]?.weekKey ?? new Date().toISOString().slice(0, 10);
       const result = settleLeaderboard(targetWeek);

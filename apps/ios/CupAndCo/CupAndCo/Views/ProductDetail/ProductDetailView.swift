@@ -7,7 +7,13 @@ struct ProductDetailView: View {
 
     @Environment(CartStore.self) private var cart
     @Environment(SessionStore.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
+
+    // Dynamic Type tokens — adopt key headings so users with larger text
+    // sizes get a readable interface.
+    @ScaledMetric(relativeTo: .title2) private var nameSize: CGFloat = 24
+    @ScaledMetric(relativeTo: .subheadline) private var descSize = CupTypography.bodyMd
 
     @State private var quantity: Int = 1
     @State private var selectedSize: String = "Medium"
@@ -20,6 +26,16 @@ struct ProductDetailView: View {
     private let sizeDeltas: [String: Double] = ["Small": -10, "Medium": 0, "Large": 10]
     private let sugarOptions = ["None", "Less", "Normal", "Extra"]
     private let iceOptions = ["None", "Less", "Normal", "Extra"]
+
+    private static let arLabels: [String: String] = [
+        "Size": "الحجم", "Sugar": "السكر", "Ice": "الثلج", "Quantity": "الكمية",
+        "Small": "صغير", "Medium": "وسط", "Large": "كبير",
+        "None": "بدون", "Less": "أقل", "Normal": "عادي", "Extra": "إضافي",
+    ]
+
+    private func localized(_ key: String) -> String {
+        language == .ar ? (Self.arLabels[key] ?? key) : key
+    }
 
     private var language: LanguagePref {
         session.user?.languagePref ?? .en
@@ -52,7 +68,7 @@ struct ProductDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
+                    withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.65)) {
                         isFavorite.toggle()
                     }
                     Task {
@@ -92,22 +108,17 @@ struct ProductDetailView: View {
 
             // Product image
             if let url = URL(string: product.imageUrl), !product.imageUrl.isEmpty {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable()
-                           .scaledToFit()
-                           .frame(width: 200, height: 200)
-                           .clipShape(Circle())
-                           .shadow(color: CupColors.espresso.opacity(0.12),
-                                   radius: 20, x: 0, y: 10)
-                    case .failure:
-                        placeholderIcon
-                    default:
-                        ProgressView()
-                            .tint(CupColors.primary)
-                            .frame(width: 200, height: 200)
-                    }
+                CachedAsyncImage(url: url) {
+                    ProgressView()
+                        .tint(CupColors.primary)
+                        .frame(width: 200, height: 200)
+                } content: { img in
+                    img.resizable()
+                        .scaledToFit()
+                        .frame(width: 200, height: 200)
+                        .clipShape(Circle())
+                        .shadow(color: CupColors.espresso.opacity(0.12),
+                                radius: 20, x: 0, y: 10)
                 }
             } else {
                 placeholderIcon
@@ -138,11 +149,11 @@ struct ProductDetailView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: product.localizedName(language))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(size: nameSize, weight: .bold, design: .rounded))
                         .foregroundStyle(CupColors.espresso)
 
                     Text(verbatim: product.localizedDescription(language))
-                        .font(.system(size: 14, design: .rounded))
+                        .font(.system(size: descSize, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                 }
 
@@ -165,10 +176,10 @@ struct ProductDetailView: View {
             quantityStepper
 
             // Option groups
-            optionSection(title: "Size", options: sizes, selection: $selectedSize,
+            optionSection(title: localized("Size"), options: sizes, selection: $selectedSize,
                           deltas: sizeDeltas)
-            optionSection(title: "Sugar", options: sugarOptions, selection: $selectedSugar)
-            optionSection(title: "Ice", options: iceOptions, selection: $selectedIce)
+            optionSection(title: localized("Sugar"), options: sugarOptions, selection: $selectedSugar)
+            optionSection(title: localized("Ice"), options: iceOptions, selection: $selectedIce)
         }
         .padding(.horizontal, 20)
         .padding(.top, 16)
@@ -178,7 +189,7 @@ struct ProductDetailView: View {
 
     private var quantityStepper: some View {
         HStack(spacing: 0) {
-            Text("Quantity")
+            Text(localized("Quantity"))
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(CupColors.espresso)
 
@@ -187,7 +198,7 @@ struct ProductDetailView: View {
             HStack(spacing: 0) {
                 Button {
                     if quantity > 1 {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
+                        withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.65)) {
                             quantity -= 1
                         }
                     }
@@ -198,6 +209,8 @@ struct ProductDetailView: View {
                         .frame(width: 36, height: 36)
                         .background(CupColors.cream)
                         .clipShape(Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel(Text("Decrease quantity"))
                 .disabled(quantity <= 1)
@@ -208,7 +221,7 @@ struct ProductDetailView: View {
                     .frame(width: 44)
 
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
+                    withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.65)) {
                         quantity += 1
                     }
                 } label: {
@@ -218,6 +231,8 @@ struct ProductDetailView: View {
                         .frame(width: 36, height: 36)
                         .background(CupColors.primary)
                         .clipShape(Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel(Text("Increase quantity"))
             }
@@ -247,12 +262,12 @@ struct ProductDetailView: View {
                 ForEach(options, id: \.self) { option in
                     let isSelected = selection.wrappedValue == option
                     Button {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
+                        withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.65)) {
                             selection.wrappedValue = option
                         }
                     } label: {
                         VStack(spacing: 2) {
-                            Text(option)
+                            Text(localized(option))
                                 .font(.system(size: 14, weight: isSelected ? .bold : .medium, design: .rounded))
 
                             if let deltas, let d = deltas[option], d != 0 {
@@ -301,7 +316,7 @@ struct ProductDetailView: View {
                     options: options,
                     optionDeltas: deltas
                 )
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
+                withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.65)) {
                     addedToCart = true
                 }
                 // Reset after brief feedback

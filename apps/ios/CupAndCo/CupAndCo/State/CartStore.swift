@@ -4,7 +4,7 @@ import Observation
 /// A single line item in the cart.  Identity is derived from the product
 /// id + sorted option selections so adding the same product with different
 /// options creates separate lines.
-struct CartItem: Identifiable, Equatable, Sendable {
+struct CartItem: Identifiable, Equatable, Sendable, Codable {
     let id: String
     let product: Product
     var quantity: Int
@@ -27,14 +27,21 @@ struct CartItem: Identifiable, Equatable, Sendable {
     }
 }
 
-/// In-memory cart.  Lives for the duration of the session and is injected
-/// via `@Environment`.
+/// Persistent cart backed by UserDefaults.  Injected via `@Environment`.
 @MainActor
 @Observable
 final class CartStore {
 
-    var items: [CartItem] = []
+    private static let storageKey = "cup_cart_items"
+
+    var items: [CartItem] = [] {
+        didSet { persist() }
+    }
     var redeemPoints: Int = 0
+
+    init() {
+        items = Self.loadItems()
+    }
 
     // MARK: - Computed
 
@@ -103,5 +110,20 @@ final class CartStore {
             .map { "\($0.key)=\($0.value)" }
             .joined(separator: "|")
         return "\(productId):\(optionStr)"
+    }
+
+    // MARK: - Persistence
+
+    private func persist() {
+        guard let data = try? JSONEncoder().encode(items) else { return }
+        UserDefaults.standard.set(data, forKey: Self.storageKey)
+    }
+
+    private static func loadItems() -> [CartItem] {
+        guard let data = UserDefaults.standard.data(forKey: storageKey),
+              let items = try? JSONDecoder().decode([CartItem].self, from: data) else {
+            return []
+        }
+        return items
     }
 }

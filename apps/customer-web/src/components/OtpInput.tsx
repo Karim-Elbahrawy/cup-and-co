@@ -76,7 +76,7 @@ export function OtpInput({
 
   return (
     <div
-      className="flex items-center justify-between gap-2"
+      className="flex items-center justify-between gap-1.5 sm:gap-2"
       role="group"
       aria-label="One-time passcode"
     >
@@ -99,7 +99,8 @@ export function OtpInput({
             onPaste={handlePaste}
             aria-label={`Digit ${i + 1}`}
             className={[
-              'h-14 w-12 rounded-2xl border-2 bg-white text-center font-heading text-2xl font-semibold',
+              'h-12 w-10 rounded-2xl border-2 bg-white text-center font-heading text-xl font-semibold',
+              'sm:h-14 sm:w-12 sm:text-2xl',
               'transition-all duration-150 outline-none',
               'focus:border-[var(--cup-primary)] focus:shadow-[0_0_0_4px_rgba(194,65,12,0.12)]',
               hasError

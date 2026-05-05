@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Bell } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PromoCard } from '@/components/PromoCard';
 import { ProductCard } from '@/components/ProductCard';
@@ -18,6 +17,13 @@ import { useT } from '@/lib/i18n';
 import type { CatalogResponse } from '@/lib/types';
 
 
+
+function greetingKey(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'home.goodMorning';
+  if (h < 17) return 'home.goodAfternoon';
+  return 'home.goodEvening';
+}
 
 export default function HomePage() {
   const { t, language } = useT();
@@ -94,7 +100,7 @@ export default function HomePage() {
 
   return (
     <PageTransition>
-      <main className="flex flex-1 flex-col gap-6 px-5 pt-6">
+      <main className="mx-auto flex w-full max-w-[1080px] flex-1 flex-col gap-6 px-5 pt-6">
         {/* Greeting + bell */}
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -108,24 +114,13 @@ export default function HomePage() {
             />
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--cup-muted)]">
-                {t('common.goodMorning')}
+                {t(greetingKey())}
               </p>
               <h1 className="font-heading text-lg font-bold leading-tight text-[var(--cup-espresso)]">
                 {firstName}
               </h1>
             </div>
           </div>
-          <button
-            type="button"
-            aria-label={t('common.notifications')}
-            className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-subtle text-[var(--cup-cocoa)] transition-colors hover:text-[var(--cup-primary)]"
-          >
-            <Bell size={18} aria-hidden="true" />
-            <span
-              aria-hidden="true"
-              className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--cup-primary)] ring-2 ring-white"
-            />
-          </button>
         </header>
 
         {/* Daily habit / quick-order bar */}
@@ -141,16 +136,17 @@ export default function HomePage() {
           featuredImageUrl={featuredPromoCutout}
           posterImageUrl={promoPosterImage}
           theme={promoTheme}
+          onCtaClick={() => document.getElementById('popular-heading')?.scrollIntoView({ behavior: 'smooth' })}
         />
 
-        {/* Active offers */}
+        {/* Active offers — max 2 visible, "+N more" overflow */}
         {catalog && catalog.offers.length > 0 && (
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--cup-muted)]">
               {t('common.activeOffers')}
             </p>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {catalog.offers.map((offer) => (
+            <div className="flex flex-wrap gap-2 pb-1">
+              {catalog.offers.slice(0, 2).map((offer) => (
                 <div
                   key={offer.id}
                   className="shrink-0 rounded-pill bg-gradient-to-r from-[#F4A261] to-[#C2410C] px-4 py-2 text-xs font-bold text-white shadow-warm-glow"
@@ -163,6 +159,11 @@ export default function HomePage() {
                   )}
                 </div>
               ))}
+              {catalog.offers.length > 2 && (
+                <div className="shrink-0 rounded-pill border border-cup-stroke bg-white px-4 py-2 text-xs font-semibold text-cup-muted">
+                  +{catalog.offers.length - 2} {language === 'ar' ? 'أخرى' : 'more'}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -231,7 +232,7 @@ export default function HomePage() {
                 },
               }}
             >
-              {filteredProducts.slice(0, 8).map((product) => (
+              {filteredProducts.slice(0, 12).map((product) => (
                 <motion.div
                   key={product.id}
                   variants={{

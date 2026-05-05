@@ -56,6 +56,9 @@ export const ar: Translations = {
     profile: 'حسابي',
   },
   home: {
+    goodMorning: 'صباح الخير',
+    goodAfternoon: 'مساء الخير',
+    goodEvening: 'مساء الخير',
     todayOnly: 'اليوم فقط',
     superDiscount: 'خصم خاص',
     offPercent: '% خصم',
@@ -81,6 +84,14 @@ export const ar: Translations = {
     no: 'بدون',
     prepTime: 'وقت التحضير',
     minutes: 'دقيقة',
+    reviews: {
+      header: 'التقييمات',
+      writeAReview: 'اكتب تقييم',
+      placeholder: 'شاركنا رأيك عن هذا المشروب...',
+      submitButton: 'إرسال التقييم',
+      submittedThankYou: 'شكراً لتقييمك!',
+      noReviewsYet: 'لا توجد تقييمات بعد — كن أول من يقيّم!',
+    },
   },
   cart: {
     myCart: 'سلتي',
@@ -91,6 +102,7 @@ export const ar: Translations = {
     emptyCartMessage: 'أضف بعض القهوة للبدء',
     redeemPoints: 'استبدال النقاط',
     pointsAvailable: 'نقطة متاحة',
+    browseMenu: 'تصفح القائمة',
   },
   checkout: {
     pickupTime: 'وقت الاستلام',
@@ -128,6 +140,7 @@ export const ar: Translations = {
     viewItems: 'عرض العناصر',
     pickupInstruction: 'أظهر هذا عند الكاونتر عند وصولك.',
     deliveryInstruction: 'أكد مع المندوب عند التوصيل.',
+    reorder: 'إعادة الطلب',
   },
   loyalty: {
     rewards: 'المكافآت',

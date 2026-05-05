@@ -10,6 +10,7 @@ struct OrderSuccessOverlay: View {
     let onTrackOrder: () -> Void
     let onBackToHome: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showContent = false
 
     var body: some View {
@@ -25,7 +26,7 @@ struct OrderSuccessOverlay: View {
                     .foregroundStyle(CupColors.primary)
                     .scaleEffect(showContent ? 1 : 0.01)
                     .opacity(showContent ? 1 : 0)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.55), value: showContent)
+                    .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.55), value: showContent)
 
                 // Title
                 Text("checkout.order_placed")
@@ -34,7 +35,7 @@ struct OrderSuccessOverlay: View {
                     .padding(.top, 20)
                     .opacity(showContent ? 1 : 0)
                     .offset(y: showContent ? 0 : 16)
-                    .animation(.easeOut(duration: 0.4).delay(0.25), value: showContent)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.4).delay(0.25), value: showContent)
 
                 // Subtitle
                 Text("checkout.preparing_order")
@@ -43,7 +44,7 @@ struct OrderSuccessOverlay: View {
                     .padding(.top, 6)
                     .opacity(showContent ? 1 : 0)
                     .offset(y: showContent ? 0 : 10)
-                    .animation(.easeOut(duration: 0.4).delay(0.4), value: showContent)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.4).delay(0.4), value: showContent)
 
                 // Pickup code
                 if let code = pickupCode, !code.isEmpty {
@@ -71,7 +72,7 @@ struct OrderSuccessOverlay: View {
                     .padding(.top, 24)
                     .opacity(showContent ? 1 : 0)
                     .offset(y: showContent ? 0 : 14)
-                    .animation(.easeOut(duration: 0.4).delay(0.55), value: showContent)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.4).delay(0.55), value: showContent)
                 }
 
                 // Buttons
@@ -112,7 +113,7 @@ struct OrderSuccessOverlay: View {
                 .padding(.top, 32)
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
-                .animation(.easeOut(duration: 0.4).delay(0.65), value: showContent)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.4).delay(0.65), value: showContent)
 
                 Spacer()
             }

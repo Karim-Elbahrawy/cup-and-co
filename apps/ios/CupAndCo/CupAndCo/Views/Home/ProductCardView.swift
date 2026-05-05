@@ -10,6 +10,11 @@ struct ProductCardView: View {
     var onTap: () -> Void = {}
     var onFavoriteTap: () -> Void = {}
 
+    // Dynamic Type
+    @ScaledMetric(relativeTo: .body) private var nameSize = CupTypography.bodyLg
+    @ScaledMetric(relativeTo: .caption) private var descSize = CupTypography.microLg
+    @ScaledMetric(relativeTo: .subheadline) private var priceSize = CupTypography.bodyMd
+
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
@@ -47,14 +52,10 @@ struct ProductCardView: View {
                 )
 
             if let url = URL(string: product.imageUrl), !product.imageUrl.isEmpty {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable()
-                           .scaledToFill()
-                    default:
-                        Color.clear
-                    }
+                CachedAsyncImage(url: url) {
+                    Color.clear
+                } content: { img in
+                    img.resizable().scaledToFill()
                 }
                 .clipped()
             }
@@ -95,18 +96,18 @@ struct ProductCardView: View {
     private var infoSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(verbatim: product.localizedName(language))
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .font(.system(size: nameSize, weight: .semibold, design: .rounded))
                 .foregroundStyle(CupColors.espresso)
                 .lineLimit(1)
 
             Text(verbatim: product.localizedDescription(language))
-                .font(.system(size: 12, design: .rounded))
+                .font(.system(size: descSize, design: .rounded))
                 .foregroundStyle(CupColors.muted)
                 .lineLimit(1)
 
             HStack(spacing: 6) {
                 Text(product.priceLabel)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(size: priceSize, weight: .bold, design: .rounded))
                     .foregroundStyle(CupColors.primary)
                 Spacer(minLength: 0)
                 Image(systemName: "star.fill")

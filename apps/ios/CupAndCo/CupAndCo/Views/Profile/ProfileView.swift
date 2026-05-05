@@ -4,6 +4,7 @@ import SwiftUI
 /// language toggle, Face ID toggle, notifications toggle, logout.
 struct ProfileView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(LanguageStore.self) private var language
     @Environment(\.dismiss) private var dismiss
 
     @State private var languageEN: Bool = AppLanguage.current == .english
@@ -290,11 +291,9 @@ struct ProfileView: View {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
             languageEN = en
         }
-        UserDefaults.standard.set(en ? "en" : "ar", forKey: "language_pref")
-        // The app re-reads `AppLanguage.current` on next launch.  A full
-        // mid-session locale swap requires re-rooting the view tree, which
-        // we do via a custom notification in Phase 2 — for now we rely on
-        // the user backgrounding the app.
+        // LanguageStore writes to UserDefaults and bumps the root view's id,
+        // which re-roots the tree so locale + layoutDirection update live.
+        language.set(en ? .english : .arabic)
     }
 
     private func divider() -> some View {
@@ -354,5 +353,6 @@ struct ProfileView: View {
     NavigationStack {
         ProfileView()
             .environment(SessionStore())
+            .environment(LanguageStore())
     }
 }

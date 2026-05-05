@@ -4,10 +4,12 @@ import { use, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Check, XCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, Check, XCircle, RotateCcw, ChevronDown } from 'lucide-react';
 import { api, ApiError, BASE_URL } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { useT } from '@/lib/i18n';
+import { useCart } from '@/lib/cart';
 import type { ApiOrder, TimelineStep } from '@/lib/types';
 
 const POLL_MS = 5000;
@@ -20,7 +22,9 @@ export default function OrderTrackingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const { t, language } = useT();
+  const addToCart = useCart((s) => s.add);
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [timeline, setTimeline] = useState<TimelineStep[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +32,22 @@ export default function OrderTrackingPage({
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const sseActive = useRef(false);
+
+  function reorder() {
+    if (!order) return;
+    for (const item of order.items) {
+      addToCart({
+        productId: item.productId,
+        productNameEn: item.productNameEn,
+        productNameAr: item.productNameAr,
+        imageUrl: item.imageUrl,
+        options: item.options,
+        unitPriceEgp: item.unitPriceEgp,
+        quantity: item.quantity,
+      });
+    }
+    router.push('/cart');
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -105,15 +125,26 @@ export default function OrderTrackingPage({
       }
     }
 
-    // Try SSE, fall back to polling
+    // SSE with exponential backoff reconnect, falling back to polling
     let pollInterval: ReturnType<typeof setInterval> | null = null;
-    connectSSE().then((sseWorked) => {
-      if (cancelled) return;
-      if (!sseWorked) {
-        // Fall back to polling
-        pollInterval = setInterval(refresh, POLL_MS);
+    let retryDelay = 1000;
+    const MAX_RETRY_DELAY = 30000;
+
+    async function connectWithBackoff() {
+      while (!cancelled) {
+        const worked = await connectSSE();
+        if (cancelled) return;
+        if (!worked) {
+          pollInterval = setInterval(refresh, POLL_MS);
+          return;
+        }
+        // SSE stream ended (server closed) — reconnect with backoff
+        await new Promise((r) => setTimeout(r, retryDelay));
+        retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
       }
-    });
+    }
+
+    connectWithBackoff();
 
     return () => {
       cancelled = true;
@@ -174,9 +205,9 @@ export default function OrderTrackingPage({
         >
           <ChevronLeft className="h-5 w-5 text-cup-brown-900" />
         </Link>
-        <p className="font-heading text-base font-semibold text-cup-brown-900">
+        <h1 className="font-heading text-base font-semibold text-cup-brown-900">
           {t('orders.orderTracking')}
-        </p>
+        </h1>
         <span className="w-10" aria-hidden="true" />
       </header>
 
@@ -186,7 +217,10 @@ export default function OrderTrackingPage({
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cup-muted">
             {t('orders.pickupCode')}
           </p>
-          <p className="mt-1 font-heading text-[64px] font-bold leading-none text-cup-orange-600">
+          <p
+            className="mt-1 font-heading font-bold leading-none text-cup-orange-600"
+            style={{ fontSize: 'clamp(2.5rem, 14vw, 4rem)' }}
+          >
             {order.pickupCode ?? '—'}
           </p>
           <p className="mt-2 text-sm text-cup-muted">
@@ -222,6 +256,20 @@ export default function OrderTrackingPage({
         )}
       </AnimatePresence>
 
+      {/* Reorder when completed */}
+      {order && order.status === 'completed' && (
+        <section className="mx-auto mt-4 max-w-3xl px-5">
+          <button
+            type="button"
+            onClick={reorder}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-cup-orange-600 px-5 py-3 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-[0.98]"
+          >
+            <RotateCcw className="h-4 w-4" />
+            {t('orders.reorder')}
+          </button>
+        </section>
+      )}
+
       {/* Vertical timeline */}
       <section className="mx-auto mt-5 max-w-3xl px-5">
         <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
@@ -230,12 +278,14 @@ export default function OrderTrackingPage({
               const isLast = idx === timeline.length - 1;
               return (
                 <li key={`${step.status}-${idx}`} className="relative flex gap-4">
-                  {/* connector */}
+                  {/* connector — solid for completed, dotted for pending */}
                   {!isLast && (
                     <span
                       aria-hidden="true"
-                      className={`absolute left-[18px] top-9 h-[calc(100%+8px)] w-0.5 ${
-                        step.done ? 'bg-cup-orange-600' : 'bg-cup-stroke'
+                      className={`absolute left-[17px] top-9 h-[calc(100%+8px)] w-[3px] ${
+                        step.done
+                          ? 'bg-cup-orange-600'
+                          : 'border-l-[3px] border-dotted border-cup-stroke'
                       }`}
                     />
                   )}
@@ -272,7 +322,7 @@ export default function OrderTrackingPage({
           className="flex w-full items-center justify-between rounded-card border border-cup-stroke bg-white px-5 py-4 text-start text-sm font-semibold text-cup-brown-900 shadow-subtle"
         >
           {showItems ? t('orders.hideItems') : `${t('orders.viewItems')} (${order.items.length})`}
-          <span className="text-cup-muted">{showItems ? '▲' : '▼'}</span>
+          <ChevronDown className={`h-4 w-4 text-cup-muted transition-transform ${showItems ? 'rotate-180' : ''}`} />
         </button>
         {showItems && (
           <div className="mt-2 rounded-card border border-cup-stroke bg-white p-4 shadow-subtle">
@@ -320,9 +370,14 @@ export default function OrderTrackingPage({
         )}
       </section>
 
-      <p className="mt-6 text-center text-xs text-cup-muted">
-        {`Status: ${t(`orders.${camelize(order.status)}`)} · ${order.paymentStatus}`}
-      </p>
+      <div className="mt-6 flex justify-center gap-2">
+        <span className="rounded-full bg-cup-orange-600/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-cup-orange-700">
+          {t(`orders.${camelize(order.status)}`)}
+        </span>
+        <span className="rounded-full bg-cup-paper px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-cup-muted">
+          {order.paymentStatus}
+        </span>
+      </div>
     </main>
   );
 }

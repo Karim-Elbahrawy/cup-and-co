@@ -9,6 +9,10 @@ struct OrderTrackingView: View {
     @Environment(OrderStore.self) private var orderStore
     @Environment(\.dismiss) private var dismiss
 
+    // Dynamic Type
+    @ScaledMetric(relativeTo: .body) private var stepLabelSize = CupTypography.bodyLg
+    @ScaledMetric(relativeTo: .caption) private var stepTimeSize = CupTypography.microLg
+
     @State private var order: Order?
     @State private var timeline: [TimelineStep] = []
     @State private var isItemsExpanded: Bool = false
@@ -129,14 +133,14 @@ struct OrderTrackingView: View {
                     // Label + time
                     VStack(alignment: .leading, spacing: 2) {
                         Text(step.label)
-                            .font(.system(size: 15,
+                            .font(.system(size: stepLabelSize,
                                           weight: step.active ? .bold : (step.done ? .semibold : .medium),
                                           design: .rounded))
                             .foregroundStyle(step.done || step.active ? CupColors.espresso : CupColors.muted)
 
                         if let at = step.at {
                             Text(verbatim: formatTime(at))
-                                .font(.system(size: 12, design: .rounded))
+                                .font(.system(size: stepTimeSize, design: .rounded))
                                 .foregroundStyle(CupColors.muted)
                         }
                     }
@@ -144,6 +148,12 @@ struct OrderTrackingView: View {
 
                     Spacer()
                 }
+                // Combine label + time into one VoiceOver utterance, with state
+                // ("done", "in progress", "pending") as the value.
+                .accessibilityElement(children: .combine)
+                .accessibilityValue(Text(
+                    step.done ? "done" : (step.active ? "in progress" : "pending")
+                ))
             }
         }
         .padding(16)
@@ -263,13 +273,10 @@ struct OrderTrackingView: View {
     @ViewBuilder
     private func itemImage(url: String) -> some View {
         if let parsed = URL(string: url), !url.isEmpty {
-            AsyncImage(url: parsed) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().scaledToFill()
-                default:
-                    imagePlaceholderSmall
-                }
+            CachedAsyncImage(url: parsed) {
+                imagePlaceholderSmall
+            } content: { img in
+                img.resizable().scaledToFill()
             }
             .frame(width: 40, height: 40)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -384,12 +391,37 @@ struct OrderTrackingView: View {
 
     private func startPolling() {
         pollingTask = Task {
+            // Try SSE first; on drop, retry with exponential backoff;
+            // on hard failure or absent SSE, fall back to 5-sec polling.
+            var retryDelay: UInt64 = 1_000_000_000 // 1 s
+            let maxDelay: UInt64 = 30_000_000_000  // 30 s
+
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
-                guard !Task.isCancelled else { break }
-                // Stop polling for terminal statuses
                 if let current = order?.status, current.isTerminal { break }
-                await refreshOrder()
+                do {
+                    let stream = APIClient.shared.streamSSE(
+                        "/orders/\(orderId)/events",
+                        type: OrderResponse.self
+                    )
+                    for try await event in stream {
+                        if Task.isCancelled { break }
+                        order = event.order
+                        timeline = event.timeline
+                        if event.order.status.isTerminal { return }
+                    }
+                    // Stream ended cleanly — back off and reconnect
+                    try? await Task.sleep(nanoseconds: retryDelay)
+                    retryDelay = min(retryDelay * 2, maxDelay)
+                } catch {
+                    // SSE failed — fall back to polling for the rest of the lifecycle
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(5))
+                        guard !Task.isCancelled else { break }
+                        if let current = order?.status, current.isTerminal { return }
+                        await refreshOrder()
+                    }
+                    return
+                }
             }
         }
     }

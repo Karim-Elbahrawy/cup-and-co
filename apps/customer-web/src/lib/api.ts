@@ -120,8 +120,12 @@ export const api = {
   product: (id: string) => apiFetch<ProductDetailResponse>(`/products/${id}`),
 
   // -- Phase 2 ordering --
-  createOrder: (input: CreateOrderRequest) =>
-    apiFetch<OrderResponse>('/orders', { method: 'POST', body: input }),
+  createOrder: (input: CreateOrderRequest, idempotencyKey?: string) =>
+    apiFetch<OrderResponse>('/orders', {
+      method: 'POST',
+      body: input,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
+    }),
 
   getOrder: (id: string) => apiFetch<OrderResponse>(`/orders/${id}`),
 
@@ -160,6 +164,9 @@ export const api = {
   createGameSession: () =>
     apiFetch<GameSession>('/games/sessions', { method: 'POST' }),
 
+  gameDailyStatus: () =>
+    apiFetch<{ sessionsUsed: number; sessionsLeft: number; dailyLimit: number }>('/games/sessions/me'),
+
   submitGameScore: (sessionId: string, score: number, durationSeconds: number) =>
     apiFetch<GameScoreResponse>('/games/scores', {
       method: 'POST',
@@ -174,4 +181,13 @@ export const api = {
 
   prizes: () =>
     apiFetch<PrizesResponse>('/prizes'),
+
+  validateCoupon: (code: string) =>
+    apiFetch<{ ok: boolean; type?: string; value?: number; descriptionEn?: string; descriptionAr?: string; reason?: string }>('/coupons/validate', {
+      method: 'POST',
+      body: { code },
+    }),
+
+  searchProducts: (q: string) =>
+    apiFetch<CatalogResponse>(`/catalog?q=${encodeURIComponent(q)}`),
 };

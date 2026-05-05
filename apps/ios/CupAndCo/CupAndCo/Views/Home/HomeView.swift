@@ -6,11 +6,17 @@ import SwiftUI
 struct HomeView: View {
     @Environment(SessionStore.self) private var session
     @Environment(CatalogStore.self) private var catalog
+    @Environment(CartStore.self) private var cart
+
+    // Dynamic Type — caps the scaling so the layout doesn't collapse on the
+    // largest accessibility sizes.
+    @ScaledMetric(relativeTo: .caption) private var microLg = CupTypography.microLg
+    @ScaledMetric(relativeTo: .body) private var headingSm = CupTypography.headingSm
 
     @State private var query: String = ""
     @State private var selectedCategory: String? = nil
-    @State private var showProfile: Bool = false
     @State private var showUsual: Bool = false
+    @State private var usualToast: String?
 
     private var greetingName: String {
         let name = session.user?.firstName ?? ""
@@ -50,7 +56,7 @@ struct HomeView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
 
-                DailyOrderBarView(query: $query, onUsualTap: { showUsual = true })
+                DailyOrderBarView(query: $query, onUsualTap: { Task { await reorderUsual() } })
                     .padding(.horizontal, 20)
 
                 PromoBannerView(percent: heroPercent)
@@ -129,12 +135,6 @@ struct HomeView: View {
                 await catalog.load()
             }
         }
-        .sheet(isPresented: $showProfile) {
-            NavigationStack {
-                ProfileView()
-            }
-            .presentationDragIndicator(.visible)
-        }
         .sheet(isPresented: $showUsual) {
             NavigationStack {
                 OrderHistoryView()
@@ -142,75 +142,72 @@ struct HomeView: View {
             .presentationDragIndicator(.visible)
             .presentationDetents([.large])
         }
+        .overlay(alignment: .top) {
+            if let toast = usualToast {
+                Text(verbatim: toast)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(CupColors.primary)
+                    .clipShape(Capsule())
+                    .shadow(color: CupColors.primary.opacity(0.30), radius: 12, x: 0, y: 6)
+                    .padding(.top, 12)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: usualToast)
     }
 
     // MARK: - Top bar
 
     private var topBar: some View {
         HStack(alignment: .center, spacing: 12) {
-            Button {
-                showProfile = true
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(CupColors.cream)
+            ZStack {
+                Circle()
+                    .fill(CupColors.cream)
+                    .frame(width: 44, height: 44)
+                if let avatarId = session.user?.avatarId {
+                    Image("avatar_\(avatarId)")
+                        .resizable()
+                        .scaledToFill()
                         .frame(width: 44, height: 44)
-                    if let avatarId = session.user?.avatarId {
-                        Image("avatar_\(avatarId)")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 44, height: 44)
-                            .clipShape(Circle())
-                    } else if let initials = avatarInitials {
-                        Text(initials)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(CupColors.primary)
-                    } else {
-                        MonogramView()
-                            .frame(width: 30, height: 30)
-                    }
+                        .clipShape(Circle())
+                } else if let initials = avatarInitials {
+                    Text(initials)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(CupColors.primary)
+                } else {
+                    MonogramView()
+                        .frame(width: 30, height: 30)
                 }
-                .overlay(Circle().stroke(CupColors.stroke, lineWidth: 1))
             }
-            .accessibilityLabel(Text("home.open_profile"))
+            .overlay(Circle().stroke(CupColors.stroke, lineWidth: 1))
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    Text("common.good_morning")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                    Text(Self.greetingKey())
+                        .font(.system(size: microLg, weight: .medium, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                     Text(verbatim: ", \(greetingName)")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(.system(size: microLg, weight: .medium, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                 }
                 Text(roleSubtitle)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.system(size: headingSm, weight: .bold, design: .rounded))
                     .foregroundStyle(CupColors.espresso)
             }
 
             Spacer()
-
-            Button {
-                // Notifications screen wires up in Phase 2.
-            } label: {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: "bell.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(CupColors.espresso)
-                        .frame(width: 44, height: 44)
-                        .background(CupColors.surface)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(CupColors.stroke, lineWidth: 1))
-
-                    Circle()
-                        .fill(CupColors.error)
-                        .frame(width: 10, height: 10)
-                        .overlay(Circle().stroke(CupColors.surface, lineWidth: 2))
-                        .offset(x: -4, y: 4)
-                }
-            }
-            .accessibilityLabel(Text("home.notifications"))
         }
+    }
+
+    private static func greetingKey() -> String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 12 { return "home.good_morning" }
+        if hour < 17 { return "home.good_afternoon" }
+        return "home.good_evening"
     }
 
     private var avatarInitials: String? {
@@ -266,6 +263,42 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
+    }
+
+    // MARK: - Reorder
+
+    private func reorderUsual() async {
+        do {
+            let res = try await OrderAPI.list()
+            // Pick the most recent completed order; fall back to most recent overall.
+            let completed = res.orders.first(where: { $0.status == .completed })
+            guard let last = completed ?? res.orders.first else {
+                showUsual = true
+                return
+            }
+            // Map each order item back to a Product and add to cart.
+            var added = 0
+            for item in last.items {
+                guard let product = catalog.products.first(where: { $0.id == item.productId }) else { continue }
+                cart.addItem(
+                    product: product,
+                    quantity: item.quantity,
+                    options: item.options
+                )
+                added += item.quantity
+            }
+            if added == 0 {
+                showUsual = true
+            } else {
+                let lang = session.user?.languagePref ?? .en
+                usualToast = lang == .ar ? "تمت الإضافة إلى السلة" : "Added to cart"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    usualToast = nil
+                }
+            }
+        } catch {
+            showUsual = true
+        }
     }
 }
 

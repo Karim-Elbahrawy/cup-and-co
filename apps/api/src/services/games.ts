@@ -111,10 +111,18 @@ export function createGameService(opts: { now?: () => Date } = {}) {
       }
 
       const maxDuration = config.game.durationSeconds + 3;
+      // Minimum duration: a real session can't be shorter than ~10 sec.
+      // Anything below that is almost certainly a replay attack with a fake score.
+      const minDuration = 10;
+      // Server-side wall-clock check — prevents replaying old sessionIds long after
+      // they were issued.
+      const elapsedSinceStart = (now().getTime() - session.startedAt.getTime()) / 1000;
       if (
         input.score < 0 ||
         input.score > session.serverMaxScore ||
-        input.durationSeconds > maxDuration
+        input.durationSeconds < minDuration ||
+        input.durationSeconds > maxDuration ||
+        elapsedSinceStart > maxDuration + 60 // 60-sec submission grace
       ) {
         throw new Error('Submitted score failed validation.');
       }
@@ -151,6 +159,14 @@ export function createGameService(opts: { now?: () => Date } = {}) {
       return me
         ? { rank: me.rank, totalScore: me.totalScore, weekKey }
         : { rank: null, totalScore: null, weekKey };
+    },
+
+    getDailyStatus(userId: string): { sessionsUsed: number; sessionsLeft: number; dailyLimit: number } {
+      const dayKey = getDayKey(now());
+      const dayMap = dailyCounts.get(dayKey) ?? new Map<string, number>();
+      const used = dayMap.get(userId) ?? 0;
+      const limit = config.game.dailySessionsPerUser;
+      return { sessionsUsed: used, sessionsLeft: Math.max(0, limit - used), dailyLimit: limit };
     },
   };
 }

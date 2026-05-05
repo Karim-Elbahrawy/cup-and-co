@@ -106,9 +106,8 @@ async function loginFlow(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: /Continue/i }).click();
   await expect(page).toHaveURL(/\/profile-setup/, { timeout: 10000 });
   await page.getByRole('button', { name: /Continue/i }).click();
-  await expect(page).toHaveURL(/\/verify-id/, { timeout: 10000 });
-  await page.getByRole('button', { name: /Skip for now/i }).click();
-  await expect(page).toHaveURL(/\/$/);
+  // Verify-ID step was removed; profile-setup now lands directly on home.
+  await expect(page).toHaveURL(/\/$/, { timeout: 10000 });
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────

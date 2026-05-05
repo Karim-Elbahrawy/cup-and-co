@@ -47,6 +47,9 @@ export interface Translations {
     };
   };
   home: {
+    goodMorning: string;
+    goodAfternoon: string;
+    goodEvening: string;
     todayOnly: string;
     superDiscount: string;
     offPercent: string;
@@ -72,6 +75,14 @@ export interface Translations {
     no: string;
     prepTime: string;
     minutes: string;
+    reviews: {
+      header: string;
+      writeAReview: string;
+      placeholder: string;
+      submitButton: string;
+      submittedThankYou: string;
+      noReviewsYet: string;
+    };
   };
   cart: {
     myCart: string;
@@ -82,6 +93,7 @@ export interface Translations {
     emptyCartMessage: string;
     redeemPoints: string;
     pointsAvailable: string;
+    browseMenu: string;
   };
   checkout: {
     pickupTime: string;
@@ -126,6 +138,7 @@ export interface Translations {
     viewItems: string;
     pickupInstruction: string;
     deliveryInstruction: string;
+    reorder: string;
   };
   loyalty: {
     rewards: string;

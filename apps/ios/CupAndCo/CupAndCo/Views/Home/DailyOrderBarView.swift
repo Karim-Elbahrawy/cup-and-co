@@ -29,7 +29,7 @@ struct DailyOrderBarView: View {
         Button(action: onUsualTap) {
             ZStack(alignment: .bottomLeading) {
                 LinearGradient(
-                    colors: [Color(hex: "#F4A261"), Color(hex: "#C2410C")],
+                    colors: CupColors.sunriseStops,
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -57,7 +57,7 @@ struct DailyOrderBarView: View {
                 .padding(12)
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: Color(hex: "#C2410C").opacity(0.30), radius: 12, x: 0, y: 6)
+            .shadow(color: CupColors.primary.opacity(0.30), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("home.your_usual"))
