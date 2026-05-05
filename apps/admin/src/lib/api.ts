@@ -257,6 +257,20 @@ export const adminApi = {
         body: { available },
       },
     ),
+  createProduct: (input: {
+    category_id: string;
+    name_en: string;
+    name_ar: string;
+    description_en?: string | null;
+    description_ar?: string | null;
+    base_price_egp: number;
+    image_url?: string | null;
+    prep_minutes?: number | null;
+  }) =>
+    api<{ product: import('@cup-and-co/types').Product }>('/admin/menu/products', {
+      method: 'POST',
+      body: input,
+    }),
   // Phase 5: Reviews
   listReviews: (signal?: AbortSignal) =>
     api<{ reviews: AdminReview[] }>('/admin/reviews', { signal }),
