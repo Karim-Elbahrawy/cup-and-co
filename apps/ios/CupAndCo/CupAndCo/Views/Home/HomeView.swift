@@ -6,10 +6,12 @@ import SwiftUI
 struct HomeView: View {
     @Environment(SessionStore.self) private var session
     @Environment(CatalogStore.self) private var catalog
+    @Environment(CartStore.self) private var cart
 
     @State private var query: String = ""
     @State private var selectedCategory: String? = nil
     @State private var showUsual: Bool = false
+    @State private var usualToast: String?
 
     private var greetingName: String {
         let name = session.user?.firstName ?? ""
@@ -49,7 +51,7 @@ struct HomeView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
 
-                DailyOrderBarView(query: $query, onUsualTap: { showUsual = true })
+                DailyOrderBarView(query: $query, onUsualTap: { Task { await reorderUsual() } })
                     .padding(.horizontal, 20)
 
                 PromoBannerView(percent: heroPercent)
@@ -135,6 +137,21 @@ struct HomeView: View {
             .presentationDragIndicator(.visible)
             .presentationDetents([.large])
         }
+        .overlay(alignment: .top) {
+            if let toast = usualToast {
+                Text(verbatim: toast)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(CupColors.primary)
+                    .clipShape(Capsule())
+                    .shadow(color: CupColors.primary.opacity(0.30), radius: 12, x: 0, y: 6)
+                    .padding(.top, 12)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: usualToast)
     }
 
     // MARK: - Top bar
@@ -241,6 +258,42 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
+    }
+
+    // MARK: - Reorder
+
+    private func reorderUsual() async {
+        do {
+            let res = try await OrderAPI.list()
+            // Pick the most recent completed order; fall back to most recent overall.
+            let completed = res.orders.first(where: { $0.status == .completed })
+            guard let last = completed ?? res.orders.first else {
+                showUsual = true
+                return
+            }
+            // Map each order item back to a Product and add to cart.
+            var added = 0
+            for item in last.items {
+                guard let product = catalog.products.first(where: { $0.id == item.productId }) else { continue }
+                cart.addItem(
+                    product: product,
+                    quantity: item.quantity,
+                    options: item.options
+                )
+                added += item.quantity
+            }
+            if added == 0 {
+                showUsual = true
+            } else {
+                let lang = session.user?.languagePref ?? .en
+                usualToast = lang == .ar ? "تمت الإضافة إلى السلة" : "Added to cart"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    usualToast = nil
+                }
+            }
+        } catch {
+            showUsual = true
+        }
     }
 }
 
