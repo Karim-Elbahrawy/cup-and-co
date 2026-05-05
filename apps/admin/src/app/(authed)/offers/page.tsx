@@ -6,6 +6,8 @@ import { Plus, Tag, Calendar, Users } from 'lucide-react';
 import { useToast } from '@/components/Toast';
 import { useSession } from '@/lib/useSession';
 import { adminApi, type AdminOffer } from '@/lib/api';
+import { Skeleton } from '@/components/Skeleton';
+import { EmptyState } from '@/components/EmptyState';
 
 const ROLES = ['student', 'faculty', 'office'] as const;
 
@@ -90,23 +92,33 @@ export default function OffersPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[60vh] place-items-center text-cup-muted">
-        Loading offers…
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-cup-brown-900">Offers</h1>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cup-muted">
+            Promotions
+          </p>
+          <h1 className="font-heading text-3xl font-bold text-cup-brown-900">Offers</h1>
+          <p className="mt-1 text-sm text-cup-muted">
+            Discounts, free items, and student-only deals — schedule and track usage.
+          </p>
+        </div>
         <button
           onClick={() => setShowForm((s) => !s)}
-          className="flex items-center gap-2 rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-warm-glow transition hover:bg-cup-orange-700"
+          className="inline-flex items-center gap-2 rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600"
         >
-          <Plus className="h-4 w-4" /> {showForm ? 'Cancel' : 'New Offer'}
+          <Plus className="h-4 w-4" /> {showForm ? 'Cancel' : 'New offer'}
         </button>
-      </div>
+      </header>
 
       {showForm && (
         <form
@@ -228,9 +240,12 @@ export default function OffersPage() {
       )}
 
       {offers.length === 0 ? (
-        <div className="rounded-card border border-cup-stroke bg-white p-12 text-center text-cup-muted">
-          No offers yet. Create your first offer above.
-        </div>
+        <EmptyState
+          icon={Tag}
+          title="No offers yet."
+          description="Create discounts, free items, or coupon codes to drive repeat visits."
+          action={{ label: 'New offer', onClick: () => setShowForm(true) }}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {offers.map((offer) => {
