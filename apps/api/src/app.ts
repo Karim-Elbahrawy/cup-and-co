@@ -716,8 +716,18 @@ export function createApp(): express.Express {
   app.get('/loyalty', requireAuth, (req, res) => {
     const user = getRequestUser(req);
     const balance = userPoints.get(user.id) ?? 0;
-    const history = (loyaltyHistory.get(user.id) ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    res.json({ balance, discountAvailableEgp: calculateDiscountEgp(balance), history });
+    const all = (loyaltyHistory.get(user.id) ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    const history = all.slice(offset, offset + limit);
+    res.json({
+      balance,
+      discountAvailableEgp: calculateDiscountEgp(balance),
+      history,
+      total: all.length,
+      limit,
+      offset,
+    });
   });
 
   app.post('/loyalty/redeem-qr', requireAuth, (req, res, next) => {
