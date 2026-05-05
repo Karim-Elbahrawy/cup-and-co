@@ -394,9 +394,23 @@ export function createApp(): express.Express {
   });
 
   // -------- Orders (customer) --------
+  // Idempotency cache for POST /orders — keyed by user + Idempotency-Key header.
+  // 5-min TTL is plenty for a flaky network retry without holding state forever.
+  const orderIdempotency = new Map<string, { at: number; response: unknown }>();
+  const IDEMPOTENCY_TTL_MS = 5 * 60_000;
+
   app.post('/orders', requireAuth, async (req, res, next) => {
     try {
       const user = getRequestUser(req);
+      const idempotencyKey = req.header('Idempotency-Key')?.trim();
+      if (idempotencyKey) {
+        const cacheKey = `${user.id}::${idempotencyKey}`;
+        const hit = orderIdempotency.get(cacheKey);
+        if (hit && Date.now() - hit.at < IDEMPOTENCY_TTL_MS) {
+          res.status(201).json(hit.response);
+          return;
+        }
+      }
       const input = createOrderSchema.parse(req.body);
       if (!kioskState.is_open) {
         const e = new Error('Kiosk ordering is closed.') as Error & { status?: number };
@@ -473,7 +487,14 @@ export function createApp(): express.Express {
       }
 
       emitOrderUpdate(order);
-      res.status(201).json({ order, timeline: trackingTimelineFor(order) });
+      const responseBody = { order, timeline: trackingTimelineFor(order) };
+      if (idempotencyKey) {
+        orderIdempotency.set(`${user.id}::${idempotencyKey}`, {
+          at: Date.now(),
+          response: responseBody,
+        });
+      }
+      res.status(201).json(responseBody);
     } catch (e) { next(e); }
   });
 

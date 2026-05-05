@@ -29,6 +29,11 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const orderPlacedRef = useRef(false);
+  // Stable per-mount idempotency key so retries of the same checkout submit
+  // are deduped server-side.
+  const idempotencyKeyRef = useRef<string>(typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
   // Generate next 4 quarter-hour slots
   const slots = useMemo(() => generateSlots(), []);
@@ -56,7 +61,7 @@ export default function CheckoutPage() {
           quantity: it.quantity,
           options: it.options,
         })),
-      });
+      }, idempotencyKeyRef.current);
 
       if (payment === 'cash') {
         orderPlacedRef.current = true;

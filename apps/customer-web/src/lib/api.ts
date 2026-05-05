@@ -120,8 +120,12 @@ export const api = {
   product: (id: string) => apiFetch<ProductDetailResponse>(`/products/${id}`),
 
   // -- Phase 2 ordering --
-  createOrder: (input: CreateOrderRequest) =>
-    apiFetch<OrderResponse>('/orders', { method: 'POST', body: input }),
+  createOrder: (input: CreateOrderRequest, idempotencyKey?: string) =>
+    apiFetch<OrderResponse>('/orders', {
+      method: 'POST',
+      body: input,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
+    }),
 
   getOrder: (id: string) => apiFetch<OrderResponse>(`/orders/${id}`),
 
