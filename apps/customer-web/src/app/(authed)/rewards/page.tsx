@@ -403,7 +403,7 @@ function LeaderboardSection({
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-heading text-sm font-semibold text-cup-brown-900">
-                    {isMe ? t('games.you') : `…${entry.userId.slice(-6)}`}
+                    {isMe ? t('games.you') : entry.displayName ?? `…${entry.userId.slice(-6)}`}
                   </p>
                   {RANK_PRIZE[entry.rank] && (
                     <p className="text-[10px] text-cup-muted">{RANK_PRIZE[entry.rank]}</p>

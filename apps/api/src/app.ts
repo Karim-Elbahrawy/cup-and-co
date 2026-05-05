@@ -723,7 +723,16 @@ export function createApp(): express.Express {
   });
 
   app.get('/leaderboard/current', (_req, res) => {
-    res.json({ entries: games.getCurrentLeaderboard() });
+    const entries = games.getCurrentLeaderboard().map((e) => {
+      const user = usersRegistry.get(e.userId);
+      const fullName = user?.full_name ?? '';
+      // Initials from full name, or last-4 of userId as a privacy-preserving fallback.
+      const displayName = fullName
+        ? fullName.split(' ').slice(0, 2).map((p) => p[0] ?? '').join('').toUpperCase() || `…${e.userId.slice(-4)}`
+        : `…${e.userId.slice(-4)}`;
+      return { ...e, displayName };
+    });
+    res.json({ entries });
   });
 
   app.get('/leaderboard/me', requireAuth, (req, res) => {

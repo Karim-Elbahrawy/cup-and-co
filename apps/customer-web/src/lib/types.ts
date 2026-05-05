@@ -204,6 +204,7 @@ export interface LeaderboardEntry {
   userId: string;
   totalScore: number;
   weekKey: string;
+  displayName?: string;
 }
 
 export interface LeaderboardCurrentResponse {
