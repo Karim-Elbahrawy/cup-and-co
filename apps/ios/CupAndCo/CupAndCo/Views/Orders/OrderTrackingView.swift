@@ -144,6 +144,12 @@ struct OrderTrackingView: View {
 
                     Spacer()
                 }
+                // Combine label + time into one VoiceOver utterance, with state
+                // ("done", "in progress", "pending") as the value.
+                .accessibilityElement(children: .combine)
+                .accessibilityValue(Text(
+                    step.done ? "done" : (step.active ? "in progress" : "pending")
+                ))
             }
         }
         .padding(16)
