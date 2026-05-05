@@ -46,9 +46,18 @@ final class APIClient: @unchecked Sendable {
              let plist = Bundle.main.infoDictionary?["API_BASE_URL"] as? String ?? "http://localhost:4000"
              return URL(string: plist)!
          }(),
-         session: URLSession = .shared) {
+         session: URLSession? = nil) {
         self.baseURL = baseURL
-        self.session = session
+        if let session {
+            self.session = session
+        } else {
+            // Bound transport timeouts: 15s for request, 30s for total resource.
+            // SSE streams override this on a per-request basis if needed.
+            let cfg = URLSessionConfiguration.default
+            cfg.timeoutIntervalForRequest = 15
+            cfg.timeoutIntervalForResource = 30
+            self.session = URLSession(configuration: cfg)
+        }
         self.decoder = JSONDecoder()
         // The API uses snake_case directly; our models declare `CodingKeys`
         // explicitly so we keep the default key strategy.

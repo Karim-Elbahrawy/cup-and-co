@@ -40,6 +40,16 @@ export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
     onClose();
   }, [stopCamera, onClose]);
 
+  // ESC closes the dialog when open
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, handleClose]);
+
   // Start the camera when open. We attempt scanning even without
   // BarcodeDetector — jsQR fallback covers iOS Safari < 17 and older browsers.
   useEffect(() => {
@@ -166,11 +176,14 @@ export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="qr-scanner-title"
             className="relative mx-4 w-full max-w-sm overflow-hidden rounded-2xl border border-cup-stroke bg-white shadow-elevated"
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-cup-stroke px-5 py-4">
-              <h2 className="font-heading text-base font-semibold text-cup-brown-900">
+              <h2 id="qr-scanner-title" className="font-heading text-base font-semibold text-cup-brown-900">
                 Scan QR Code
               </h2>
               <button
