@@ -216,7 +216,7 @@ export default function ProductDetailPage({
         >
           <ChevronLeft className="h-5 w-5 text-cup-brown-900" />
         </button>
-        <p className="font-heading text-base font-semibold text-cup-brown-900">
+        <p className="font-heading text-base font-semibold text-cup-brown-900" aria-hidden="true">
           {t('product.details')}
         </p>
         <button

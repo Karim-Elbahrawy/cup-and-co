@@ -93,9 +93,9 @@ export default function CheckoutPage() {
         >
           <ChevronLeft className="h-5 w-5 text-cup-brown-900" />
         </Link>
-        <p className="font-heading text-base font-semibold text-cup-brown-900">
+        <h1 className="font-heading text-base font-semibold text-cup-brown-900">
           {t('common.checkout')}
-        </p>
+        </h1>
         <span className="w-10" aria-hidden="true" />
       </header>
 
