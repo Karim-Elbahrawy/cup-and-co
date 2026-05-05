@@ -8,6 +8,11 @@ struct HomeView: View {
     @Environment(CatalogStore.self) private var catalog
     @Environment(CartStore.self) private var cart
 
+    // Dynamic Type — caps the scaling so the layout doesn't collapse on the
+    // largest accessibility sizes.
+    @ScaledMetric(relativeTo: .caption) private var microLg = CupTypography.microLg
+    @ScaledMetric(relativeTo: .body) private var headingSm = CupTypography.headingSm
+
     @State private var query: String = ""
     @State private var selectedCategory: String? = nil
     @State private var showUsual: Bool = false
@@ -183,14 +188,14 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
                     Text(Self.greetingKey())
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(.system(size: microLg, weight: .medium, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                     Text(verbatim: ", \(greetingName)")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(.system(size: microLg, weight: .medium, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                 }
                 Text(roleSubtitle)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.system(size: headingSm, weight: .bold, design: .rounded))
                     .foregroundStyle(CupColors.espresso)
             }
 

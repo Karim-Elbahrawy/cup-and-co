@@ -10,6 +10,11 @@ struct ProductDetailView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
 
+    // Dynamic Type tokens — adopt key headings so users with larger text
+    // sizes get a readable interface.
+    @ScaledMetric(relativeTo: .title2) private var nameSize: CGFloat = 24
+    @ScaledMetric(relativeTo: .subheadline) private var descSize = CupTypography.bodyMd
+
     @State private var quantity: Int = 1
     @State private var selectedSize: String = "Medium"
     @State private var selectedSugar: String = "Normal"
@@ -144,11 +149,11 @@ struct ProductDetailView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: product.localizedName(language))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(size: nameSize, weight: .bold, design: .rounded))
                         .foregroundStyle(CupColors.espresso)
 
                     Text(verbatim: product.localizedDescription(language))
-                        .font(.system(size: 14, design: .rounded))
+                        .font(.system(size: descSize, design: .rounded))
                         .foregroundStyle(CupColors.muted)
                 }
 
