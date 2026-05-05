@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Star, Eye, EyeOff } from 'lucide-react';
+import { Star, Eye, EyeOff, MessageSquare } from 'lucide-react';
 import { useToast } from '@/components/Toast';
 import { useSession } from '@/lib/useSession';
 import { adminApi, type AdminReview } from '@/lib/api';
+import { Skeleton } from '@/components/Skeleton';
+import { EmptyState } from '@/components/EmptyState';
 
 export default function ReviewsPage() {
   const toast = useToast();
@@ -44,25 +46,44 @@ export default function ReviewsPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[60vh] place-items-center text-cup-muted">
-        Loading reviews…
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-24" />
+        <Skeleton className="h-24" />
+        <Skeleton className="h-24" />
       </div>
     );
   }
 
+  const visibleCount = reviews.filter((r) => !r.hidden).length;
+  const hiddenCount = reviews.length - visibleCount;
+  const avgRating =
+    reviews.length > 0
+      ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+      : '—';
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-cup-brown-900">Reviews</h1>
-        <span className="rounded-pill bg-cup-cream-100 px-3 py-1 text-sm font-medium text-cup-brown-700">
-          {reviews.length} total
-        </span>
+      <header>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cup-muted">Moderation</p>
+        <h1 className="font-heading text-3xl font-bold text-cup-brown-900">Reviews</h1>
+        <p className="mt-1 text-sm text-cup-muted">
+          Hide or restore customer reviews. Hidden reviews still exist — customers just don't see them.
+        </p>
+      </header>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Stat label="Total reviews" value={reviews.length} />
+        <Stat label="Visible" value={visibleCount} tone="teal" />
+        <Stat label="Average rating" value={avgRating} tone="orange" />
       </div>
 
       {reviews.length === 0 ? (
-        <div className="rounded-card border border-cup-stroke bg-white p-12 text-center text-cup-muted">
-          No reviews yet.
-        </div>
+        <EmptyState
+          icon={MessageSquare}
+          title="No reviews yet."
+          description="Reviews appear here once customers leave feedback on completed orders."
+        />
       ) : (
         <div className="space-y-3">
           {reviews.map((review) => (
@@ -121,6 +142,25 @@ export default function ReviewsPage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  tone?: 'teal' | 'orange';
+}) {
+  const accent =
+    tone === 'teal' ? 'text-cup-teal-700' : tone === 'orange' ? 'text-cup-orange-700' : 'text-cup-brown-900';
+  return (
+    <div className="rounded-card border border-cup-stroke bg-cup-surface px-4 py-3 shadow-card">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cup-muted">{label}</p>
+      <p className={`mt-1 font-heading text-2xl font-bold ${accent}`}>{value}</p>
     </div>
   );
 }

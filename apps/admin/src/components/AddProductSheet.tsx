@@ -11,6 +11,9 @@ interface AddProductSheetProps {
   categories: Category[];
   /** Called after a successful create so the parent can splice the new product into its list. */
   onCreated: (product: Product) => void;
+  /** Optional: pass a product to switch the sheet into edit mode. */
+  editing?: Product | null;
+  onUpdated?: (product: Product) => void;
 }
 
 interface FormState {
@@ -42,7 +45,15 @@ const EMPTY: FormState = {
  * success calls `onCreated(product)` so the menu page can splice it in
  * without a refetch.
  */
-export function AddProductSheet({ open, onClose, categories, onCreated }: AddProductSheetProps) {
+export function AddProductSheet({
+  open,
+  onClose,
+  categories,
+  onCreated,
+  editing,
+  onUpdated,
+}: AddProductSheetProps) {
+  const isEdit = Boolean(editing);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,13 +61,24 @@ export function AddProductSheet({ open, onClose, categories, onCreated }: AddPro
 
   // Reset + focus first field when opened
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    if (editing) {
+      setForm({
+        category_id: editing.category_id,
+        name_en: editing.name_en,
+        name_ar: editing.name_ar,
+        description_en: editing.description_en ?? '',
+        description_ar: editing.description_ar ?? '',
+        base_price_egp: String(editing.base_price_egp),
+        image_url: editing.image_url ?? '',
+        prep_minutes: String(editing.prep_minutes ?? 5),
+      });
+    } else {
       setForm({ ...EMPTY, category_id: categories[0]?.id ?? '' });
-      setError(null);
-      // tiny delay so the slide-over has mounted before focus
-      setTimeout(() => firstFieldRef.current?.focus(), 60);
     }
-  }, [open, categories]);
+    setError(null);
+    setTimeout(() => firstFieldRef.current?.focus(), 60);
+  }, [open, categories, editing]);
 
   // Lock scroll + ESC to close
   useEffect(() => {
@@ -91,7 +113,7 @@ export function AddProductSheet({ open, onClose, categories, onCreated }: AddPro
     setSubmitting(true);
     setError(null);
     try {
-      const { product } = await adminApi.createProduct({
+      const payload = {
         category_id: form.category_id,
         name_en: form.name_en.trim(),
         name_ar: form.name_ar.trim(),
@@ -100,11 +122,23 @@ export function AddProductSheet({ open, onClose, categories, onCreated }: AddPro
         base_price_egp: price,
         image_url: form.image_url.trim() || null,
         prep_minutes: form.prep_minutes ? Number(form.prep_minutes) : null,
-      });
-      onCreated(product);
+      };
+      if (editing && onUpdated) {
+        const { product } = await adminApi.updateProduct(editing.id, payload);
+        onUpdated(product);
+      } else {
+        const { product } = await adminApi.createProduct(payload);
+        onCreated(product);
+      }
       onClose();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not create product.');
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : isEdit
+            ? 'Could not update product.'
+            : 'Could not create product.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -125,9 +159,11 @@ export function AddProductSheet({ open, onClose, categories, onCreated }: AddPro
         <header className="flex items-center justify-between border-b border-cup-stroke px-5 py-4">
           <div>
             <h2 id="add-product-title" className="font-heading text-lg font-bold text-cup-brown-900">
-              Add product
+              {isEdit ? 'Edit product' : 'Add product'}
             </h2>
-            <p className="mt-0.5 text-xs text-cup-muted">New menu item — owners only.</p>
+            <p className="mt-0.5 text-xs text-cup-muted">
+              {isEdit ? 'Update fields and save.' : 'New menu item — owners only.'}
+            </p>
           </div>
           <button
             type="button"
@@ -272,7 +308,7 @@ export function AddProductSheet({ open, onClose, categories, onCreated }: AddPro
                 className="inline-flex items-center gap-2 rounded-pill bg-cup-orange-600 px-5 py-2 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600"
               >
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-                {submitting ? 'Adding…' : 'Add product'}
+                {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Add product'}
               </button>
             </div>
           </footer>

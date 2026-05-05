@@ -5,6 +5,8 @@ import type { OrderStatus } from '@cup-and-co/types';
 import { OrderCard } from '@/components/OrderCard';
 import { adminApi, ApiError, type AdminOrder } from '@/lib/api';
 import { useOrdersSSE, type SSEConnectionState } from '@/lib/useOrdersSSE';
+import { useToast } from '@/components/Toast';
+import { Skeleton } from '@/components/Skeleton';
 
 /** Five visible kanban columns in order. Out_for_delivery rolls into Ready visually. */
 const COLUMNS: { status: OrderStatus; label: string; tone: string }[] = [
@@ -37,19 +39,27 @@ function connectionIndicator(state: SSEConnectionState) {
 
 export default function OrdersKanbanPage() {
   const { orders, setOrders, connectionState, lastRefresh } = useOrdersSSE();
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
 
   async function changeStatus(orderId: string, target: OrderStatus) {
     if (!orders) return;
+    const order = orders.find((o) => o.id === orderId);
     const previous = orders;
     setOrders(orders.map((o) => (o.id === orderId ? { ...o, status: target } : o)));
     setBusyOrderId(orderId);
     try {
       await adminApi.updateOrderStatus(orderId, target);
+      toast(
+        'success',
+        `Order #${order?.pickupCode ?? orderId.slice(0, 6)} → ${target.replace('_', ' ')}`,
+      );
     } catch (err) {
       setOrders(previous);
-      setError(err instanceof ApiError ? err.message : 'Status change failed.');
+      const message = err instanceof ApiError ? err.message : 'Status change failed.';
+      setError(message);
+      toast('error', message);
     } finally {
       setBusyOrderId(null);
     }

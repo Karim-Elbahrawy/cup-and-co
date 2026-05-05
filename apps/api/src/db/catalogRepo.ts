@@ -190,6 +190,58 @@ export function listExtraProducts(): Product[] {
   return [...extraProducts];
 }
 
+export type UpdateProductInput = Partial<{
+  category_id: string;
+  name_en: string;
+  name_ar: string;
+  description_en: string | null;
+  description_ar: string | null;
+  base_price_egp: number;
+  image_url: string | null;
+  prep_minutes: number | null;
+  is_available: boolean;
+}>;
+
+/**
+ * Update an extra product (admin-created). FALLBACK seed products are
+ * read-only — the admin can flip availability via the existing
+ * productAvailability override but can't rename/reprice them.
+ */
+export function updateExtraProduct(id: string, patch: UpdateProductInput): Product | null {
+  const idx = extraProducts.findIndex((p) => p.id === id);
+  if (idx === -1) return null;
+  const current = extraProducts[idx]!;
+  // Coerce nullable text/numeric fields back to Product's stricter shape.
+  const next: Product = {
+    ...current,
+    ...(patch.category_id !== undefined && { category_id: patch.category_id }),
+    ...(patch.name_en !== undefined && { name_en: patch.name_en }),
+    ...(patch.name_ar !== undefined && { name_ar: patch.name_ar }),
+    ...(patch.description_en !== undefined && { description_en: patch.description_en ?? '' }),
+    ...(patch.description_ar !== undefined && { description_ar: patch.description_ar ?? '' }),
+    ...(patch.base_price_egp !== undefined && { base_price_egp: patch.base_price_egp }),
+    ...(patch.image_url !== undefined && { image_url: patch.image_url ?? current.image_url }),
+    ...(patch.prep_minutes !== undefined && { prep_minutes: patch.prep_minutes ?? current.prep_minutes }),
+    ...(patch.is_available !== undefined && { is_available: patch.is_available }),
+    id: current.id,
+  };
+  extraProducts[idx] = next;
+  return next;
+}
+
+/** Remove an extra product. FALLBACK products can't be deleted. */
+export function deleteExtraProduct(id: string): boolean {
+  const idx = extraProducts.findIndex((p) => p.id === id);
+  if (idx === -1) return false;
+  extraProducts.splice(idx, 1);
+  return true;
+}
+
+/** Used by admin endpoints to know whether a product id is editable. */
+export function isExtraProduct(id: string): boolean {
+  return extraProducts.some((p) => p.id === id);
+}
+
 export async function getCatalog(): Promise<CatalogResponse> {
   if (!isSupabaseReady()) {
     return {
