@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Check, XCircle, RotateCcw } from 'lucide-react';
+import { ChevronLeft, Check, XCircle, RotateCcw, ChevronDown } from 'lucide-react';
 import { api, ApiError, BASE_URL } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { useT } from '@/lib/i18n';
@@ -319,7 +319,7 @@ export default function OrderTrackingPage({
           className="flex w-full items-center justify-between rounded-card border border-cup-stroke bg-white px-5 py-4 text-start text-sm font-semibold text-cup-brown-900 shadow-subtle"
         >
           {showItems ? t('orders.hideItems') : `${t('orders.viewItems')} (${order.items.length})`}
-          <span className="text-cup-muted">{showItems ? '▲' : '▼'}</span>
+          <ChevronDown className={`h-4 w-4 text-cup-muted transition-transform ${showItems ? 'rotate-180' : ''}`} />
         </button>
         {showItems && (
           <div className="mt-2 rounded-card border border-cup-stroke bg-white p-4 shadow-subtle">
@@ -367,9 +367,14 @@ export default function OrderTrackingPage({
         )}
       </section>
 
-      <p className="mt-6 text-center text-xs text-cup-muted">
-        {`Status: ${t(`orders.${camelize(order.status)}`)} · ${order.paymentStatus}`}
-      </p>
+      <div className="mt-6 flex justify-center gap-2">
+        <span className="rounded-full bg-cup-orange-600/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-cup-orange-700">
+          {t(`orders.${camelize(order.status)}`)}
+        </span>
+        <span className="rounded-full bg-cup-paper px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-cup-muted">
+          {order.paymentStatus}
+        </span>
+      </div>
     </main>
   );
 }
