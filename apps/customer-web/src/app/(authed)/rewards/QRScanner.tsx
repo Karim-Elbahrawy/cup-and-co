@@ -40,15 +40,10 @@ export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
     onClose();
   }, [stopCamera, onClose]);
 
-  // Start the camera when open
+  // Start the camera when open. We attempt scanning even without
+  // BarcodeDetector — jsQR fallback covers iOS Safari < 17 and older browsers.
   useEffect(() => {
     if (!open) return;
-
-    // Check BarcodeDetector support
-    if (!('BarcodeDetector' in window)) {
-      setState({ kind: 'unsupported' });
-      return;
-    }
 
     let cancelled = false;
     setState({ kind: 'requesting' });
@@ -80,48 +75,80 @@ export function QRScanner({ open, onClose, onSuccess }: QRScannerProps) {
     };
   }, [open, stopCamera]);
 
-  // Scan loop with BarcodeDetector
+  // Scan loop: prefer native BarcodeDetector, fall back to jsQR for older browsers.
   useEffect(() => {
     if (state.kind !== 'scanning' || !videoRef.current) return;
-    if (!('BarcodeDetector' in window)) return;
 
     let cancelled = false;
-    const BarcodeDetectorCtor = (window as unknown as Record<string, unknown>).BarcodeDetector as
-      new (opts: { formats: string[] }) => { detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>> };
-    const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
 
-    const interval = setInterval(async () => {
-      if (cancelled || !videoRef.current || videoRef.current.readyState < 2) return;
+    async function handleCode(code: string) {
+      if (cancelled) return;
+      setState({ kind: 'submitting', code });
       try {
-        const barcodes = await detector.detect(videoRef.current);
-        if (barcodes.length > 0 && !cancelled) {
-          const code = barcodes[0].rawValue as string;
-          clearInterval(interval);
-          setState({ kind: 'submitting', code });
-
-          try {
-            const result = await api.redeemQr(code);
-            if (!cancelled) {
-              setState({ kind: 'success', points: result.pointsAwarded });
-              onSuccess(result.pointsAwarded);
-            }
-          } catch (e) {
-            if (!cancelled) {
-              setState({
-                kind: 'error',
-                message: e instanceof ApiError ? e.message : 'Failed to redeem QR code',
-              });
-            }
-          }
+        const result = await api.redeemQr(code);
+        if (!cancelled) {
+          setState({ kind: 'success', points: result.pointsAwarded });
+          onSuccess(result.pointsAwarded);
         }
-      } catch {
-        // Detection can fail on some frames, ignore
+      } catch (e) {
+        if (!cancelled) {
+          setState({
+            kind: 'error',
+            message: e instanceof ApiError ? e.message : 'Failed to redeem QR code',
+          });
+        }
       }
-    }, 500);
+    }
+
+    // Native BarcodeDetector path
+    if ('BarcodeDetector' in window) {
+      const BarcodeDetectorCtor = (window as unknown as Record<string, unknown>).BarcodeDetector as
+        new (opts: { formats: string[] }) => { detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>> };
+      const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
+      const interval = setInterval(async () => {
+        if (cancelled || !videoRef.current || videoRef.current.readyState < 2) return;
+        try {
+          const barcodes = await detector.detect(videoRef.current);
+          if (barcodes.length > 0 && !cancelled) {
+            clearInterval(interval);
+            await handleCode(barcodes[0].rawValue);
+          }
+        } catch {
+          // Detection can fail on some frames, ignore
+        }
+      }, 500);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }
+
+    // jsQR fallback (iOS Safari < 17, older Chrome)
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    void import('jsqr').then(({ default: jsQR }) => {
+      if (cancelled || !ctx) return;
+      interval = setInterval(() => {
+        if (cancelled || !videoRef.current || videoRef.current.readyState < 2) return;
+        const w = videoRef.current.videoWidth;
+        const h = videoRef.current.videoHeight;
+        if (!w || !h) return;
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(videoRef.current, 0, 0, w, h);
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const found = jsQR(imageData.data, w, h);
+        if (found && !cancelled) {
+          if (interval) clearInterval(interval);
+          void handleCode(found.data);
+        }
+      }, 500);
+    });
 
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
   }, [state.kind, onSuccess]);
 
