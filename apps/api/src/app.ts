@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
@@ -179,6 +180,18 @@ async function notifyOrderStatus(order: Order, status: Parameters<typeof statusN
 
 export function createApp(): express.Express {
   const app = express();
+
+  // Security hardening: Helmet headers (CSP off — API responses are JSON,
+  // and CSP would only fire if a browser were misled into rendering them),
+  // HSTS forced on, x-powered-by disabled.
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1); // honor X-Forwarded-* from a single hop (load balancer)
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  }));
+
   app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*' }));
 
   // Simple sliding-window rate limiter for OTP endpoints (per source IP)
