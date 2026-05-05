@@ -131,4 +131,39 @@ final class APIClient: @unchecked Sendable {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
     }
+
+    // MARK: - Server-Sent Events
+
+    /// Streams `data:` events from `path`. Yields each parsed JSON payload
+    /// of type `T`. Throws on transport failure so callers can reconnect.
+    func streamSSE<T: Decodable>(_ path: String, type: T.Type) -> AsyncThrowingStream<T, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                var req = URLRequest(url: baseURL.appendingPathComponent(path))
+                req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                attachAuth(&req)
+                do {
+                    let (bytes, response) = try await session.bytes(for: req)
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    guard (200..<300).contains(status) else {
+                        continuation.finish(throwing: APIError.http(status, nil))
+                        return
+                    }
+                    for try await line in bytes.lines {
+                        if Task.isCancelled { break }
+                        guard line.hasPrefix("data:") else { continue }
+                        let json = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+                        guard !json.isEmpty,
+                              let data = json.data(using: .utf8),
+                              let payload = try? decoder.decode(T.self, from: data) else { continue }
+                        continuation.yield(payload)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
 }

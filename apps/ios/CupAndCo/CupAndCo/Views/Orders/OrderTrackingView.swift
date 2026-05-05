@@ -384,12 +384,37 @@ struct OrderTrackingView: View {
 
     private func startPolling() {
         pollingTask = Task {
+            // Try SSE first; on drop, retry with exponential backoff;
+            // on hard failure or absent SSE, fall back to 5-sec polling.
+            var retryDelay: UInt64 = 1_000_000_000 // 1 s
+            let maxDelay: UInt64 = 30_000_000_000  // 30 s
+
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
-                guard !Task.isCancelled else { break }
-                // Stop polling for terminal statuses
                 if let current = order?.status, current.isTerminal { break }
-                await refreshOrder()
+                do {
+                    let stream = APIClient.shared.streamSSE(
+                        "/orders/\(orderId)/events",
+                        type: OrderResponse.self
+                    )
+                    for try await event in stream {
+                        if Task.isCancelled { break }
+                        order = event.order
+                        timeline = event.timeline
+                        if event.order.status.isTerminal { return }
+                    }
+                    // Stream ended cleanly — back off and reconnect
+                    try? await Task.sleep(nanoseconds: retryDelay)
+                    retryDelay = min(retryDelay * 2, maxDelay)
+                } catch {
+                    // SSE failed — fall back to polling for the rest of the lifecycle
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(5))
+                        guard !Task.isCancelled else { break }
+                        if let current = order?.status, current.isTerminal { return }
+                        await refreshOrder()
+                    }
+                    return
+                }
             }
         }
     }
