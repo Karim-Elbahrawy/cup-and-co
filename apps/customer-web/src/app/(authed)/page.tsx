@@ -139,14 +139,14 @@ export default function HomePage() {
           onCtaClick={() => document.getElementById('popular-heading')?.scrollIntoView({ behavior: 'smooth' })}
         />
 
-        {/* Active offers */}
+        {/* Active offers — max 2 visible, "+N more" overflow */}
         {catalog && catalog.offers.length > 0 && (
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--cup-muted)]">
               {t('common.activeOffers')}
             </p>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {catalog.offers.map((offer) => (
+            <div className="flex flex-wrap gap-2 pb-1">
+              {catalog.offers.slice(0, 2).map((offer) => (
                 <div
                   key={offer.id}
                   className="shrink-0 rounded-pill bg-gradient-to-r from-[#F4A261] to-[#C2410C] px-4 py-2 text-xs font-bold text-white shadow-warm-glow"
@@ -159,6 +159,11 @@ export default function HomePage() {
                   )}
                 </div>
               ))}
+              {catalog.offers.length > 2 && (
+                <div className="shrink-0 rounded-pill border border-cup-stroke bg-white px-4 py-2 text-xs font-semibold text-cup-muted">
+                  +{catalog.offers.length - 2} {language === 'ar' ? 'أخرى' : 'more'}
+                </div>
+              )}
             </div>
           </div>
         )}
