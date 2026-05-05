@@ -103,22 +103,17 @@ struct ProductDetailView: View {
 
             // Product image
             if let url = URL(string: product.imageUrl), !product.imageUrl.isEmpty {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable()
-                           .scaledToFit()
-                           .frame(width: 200, height: 200)
-                           .clipShape(Circle())
-                           .shadow(color: CupColors.espresso.opacity(0.12),
-                                   radius: 20, x: 0, y: 10)
-                    case .failure:
-                        placeholderIcon
-                    default:
-                        ProgressView()
-                            .tint(CupColors.primary)
-                            .frame(width: 200, height: 200)
-                    }
+                CachedAsyncImage(url: url) {
+                    ProgressView()
+                        .tint(CupColors.primary)
+                        .frame(width: 200, height: 200)
+                } content: { img in
+                    img.resizable()
+                        .scaledToFit()
+                        .frame(width: 200, height: 200)
+                        .clipShape(Circle())
+                        .shadow(color: CupColors.espresso.opacity(0.12),
+                                radius: 20, x: 0, y: 10)
                 }
             } else {
                 placeholderIcon

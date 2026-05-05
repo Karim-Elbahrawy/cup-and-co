@@ -269,13 +269,10 @@ struct OrderTrackingView: View {
     @ViewBuilder
     private func itemImage(url: String) -> some View {
         if let parsed = URL(string: url), !url.isEmpty {
-            AsyncImage(url: parsed) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().scaledToFill()
-                default:
-                    imagePlaceholderSmall
-                }
+            CachedAsyncImage(url: parsed) {
+                imagePlaceholderSmall
+            } content: { img in
+                img.resizable().scaledToFill()
             }
             .frame(width: 40, height: 40)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))

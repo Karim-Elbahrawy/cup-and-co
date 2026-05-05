@@ -309,13 +309,10 @@ struct CartItemRow: View {
     private var productImage: some View {
         Group {
             if let url = URL(string: item.product.imageUrl), !item.product.imageUrl.isEmpty {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().scaledToFill()
-                    default:
-                        imagePlaceholder
-                    }
+                CachedAsyncImage(url: url) {
+                    imagePlaceholder
+                } content: { img in
+                    img.resizable().scaledToFill()
                 }
             } else {
                 imagePlaceholder

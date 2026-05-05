@@ -47,14 +47,10 @@ struct ProductCardView: View {
                 )
 
             if let url = URL(string: product.imageUrl), !product.imageUrl.isEmpty {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable()
-                           .scaledToFill()
-                    default:
-                        Color.clear
-                    }
+                CachedAsyncImage(url: url) {
+                    Color.clear
+                } content: { img in
+                    img.resizable().scaledToFill()
                 }
                 .clipped()
             }
