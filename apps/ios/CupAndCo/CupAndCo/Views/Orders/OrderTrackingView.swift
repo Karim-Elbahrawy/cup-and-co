@@ -9,6 +9,10 @@ struct OrderTrackingView: View {
     @Environment(OrderStore.self) private var orderStore
     @Environment(\.dismiss) private var dismiss
 
+    // Dynamic Type
+    @ScaledMetric(relativeTo: .body) private var stepLabelSize = CupTypography.bodyLg
+    @ScaledMetric(relativeTo: .caption) private var stepTimeSize = CupTypography.microLg
+
     @State private var order: Order?
     @State private var timeline: [TimelineStep] = []
     @State private var isItemsExpanded: Bool = false
@@ -129,14 +133,14 @@ struct OrderTrackingView: View {
                     // Label + time
                     VStack(alignment: .leading, spacing: 2) {
                         Text(step.label)
-                            .font(.system(size: 15,
+                            .font(.system(size: stepLabelSize,
                                           weight: step.active ? .bold : (step.done ? .semibold : .medium),
                                           design: .rounded))
                             .foregroundStyle(step.done || step.active ? CupColors.espresso : CupColors.muted)
 
                         if let at = step.at {
                             Text(verbatim: formatTime(at))
-                                .font(.system(size: 12, design: .rounded))
+                                .font(.system(size: stepTimeSize, design: .rounded))
                                 .foregroundStyle(CupColors.muted)
                         }
                     }
