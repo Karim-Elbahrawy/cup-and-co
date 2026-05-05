@@ -359,6 +359,30 @@ export default function ProductDetailPage({
       <section className="mx-auto mt-8 max-w-[1080px] space-y-4 px-6">
         <h2 className="font-heading text-lg font-bold text-cup-brown-900">Reviews</h2>
 
+        {/* Rating distribution */}
+        {data.reviews.filter((r) => !r.hidden).length > 0 && (
+          <div className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle">
+            {[5, 4, 3, 2, 1].map((stars) => {
+              const visible = data.reviews.filter((r) => !r.hidden);
+              const count = visible.filter((r) => r.rating === stars).length;
+              const pct = visible.length > 0 ? (count / visible.length) * 100 : 0;
+              return (
+                <div key={stars} className="flex items-center gap-3 py-1 text-xs text-cup-muted">
+                  <span className="w-3 font-semibold">{stars}</span>
+                  <Star className="h-3 w-3 fill-cup-star text-cup-star" />
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-cup-paper">
+                    <div
+                      className="h-full rounded-full bg-cup-orange-600"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="w-6 text-end tabular-nums">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Write a review */}
         <div className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle">
           <p className="font-heading text-sm font-semibold text-cup-brown-900">

@@ -152,14 +152,19 @@ export default function CheckoutPage() {
 
         {/* Notes */}
         <Section label={language === 'ar' ? 'ملاحظات' : 'Notes'}>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={language === 'ar' ? 'حساسية، طلبات خاصة…' : 'Allergies, special requests…'}
-            rows={3}
-            maxLength={500}
-            className="w-full rounded-card border border-cup-stroke bg-white p-3 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
-          />
+          <div className="relative">
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={language === 'ar' ? 'حساسية، طلبات خاصة…' : 'Allergies, special requests…'}
+              rows={3}
+              maxLength={500}
+              className="w-full rounded-card border border-cup-stroke bg-white p-3 pr-16 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+            />
+            <span className="pointer-events-none absolute bottom-2 end-3 text-[11px] tabular-nums text-cup-muted">
+              {notes.length} / 500
+            </span>
+          </div>
         </Section>
 
         {/* Coupon */}

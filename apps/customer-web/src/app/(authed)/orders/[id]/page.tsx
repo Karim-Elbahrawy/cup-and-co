@@ -4,10 +4,12 @@ import { use, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Check, XCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, Check, XCircle, RotateCcw } from 'lucide-react';
 import { api, ApiError, BASE_URL } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { useT } from '@/lib/i18n';
+import { useCart } from '@/lib/cart';
 import type { ApiOrder, TimelineStep } from '@/lib/types';
 
 const POLL_MS = 5000;
@@ -20,7 +22,9 @@ export default function OrderTrackingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const { t, language } = useT();
+  const addToCart = useCart((s) => s.add);
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [timeline, setTimeline] = useState<TimelineStep[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +32,22 @@ export default function OrderTrackingPage({
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const sseActive = useRef(false);
+
+  function reorder() {
+    if (!order) return;
+    for (const item of order.items) {
+      addToCart({
+        productId: item.productId,
+        productNameEn: item.productNameEn,
+        productNameAr: item.productNameAr,
+        imageUrl: item.imageUrl,
+        options: item.options,
+        unitPriceEgp: item.unitPriceEgp,
+        quantity: item.quantity,
+      });
+    }
+    router.push('/cart');
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -232,6 +252,20 @@ export default function OrderTrackingPage({
           </motion.section>
         )}
       </AnimatePresence>
+
+      {/* Reorder when completed */}
+      {order && order.status === 'completed' && (
+        <section className="mx-auto mt-4 max-w-3xl px-5">
+          <button
+            type="button"
+            onClick={reorder}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-cup-orange-600 px-5 py-3 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-[0.98]"
+          >
+            <RotateCcw className="h-4 w-4" />
+            {language === 'ar' ? 'إعادة الطلب' : 'Reorder'}
+          </button>
+        </section>
+      )}
 
       {/* Vertical timeline */}
       <section className="mx-auto mt-5 max-w-3xl px-5">
