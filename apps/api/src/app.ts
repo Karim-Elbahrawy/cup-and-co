@@ -233,6 +233,20 @@ export function createApp(): express.Express {
   }
   app.use(express.json({ limit: '1mb' }));
 
+  // Minimal request log: method, path, status, duration. Skipped during tests
+  // to keep their output clean. Pino-http would be the next-pass upgrade.
+  if (config.nodeEnv !== 'test') {
+    app.use((req, res, next) => {
+      const start = Date.now();
+      res.on('finish', () => {
+        const ms = Date.now() - start;
+        // eslint-disable-next-line no-console
+        console.log(`[api] ${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`);
+      });
+      next();
+    });
+  }
+
   app.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'cup-and-co-api', time: new Date().toISOString() });
   });
