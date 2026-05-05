@@ -20,7 +20,7 @@ import {
 } from './services/orders.js';
 import { createPushService, statusNotificationCopy } from './services/push.js';
 import { catalogRouter } from './routes/catalog.js';
-import { getProductDetail } from './db/catalogRepo.js';
+import { getProductDetail, addProduct } from './db/catalogRepo.js';
 import { adminOffers } from './db/offersStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
@@ -1033,6 +1033,24 @@ export function createApp(): express.Express {
       const input = z.object({ available: z.boolean() }).parse(req.body);
       productAvailability.set(req.params.id as string, input.available);
       res.json({ id: req.params.id, available: input.available });
+    } catch (e) { next(e); }
+  });
+
+  app.post('/admin/menu/products', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const input = z.object({
+        category_id: z.string().min(1),
+        name_en: z.string().min(1).max(80),
+        name_ar: z.string().min(1).max(80),
+        description_en: z.string().max(500).optional().nullable(),
+        description_ar: z.string().max(500).optional().nullable(),
+        base_price_egp: z.number().positive().max(10_000),
+        image_url: z.string().max(500).optional().nullable(),
+        prep_minutes: z.number().int().min(1).max(60).optional().nullable(),
+      }).parse(req.body);
+      const product = addProduct(input);
+      res.status(201).json({ product });
     } catch (e) { next(e); }
   });
 

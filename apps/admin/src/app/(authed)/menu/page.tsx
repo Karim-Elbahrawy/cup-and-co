@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/useSession';
 import { can } from '@/lib/permissions';
 import { formatEgp } from '@/lib/format';
+import { AddProductSheet } from '@/components/AddProductSheet';
 import type { Product, Category, CatalogResponse } from '@cup-and-co/types';
 
 /**
@@ -22,6 +24,7 @@ export default function MenuPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,14 +92,25 @@ export default function MenuPage() {
         {canManage && (
           <button
             type="button"
-            disabled
-            title="Phase 2"
-            className="rounded-pill bg-cup-orange-600/40 px-4 py-2 text-sm font-semibold text-white shadow-subtle disabled:cursor-not-allowed"
+            onClick={() => setAddOpen(true)}
+            className="inline-flex items-center gap-2 rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600"
           >
-            Add product · soon
+            <Plus className="h-4 w-4" aria-hidden />
+            Add product
           </button>
         )}
       </header>
+
+      {canManage && (
+        <AddProductSheet
+          open={addOpen}
+          onClose={() => setAddOpen(false)}
+          categories={categories}
+          onCreated={(product) => {
+            setProducts((prev) => (prev ? [...prev, product] : [product]));
+          }}
+        />
+      )}
 
       {error && (
         <p

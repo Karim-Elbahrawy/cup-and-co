@@ -142,9 +142,60 @@ function isSupabaseReady(): boolean {
   return !!(config.supabase.serviceRoleKey && config.supabase.url && !config.supabase.url.includes('127.0.0.1:54321'));
 }
 
+/**
+ * In-memory product overlay for fallback mode. Lets the admin "Add product"
+ * flow create new menu items at runtime without a Supabase write. Lives only
+ * for the lifetime of the API process — production uses the real DB insert.
+ */
+const extraProducts: Product[] = [];
+
+export interface AddProductInput {
+  category_id: string;
+  name_en: string;
+  name_ar: string;
+  description_en?: string | null;
+  description_ar?: string | null;
+  base_price_egp: number;
+  image_url?: string | null;
+  prep_minutes?: number | null;
+}
+
+export function addProduct(input: AddProductInput): Product {
+  const sortOrder = FALLBACK.products.length + extraProducts.length + 1;
+  const slug = input.name_en
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 32) || `product-${sortOrder}`;
+  const product: Product = {
+    id: `99999999-0000-0000-0000-${String(sortOrder).padStart(12, '0')}`,
+    category_id: input.category_id,
+    name_en: input.name_en,
+    name_ar: input.name_ar,
+    description_en: input.description_en ?? '',
+    description_ar: input.description_ar ?? '',
+    base_price_egp: input.base_price_egp,
+    image_url: input.image_url || `/images/products/${slug}.svg`,
+    prep_minutes: input.prep_minutes ?? 5,
+    sort_order: sortOrder,
+    rating_avg: 0,
+    rating_count: 0,
+    is_available: true,
+  };
+  extraProducts.push(product);
+  return product;
+}
+
+export function listExtraProducts(): Product[] {
+  return [...extraProducts];
+}
+
 export async function getCatalog(): Promise<CatalogResponse> {
   if (!isSupabaseReady()) {
-    return FALLBACK;
+    return {
+      ...FALLBACK,
+      products: [...FALLBACK.products, ...extraProducts],
+    };
   }
   try {
     const sb = getServiceClient();
@@ -170,7 +221,9 @@ export async function getCatalog(): Promise<CatalogResponse> {
 
 export async function getProductDetail(id: string, userId?: string): Promise<ProductDetailResponse | null> {
   if (!isSupabaseReady()) {
-    const product = FALLBACK.products.find((x) => x.id === id);
+    const product =
+      FALLBACK.products.find((x) => x.id === id) ??
+      extraProducts.find((x) => x.id === id);
     if (!product) return null;
     return {
       product,
