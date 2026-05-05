@@ -209,6 +209,8 @@ struct ProductDetailView: View {
                         .frame(width: 36, height: 36)
                         .background(CupColors.cream)
                         .clipShape(Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel(Text("Decrease quantity"))
                 .disabled(quantity <= 1)
@@ -229,6 +231,8 @@ struct ProductDetailView: View {
                         .frame(width: 36, height: 36)
                         .background(CupColors.primary)
                         .clipShape(Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel(Text("Increase quantity"))
             }
