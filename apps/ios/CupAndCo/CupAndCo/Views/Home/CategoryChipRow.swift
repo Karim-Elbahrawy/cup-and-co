@@ -5,8 +5,9 @@ struct CategoryChipRow: View {
     let categories: [Category]
     @Binding var selected: String?
     let language: LanguagePref
-    
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .subheadline) private var labelSize = CupTypography.bodyMd
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -31,7 +32,7 @@ struct CategoryChipRow: View {
             withAnimation(anim) { selected = id }
         } label: {
             Text(title)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(.system(size: labelSize, weight: .semibold, design: .rounded))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .foregroundStyle(isSelected ? .white : CupColors.espresso)
