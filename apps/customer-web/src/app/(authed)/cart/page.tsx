@@ -118,9 +118,7 @@ export default function CartPage() {
                 </div>
                 {Object.keys(item.options).length > 0 && (
                   <p className="mt-0.5 text-xs text-cup-muted">
-                    {Object.entries(item.options)
-                      .map(([k, v]) => `${k}: ${v}`)
-                      .join(' · ')}
+                    {formatOptions(item.options, language)}
                   </p>
                 )}
                 <div className="mt-auto flex items-center justify-between pt-2">
@@ -227,6 +225,21 @@ function CartHeader({ t }: { t: (k: string) => string }) {
       <span className="w-10" aria-hidden="true" />
     </header>
   );
+}
+
+const OPTION_LABELS_AR: Record<string, string> = {
+  small: 'صغير', medium: 'وسط', large: 'كبير',
+  none: 'بدون', less: 'أقل', normal: 'عادي', extra: 'إضافي',
+};
+
+function formatOptions(options: Record<string, string>, language: 'en' | 'ar'): string {
+  const order = ['size', 'sugar', 'ice', 'milk', 'extras'];
+  const sorted = Object.entries(options).sort(
+    ([a], [b]) => (order.indexOf(a) === -1 ? 99 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 99 : order.indexOf(b)),
+  );
+  return sorted
+    .map(([, v]) => (language === 'ar' ? OPTION_LABELS_AR[v.toLowerCase()] ?? v : v))
+    .join(' · ');
 }
 
 function CartQuantityStepper({
