@@ -228,23 +228,28 @@ export default function OrderTrackingPage({
           <ol className="relative space-y-6 ps-2" aria-label="Order status">
             {timeline.map((step, idx) => {
               const isLast = idx === timeline.length - 1;
+              const { solid, soft } = stepColor(idx, timeline.length);
               return (
                 <li key={`${step.status}-${idx}`} className="relative flex gap-4">
-                  {/* connector */}
+                  {/* connector line — colored when done, stroke when pending */}
                   {!isLast && (
                     <span
                       aria-hidden="true"
-                      className={`absolute left-[18px] top-9 h-[calc(100%+8px)] w-0.5 ${
-                        step.done ? 'bg-cup-orange-600' : 'bg-cup-stroke'
-                      }`}
+                      className="absolute left-[18px] top-9 h-[calc(100%+8px)] w-0.5 transition-colors duration-500"
+                      style={{ backgroundColor: step.done ? solid : 'var(--cup-stroke)' }}
                     />
                   )}
-                  <StepDot done={step.done} active={step.active} />
+                  <StepDot done={step.done} active={step.active} solid={solid} soft={soft} />
                   <div className="flex-1 pt-1">
                     <p
-                      className={`font-heading text-sm font-semibold ${
-                        step.active ? 'text-cup-orange-700' : step.done ? 'text-cup-brown-900' : 'text-cup-muted'
-                      }`}
+                      className="font-heading text-sm font-semibold transition-colors duration-300"
+                      style={{
+                        color: step.active
+                          ? solid
+                          : step.done
+                          ? 'var(--cup-espresso)'
+                          : 'var(--cup-muted)',
+                      }}
                     >
                       {step.label}
                     </p>
@@ -327,31 +332,85 @@ export default function OrderTrackingPage({
   );
 }
 
-function StepDot({ done, active }: { done: boolean; active: boolean }) {
+function StepDot({
+  done,
+  active,
+  solid,
+  soft,
+}: {
+  done: boolean;
+  active: boolean;
+  solid: string;
+  soft: string;
+}) {
   if (done) {
     return (
-      <span className="z-10 grid h-9 w-9 place-items-center rounded-full bg-cup-orange-600 text-white shadow-subtle">
+      <span
+        className="z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full text-white shadow-subtle transition-colors duration-500"
+        style={{ backgroundColor: solid }}
+      >
         <Check className="h-4 w-4" />
       </span>
     );
   }
   if (active) {
     return (
-      <span className="relative z-10 grid h-9 w-9 place-items-center" aria-current="step">
+      <span className="relative z-10 grid h-9 w-9 shrink-0 place-items-center" aria-current="step">
+        {/* pulsing halo */}
         <motion.span
           aria-hidden="true"
-          className="absolute inset-0 rounded-full bg-cup-teal-700/30"
-          animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0, 0.6] }}
-          transition={{ duration: 1.6, repeat: Infinity }}
+          className="absolute inset-0 rounded-full"
+          style={{ backgroundColor: soft }}
+          animate={{ scale: [1, 1.35, 1], opacity: [0.8, 0, 0.8] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
         />
-        <span className="absolute inset-0 rounded-full border-2 border-cup-orange-600 bg-cup-cream-100" />
-        <span className="relative h-2 w-2 rounded-full bg-cup-orange-600" />
+        {/* ring */}
+        <span
+          className="absolute inset-0 rounded-full border-2 bg-white"
+          style={{ borderColor: solid }}
+        />
+        {/* inner dot */}
+        <span
+          className="relative h-2.5 w-2.5 rounded-full"
+          style={{ backgroundColor: solid }}
+        />
       </span>
     );
   }
+  // future step
   return (
-    <span className="z-10 grid h-9 w-9 place-items-center rounded-full border-2 border-cup-stroke bg-white" />
+    <span className="z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-cup-stroke bg-white" />
   );
+}
+
+/**
+ * Interpolates a color from terracotta-orange (step 0) through amber and lime
+ * to emerald-green (last step), giving the order timeline a progress ramp.
+ */
+function stepColor(idx: number, total: number): { solid: string; soft: string } {
+  const t = total <= 1 ? 1 : idx / (total - 1);
+
+  // Four anchor colors: orange → amber → lime → green
+  const stops: [number, number, number][] = [
+    [194,  65,  12],   // #C2410C  terracotta (brand primary)
+    [217, 119,   6],   // #D97706  amber
+    [101, 163,  13],   // #65A30D  lime-600
+    [ 21, 128,  61],   // #15803D  emerald (cup-success)
+  ];
+
+  const seg = t * (stops.length - 1);
+  const lo  = Math.floor(seg);
+  const hi  = Math.min(lo + 1, stops.length - 1);
+  const f   = seg - lo;
+
+  const r = Math.round(stops[lo][0] + (stops[hi][0] - stops[lo][0]) * f);
+  const g = Math.round(stops[lo][1] + (stops[hi][1] - stops[lo][1]) * f);
+  const b = Math.round(stops[lo][2] + (stops[hi][2] - stops[lo][2]) * f);
+
+  return {
+    solid: `rgb(${r}, ${g}, ${b})`,
+    soft:  `rgba(${r}, ${g}, ${b}, 0.18)`,
+  };
 }
 
 function camelize(s: string): string {
