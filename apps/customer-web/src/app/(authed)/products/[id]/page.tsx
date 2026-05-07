@@ -321,48 +321,94 @@ export default function ProductDetailPage({
       </section>
 
       {/* Option groups */}
-      <section className="space-y-4 px-6">
-        {GROUP_ORDER.map((g) => {
-          const opts = groups[g];
-          if (!opts || opts.length === 0) return null;
-          return (
-            <div key={g}>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cup-muted">
-                {groupLabel[g]}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {opts.map((opt) => {
-                  const isSelected = selected[g] === opt.name_en;
-                  const optLabel = language === 'ar' ? opt.name_ar : opt.name_en;
-                  return (
-                    <motion.button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setSelected((s) => ({ ...s, [g]: opt.name_en }))}
-                      whileTap={{ scale: 0.96 }}
-                      animate={{
-                        backgroundColor: isSelected ? '#C2410C' : '#FEF3C7',
-                        color: isSelected ? '#FFFFFF' : '#1C1917',
-                      }}
-                      transition={{ type: 'spring', stiffness: 360, damping: 22 }}
-                      className="rounded-pill px-4 py-2 text-sm font-semibold shadow-subtle"
-                      aria-pressed={isSelected}
-                    >
-                      {optLabel}
-                      {opt.price_delta_egp !== 0 && (
-                        <span className="ms-1 text-[10px] font-normal italic opacity-80">
-                          {opt.price_delta_egp > 0 ? '+' : ''}
-                          {opt.price_delta_egp} EGP
-                        </span>
-                      )}
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </section>
+      {GROUP_ORDER.some((g) => groups[g]?.length) && (
+        <section className="px-5">
+          <div className="rounded-[20px] border border-cup-stroke bg-white shadow-card">
+            {GROUP_ORDER.map((g, idx) => {
+              const opts = groups[g];
+              if (!opts || opts.length === 0) return null;
+              const isSegmented = g === 'shots';
+              return (
+                <div
+                  key={g}
+                  className={`px-5 py-4 ${idx !== 0 ? 'border-t border-cup-stroke' : ''}`}
+                >
+                  <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-cup-muted">
+                    {groupLabel[g]}
+                  </p>
+
+                  {isSegmented ? (
+                    /* Segmented toggle — used for binary choices like shots */
+                    <div className="flex rounded-xl bg-cup-paper p-[3px]">
+                      {opts.map((opt) => {
+                        const isSel = selected[g] === opt.name_en;
+                        const label = language === 'ar' ? opt.name_ar : opt.name_en;
+                        return (
+                          <motion.button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setSelected((s) => ({ ...s, [g]: opt.name_en }))}
+                            animate={{
+                              backgroundColor: isSel ? '#C2410C' : 'transparent',
+                              color: isSel ? '#ffffff' : '#44403C',
+                              boxShadow: isSel
+                                ? '0 2px 8px rgba(194,65,12,0.30)'
+                                : '0 0 0 transparent',
+                            }}
+                            transition={{ type: 'spring', stiffness: 440, damping: 26 }}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-[10px] py-2.5 text-sm font-semibold"
+                            aria-pressed={isSel}
+                          >
+                            {label}
+                            {opt.price_delta_egp !== 0 && (
+                              <span className="text-[10px] font-normal opacity-70">
+                                {opt.price_delta_egp > 0 ? '+' : ''}{opt.price_delta_egp}
+                              </span>
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* Pill chips for size / sugar / ice / milk / extras */
+                    <div className="flex flex-wrap gap-2">
+                      {opts.map((opt) => {
+                        const isSel = selected[g] === opt.name_en;
+                        const label = language === 'ar' ? opt.name_ar : opt.name_en;
+                        return (
+                          <motion.button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setSelected((s) => ({ ...s, [g]: opt.name_en }))}
+                            whileTap={{ scale: 0.94 }}
+                            animate={{
+                              backgroundColor: isSel ? '#C2410C' : '#F7F7F5',
+                              color: isSel ? '#ffffff' : '#1C1917',
+                              boxShadow: isSel
+                                ? '0 4px 14px rgba(194,65,12,0.26)'
+                                : '0 1px 3px rgba(28,25,23,0.06)',
+                            }}
+                            transition={{ type: 'spring', stiffness: 380, damping: 24 }}
+                            className="rounded-full px-4 py-2 text-sm font-semibold"
+                            aria-pressed={isSel}
+                          >
+                            {label}
+                            {opt.price_delta_egp !== 0 && (
+                              <span className="ms-1.5 text-[10px] font-normal opacity-75">
+                                {opt.price_delta_egp > 0 ? '+' : ''}{opt.price_delta_egp} EGP
+                              </span>
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Reviews section — hidden entirely when review_mode is 'hidden';
            write form shown in 'write_only' and 'full'; list only in 'full'. */}

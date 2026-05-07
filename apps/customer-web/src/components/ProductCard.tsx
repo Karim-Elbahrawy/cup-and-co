@@ -30,7 +30,8 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
 
   return (
     <motion.div
-      whileTap={reduce ? undefined : { scale: 0.98 }}
+      whileHover={reduce ? undefined : { y: -2 }}
+      whileTap={reduce ? undefined : { scale: 0.97 }}
       transition={{ type: 'spring', stiffness: 400, damping: 28 }}
       className="group relative overflow-hidden rounded-[20px] bg-white p-3 shadow-card transition-shadow hover:shadow-elevated"
     >
@@ -39,33 +40,33 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
         aria-label={`${name}, ${price}${isOutOfStock ? ', out of stock' : ''}`}
         className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cup-primary)] focus-visible:ring-offset-2 rounded-[16px]"
       >
-        <div className="relative aspect-square overflow-hidden rounded-2xl bg-white">
+        <div className="relative aspect-square overflow-hidden rounded-2xl bg-cup-paper">
           <Image
             src={product.image_url}
             alt=""
             width={300}
             height={300}
-            className={`h-full w-full rounded-2xl object-contain p-2 transition-transform duration-300 group-hover:scale-105 ${isOutOfStock ? 'opacity-40' : ''}`}
+            className={`h-full w-full rounded-2xl object-contain p-2 transition-all duration-300 group-hover:scale-[1.06] ${isOutOfStock ? 'opacity-35 grayscale' : ''}`}
           />
           {isOutOfStock && (
-            <div className="absolute inset-0 flex items-end justify-center rounded-2xl pb-3">
-              <span className="rounded-full bg-rose-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-rose-600 ring-1 ring-rose-200">
-                Out of stock
+            <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/30">
+              <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-cup-muted shadow-subtle ring-1 ring-cup-stroke">
+                Sold out
               </span>
             </div>
           )}
         </div>
-        <div className="mt-3 px-1">
-          <p className="line-clamp-1 font-heading text-sm font-semibold text-[var(--cup-espresso)]">
+        <div className="mt-3 px-0.5">
+          <p className="line-clamp-1 font-heading text-sm font-semibold leading-snug text-[var(--cup-espresso)]">
             {name}
           </p>
-          <div className="mt-1.5 flex items-center justify-between">
-            <span className={`text-sm font-bold ${isOutOfStock ? 'text-cup-muted line-through' : 'text-[var(--cup-primary)]'}`}>
+          <div className="mt-1.5 flex items-center justify-between gap-1">
+            <span className={`text-sm font-bold tabular-nums ${isOutOfStock ? 'text-cup-muted line-through' : 'text-[var(--cup-primary)]'}`}>
               {price}
             </span>
-            {product.review_mode === 'full' && (
-              <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--cup-cocoa)]">
-                <Star size={12} aria-hidden="true" className="fill-[var(--cup-star)] stroke-[var(--cup-star)]" />
+            {product.review_mode === 'full' && product.rating_count > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-xs font-medium text-[var(--cup-cocoa)]">
+                <Star size={11} aria-hidden="true" className="fill-[var(--cup-star)] stroke-[var(--cup-star)]" />
                 {product.rating_avg.toFixed(1)}
               </span>
             )}

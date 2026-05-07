@@ -192,7 +192,7 @@ export default function MenuPage() {
                 <h2 className="font-heading text-base font-semibold text-cup-brown-900">
                   {category.name_en}
                 </h2>
-                <ul className="mt-4 divide-y divide-cup-stroke" role="list">
+                <ul className="mt-4 space-y-0 divide-y divide-cup-stroke" role="list">
                   {grouped[category.id]?.map((product) => {
                     const reviewMode = reviewModeMap[product.id] ?? product.review_mode;
                     const stockVal = stockMap[product.id] ?? product.stock_count;
@@ -201,70 +201,77 @@ export default function MenuPage() {
                     return (
                       <li
                         key={product.id}
-                        className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0"
+                        className="py-3.5 first:pt-0 last:pb-0"
                       >
-                        {/* Name + description */}
-                        <div className="min-w-0 flex-1">
-                          <p className="font-heading text-sm font-semibold text-cup-brown-900">
-                            {product.name_en}
-                            {isOutOfStock && (
-                              <span className="ms-2 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-600">
-                                Out of stock
-                              </span>
-                            )}
-                          </p>
-                          <p className="truncate text-xs text-cup-muted">
-                            {product.description_en || '—'}
-                          </p>
+                        {/* Row 1: name + price */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-heading text-sm font-semibold text-cup-brown-900">
+                                {product.name_en}
+                              </p>
+                              {isOutOfStock && (
+                                <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-600">
+                                  Out of stock
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-0.5 truncate text-xs text-cup-muted">
+                              {product.description_en || '—'}
+                            </p>
+                          </div>
+                          <span className="shrink-0 font-mono text-sm font-semibold text-cup-orange-700">
+                            {formatEgp(product.base_price_egp)}
+                          </span>
                         </div>
 
-                        {/* Price */}
-                        <span className="font-mono text-sm font-semibold text-cup-orange-700">
-                          {formatEgp(product.base_price_egp)}
-                        </span>
+                        {/* Row 2: controls */}
+                        {(canToggle || canManage) && (
+                          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                            {/* Stock input */}
+                            {canToggle && (
+                              <label className="flex items-center gap-1.5 rounded-lg border border-cup-stroke bg-cup-paper px-2.5 py-1.5">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-cup-muted">
+                                  Stock
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  placeholder="∞"
+                                  aria-label={`Stock count for ${product.name_en}`}
+                                  value={stockVal === null ? '' : String(stockVal)}
+                                  onChange={(e) => handleStockInput(product.id, e.target.value)}
+                                  className="w-12 bg-transparent text-center font-mono text-xs text-cup-brown-900 focus:outline-none"
+                                />
+                              </label>
+                            )}
 
-                        {/* Stock input */}
-                        {canToggle && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-cup-muted">
-                              Stock
-                            </span>
-                            <input
-                              type="number"
-                              min={0}
-                              placeholder="∞"
-                              aria-label={`Stock count for ${product.name_en}`}
-                              value={stockVal === null ? '' : String(stockVal)}
-                              onChange={(e) => handleStockInput(product.id, e.target.value)}
-                              className="w-16 rounded-lg border border-cup-stroke bg-white px-2 py-1 text-center font-mono text-xs text-cup-brown-900 focus:border-cup-orange-500 focus:outline-none focus:ring-1 focus:ring-cup-orange-500"
+                            {/* Review mode cycle button */}
+                            {canManage && (
+                              <button
+                                type="button"
+                                title={REVIEW_MODE_META[reviewMode].tooltip}
+                                disabled={reviewPendingId === product.id}
+                                onClick={() => cycleReviewMode(product)}
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 disabled:cursor-not-allowed disabled:opacity-50 ${REVIEW_MODE_META[reviewMode].cls}`}
+                              >
+                                {reviewMode === 'full' && <Eye size={11} aria-hidden />}
+                                {reviewMode === 'write_only' && (
+                                  <MessageSquare size={11} aria-hidden />
+                                )}
+                                {reviewMode === 'hidden' && <EyeOff size={11} aria-hidden />}
+                                {REVIEW_MODE_META[reviewMode].label}
+                              </button>
+                            )}
+
+                            {/* Availability toggle */}
+                            <AvailabilityToggle
+                              product={product}
+                              disabled={!canToggle || pendingId === product.id}
+                              onToggle={() => toggleAvailability(product)}
                             />
                           </div>
                         )}
-
-                        {/* Review mode cycle button */}
-                        {canManage && (
-                          <button
-                            type="button"
-                            title={REVIEW_MODE_META[reviewMode].tooltip}
-                            disabled={reviewPendingId === product.id}
-                            onClick={() => cycleReviewMode(product)}
-                            className={`inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 disabled:cursor-not-allowed disabled:opacity-50 ${REVIEW_MODE_META[reviewMode].cls}`}
-                          >
-                            {reviewMode === 'full' && <Eye size={11} aria-hidden />}
-                            {reviewMode === 'write_only' && (
-                              <MessageSquare size={11} aria-hidden />
-                            )}
-                            {reviewMode === 'hidden' && <EyeOff size={11} aria-hidden />}
-                            {REVIEW_MODE_META[reviewMode].label}
-                          </button>
-                        )}
-
-                        {/* Availability toggle */}
-                        <AvailabilityToggle
-                          product={product}
-                          disabled={!canToggle || pendingId === product.id}
-                          onToggle={() => toggleAvailability(product)}
-                        />
                       </li>
                     );
                   })}
