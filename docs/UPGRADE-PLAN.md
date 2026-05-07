@@ -274,7 +274,7 @@ Without crash reporting, bugs ship and users churn silently. Foundational — ev
 - [x] **Privacy** — autocapture OFF, session recording OFF, capture_pageview OFF (we fire manually), `respect_dnt: true`, `person_profiles: 'identified_only'`, EU region default
 - [x] **Env templates** — `POSTHOG_KEY` (API) and `NEXT_PUBLIC_POSTHOG_KEY` (web) added with EU host defaults
 - [ ] **iOS** — Deferred until TestFlight pipeline operational
-- [ ] **Web events still to wire** — `signup_started`, `product_viewed`, `product_customized`, `cart_viewed`, `checkout_started`, `payment_method_selected`, `coupon_applied`, `game_started`, `referral_invited`, `notification_permission_*` (foundation in place; per-screen wiring is a follow-up)
+- [~] **Web events** — Foundational ones wired in PR #10. PR #15 adds `signup_started` (login OTP send), `product_viewed` (detail page mount), `checkout_started` (checkout mount with non-empty cart), `payment_method_selected` (checkout method picker). Still pending in a smaller follow-up: `product_customized`, `cart_viewed`, `coupon_applied`, `game_started`. `referral_invited` waits on Phase 7; `notification_permission_*` waits on Phase 4.
 - [ ] **API events still to wire** — `signup_completed` (needs OTP-send-time tracking), `referral_converted` (waits on Phase 7), `push_sent` (waits on Phase 4)
 
 **User action required to fully activate:**

@@ -9,6 +9,7 @@ import { ChevronLeft, Heart, Minus, Plus, Star, Send, User } from 'lucide-react'
 import { api, ApiError } from '@/lib/api';
 import { useCart } from '@/lib/cart';
 import { useT } from '@/lib/i18n';
+import { track } from '@/lib/analytics';
 import type { Product, ProductOption, Review, ReviewInput } from '@/lib/types';
 
 const GROUP_ORDER = ['size', 'sugar', 'ice', 'milk', 'extras'] as const;
@@ -57,6 +58,16 @@ export default function ProductDetailPage({
           is_favorited: detail.is_favorited,
         });
         setFavorite(detail.is_favorited);
+        // Phase 1.2: product_viewed — fire once per detail-page open.
+        track({
+          name: 'product_viewed',
+          props: {
+            product_id: detail.product.id,
+            category: detail.product.category_id,
+            price: detail.product.base_price_egp,
+            position_in_list: null,
+          },
+        });
 
         // Pre-select medium size + normal sugar/ice if those groups exist.
         const initial: Record<string, string> = {};
