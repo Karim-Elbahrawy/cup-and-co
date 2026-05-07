@@ -201,7 +201,7 @@ export function createApp(): express.Express {
   app.use(cors({
     origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-user-id', 'x-user-role'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-user-id', 'x-user-role', 'x-user-phone', 'x-verification-status'],
     exposedHeaders: ['ETag'],
     credentials: false,
     maxAge: 86400,
