@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { OrderStatus } from '@cup-and-co/types';
 import { OrderCard } from '@/components/OrderCard';
+import { OrderDetailDrawer } from '@/components/OrderDetailDrawer';
 import { adminApi, ApiError, type AdminOrder } from '@/lib/api';
 import { useOrdersSSE, type SSEConnectionState } from '@/lib/useOrdersSSE';
 
@@ -39,6 +40,14 @@ export default function OrdersKanbanPage() {
   const { orders, setOrders, connectionState, lastRefresh } = useOrdersSSE();
   const [error, setError] = useState<string | null>(null);
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  // Derive the selected order live from the orders array so the drawer
+  // reflects any status changes made while it's open.
+  const selectedOrder = useMemo(
+    () => (selectedOrderId ? (orders ?? []).find((o) => o.id === selectedOrderId) ?? null : null),
+    [selectedOrderId, orders],
+  );
 
   async function changeStatus(orderId: string, target: OrderStatus) {
     if (!orders) return;
@@ -139,6 +148,7 @@ export default function OrdersKanbanPage() {
                         order={order}
                         onAdvance={(next) => changeStatus(order.id, next)}
                         onBack={(prev) => changeStatus(order.id, prev)}
+                        onOpen={() => setSelectedOrderId(order.id)}
                         isBusy={busyOrderId === order.id}
                         hideStatusPill
                       />
@@ -150,6 +160,13 @@ export default function OrdersKanbanPage() {
           );
         })}
       </div>
+
+      <OrderDetailDrawer
+        order={selectedOrder}
+        onClose={() => setSelectedOrderId(null)}
+        onAdvance={(orderId, next) => changeStatus(orderId, next)}
+        onBack={(orderId, prev) => changeStatus(orderId, prev)}
+      />
     </div>
   );
 }
