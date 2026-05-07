@@ -112,9 +112,26 @@ export interface TimelineStep {
   done: boolean;
 }
 
+/**
+ * Server-computed prep ETA. `basis` tells the client which copy to show:
+ *   - `'queue'`     — order is still waiting; ETA includes queue position.
+ *   - `'in_prep'`   — order is being made; ETA = remaining prep budget.
+ *   - `'ready'`     — order is ready/out_for_delivery/completed; ETA = 0.
+ *   - `'cancelled'` — order is cancelled/refunded; ETA = 0.
+ *   - `'scheduled'` — pre-order; ETA derives from `scheduledFor`.
+ */
+export type PrepEtaBasis = 'queue' | 'in_prep' | 'ready' | 'cancelled' | 'scheduled';
+
+export interface PrepEta {
+  etaMinutes: number;
+  basis: PrepEtaBasis;
+}
+
 export interface OrderResponse {
   order: ApiOrder;
   timeline: TimelineStep[];
+  /** Optional — older API builds may not include it. */
+  prepEta?: PrepEta;
 }
 
 export interface OrdersListResponse {

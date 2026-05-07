@@ -20,6 +20,7 @@ import {
   trackingTimelineFor,
   type Order,
 } from './services/orders.js';
+import { computePrepEta, type PrepEta } from './services/prepEta.js';
 import { createPushService, statusNotificationCopy } from './services/push.js';
 import {
   issueDeleteOtp,
@@ -273,9 +274,23 @@ function getTrailing12mPoints(userId: string): number {
   return total;
 }
 
+/**
+ * Compute the prep ETA for an order using the current snapshot of all
+ * active orders for queue-position lookups. Pure projection — does not
+ * persist the value (it changes every time we look at it).
+ */
+function prepEtaFor(order: Order): PrepEta {
+  return computePrepEta(order, Array.from(orders.values()));
+}
+
 function emitOrderUpdate(order: Order) {
-  orderEvents.emit(`order:${order.id}`, { order, timeline: trackingTimelineFor(order) });
-  orderEvents.emit('orders:all', { order, timeline: trackingTimelineFor(order) });
+  const payload = {
+    order,
+    timeline: trackingTimelineFor(order),
+    prepEta: prepEtaFor(order),
+  };
+  orderEvents.emit(`order:${order.id}`, payload);
+  orderEvents.emit('orders:all', payload);
 }
 
 async function notifyOrderStatus(order: Order, status: Parameters<typeof statusNotificationCopy>[0]['status']) {
@@ -1228,7 +1243,7 @@ export function createApp(): express.Express {
         },
       });
 
-      const responseBody = { order, timeline: trackingTimelineFor(order) };
+      const responseBody = { order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) };
       if (idempotencyKey) {
         orderIdempotency.set(`${user.id}::${idempotencyKey}`, {
           at: Date.now(),
@@ -1253,7 +1268,7 @@ export function createApp(): express.Express {
         e.status = 404;
         throw e;
       }
-      res.json({ order, timeline: trackingTimelineFor(order) });
+      res.json({ order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) });
     } catch (e) { next(e); }
   });
 
@@ -1265,7 +1280,13 @@ export function createApp(): express.Express {
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
     const page = all.slice(offset, offset + limit);
-    res.json({ orders: page, total: all.length, limit, offset });
+    // Snapshot active orders ONCE so we don't rebuild the array per row.
+    const activeOrders = Array.from(orders.values());
+    const ordersWithEta = page.map((o) => ({
+      ...o,
+      prepEta: computePrepEta(o, activeOrders),
+    }));
+    res.json({ orders: ordersWithEta, total: all.length, limit, offset });
   });
 
   // Phase 3: SSE stream for a single order (replaces 5s polling on customer tracking)
@@ -1282,7 +1303,7 @@ export function createApp(): express.Express {
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     });
-    res.write(`data: ${JSON.stringify({ order, timeline: trackingTimelineFor(order) })}\n\n`);
+    res.write(`data: ${JSON.stringify({ order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) })}\n\n`);
     const handler = (data: unknown) => { res.write(`data: ${JSON.stringify(data)}\n\n`); };
     orderEvents.on(`order:${order.id}`, handler);
     const heartbeat = setInterval(() => { res.write(': ping\n\n'); }, 25_000);
@@ -1305,7 +1326,7 @@ export function createApp(): express.Express {
         recordLoyaltyEvent(order.userId, 'refund', order.pointsRedeemed, order.id);
       }
       emitOrderUpdate(order);
-      res.json({ order, timeline: trackingTimelineFor(order) });
+      res.json({ order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) });
     } catch (e) { next(e); }
   });
 
@@ -1652,7 +1673,7 @@ export function createApp(): express.Express {
         e.status = 404;
         throw e;
       }
-      res.json({ order, timeline: trackingTimelineFor(order) });
+      res.json({ order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) });
     } catch (e) { next(e); }
   });
 
@@ -1727,7 +1748,7 @@ export function createApp(): express.Express {
           props: { order_id: order.id, time_to_completion_min: minutes },
         });
       }
-      res.json({ order, timeline: trackingTimelineFor(order) });
+      res.json({ order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) });
     } catch (e) { next(e); }
   });
 

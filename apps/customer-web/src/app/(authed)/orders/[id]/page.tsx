@@ -5,12 +5,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Check, XCircle, RotateCcw, ChevronDown } from 'lucide-react';
+import { ChevronLeft, Check, XCircle, RotateCcw, ChevronDown, Clock } from 'lucide-react';
 import { api, ApiError, BASE_URL } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { useT } from '@/lib/i18n';
 import { useCart } from '@/lib/cart';
-import type { ApiOrder, TimelineStep } from '@/lib/types';
+import type { ApiOrder, PrepEta, TimelineStep } from '@/lib/types';
 
 const POLL_MS = 5000;
 const TERMINAL_STATUSES = ['completed', 'cancelled', 'refunded'];
@@ -27,6 +27,7 @@ export default function OrderTrackingPage({
   const addToCart = useCart((s) => s.add);
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [timeline, setTimeline] = useState<TimelineStep[]>([]);
+  const [prepEta, setPrepEta] = useState<PrepEta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showItems, setShowItems] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -54,6 +55,7 @@ export default function OrderTrackingPage({
       const res = await api.getOrder(id);
       setOrder(res.order);
       setTimeline(res.timeline);
+      if (res.prepEta) setPrepEta(res.prepEta);
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load order');
@@ -109,6 +111,7 @@ export default function OrderTrackingPage({
                 const evt = JSON.parse(jsonStr);
                 if (evt.order) setOrder(evt.order);
                 if (evt.timeline) setTimeline(evt.timeline);
+                if (evt.prepEta) setPrepEta(evt.prepEta);
               } catch {
                 // Malformed SSE data, skip
               }
@@ -162,6 +165,7 @@ export default function OrderTrackingPage({
       const res = await api.cancelOrder(id);
       setOrder(res.order);
       setTimeline(res.timeline);
+      if (res.prepEta) setPrepEta(res.prepEta);
     } catch (e) {
       setCancelError(e instanceof ApiError ? e.message : 'Failed to cancel order');
     } finally {
@@ -230,6 +234,13 @@ export default function OrderTrackingPage({
           </p>
         </div>
       </section>
+
+      {/* Prep ETA pill — only while the order is in motion */}
+      {prepEta && prepEta.basis !== 'ready' && prepEta.basis !== 'cancelled' && (
+        <section className="mx-auto mt-3 max-w-3xl px-5">
+          <PrepEtaPill eta={prepEta} language={language} />
+        </section>
+      )}
 
       {/* Cancel order */}
       <AnimatePresence>
@@ -411,4 +422,53 @@ function StepDot({ done, active }: { done: boolean; active: boolean }) {
 
 function camelize(s: string): string {
   return s.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase());
+}
+
+/**
+ * Live prep-ETA pill rendered above the timeline. The headline copy
+ * varies by `basis` so the customer knows whether the wait is queue
+ * position vs barista currently working on it. Self-contained EN/AR
+ * copy to keep the wire-up tight; promote into packages/i18n when the
+ * shape settles.
+ */
+function PrepEtaPill({ eta, language }: { eta: PrepEta; language: 'en' | 'ar' }) {
+  const isAr = language === 'ar';
+  const minutes = Math.max(1, eta.etaMinutes);
+
+  let headline: string;
+  let detail: string;
+  switch (eta.basis) {
+    case 'in_prep':
+      headline = isAr ? `جاهز خلال ~${minutes} دقيقة` : `Ready in ~${minutes} min`;
+      detail = isAr ? 'بنحضر طلبك دلوقتي.' : 'Barista is on your order now.';
+      break;
+    case 'queue':
+      headline = isAr ? `جاهز خلال ~${minutes} دقيقة` : `Ready in ~${minutes} min`;
+      detail = isAr ? 'في الطابور قبل البدء.' : 'In queue before brewing starts.';
+      break;
+    case 'scheduled':
+      headline = isAr ? `جدولة بعد ~${minutes} دقيقة` : `Scheduled in ~${minutes} min`;
+      detail = isAr ? 'بنبدأ في الموعد المحدد.' : 'We will start at your scheduled time.';
+      break;
+    default:
+      headline = isAr ? 'جاهز' : 'Ready';
+      detail = '';
+  }
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      data-testid="prep-eta-pill"
+      className="flex items-center gap-3 rounded-card border border-cup-orange-600/20 bg-cup-cream-100 px-4 py-3 shadow-subtle"
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-cup-orange-600 text-white">
+        <Clock className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-heading text-sm font-bold text-cup-brown-900">{headline}</p>
+        {detail && <p className="mt-0.5 text-xs text-cup-muted">{detail}</p>}
+      </div>
+    </div>
+  );
 }
