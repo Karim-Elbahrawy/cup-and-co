@@ -2,7 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Cup & Co — Espresso Sunrise palette */
+/* Cup & Co — Espresso Sunrise palette
+ *
+ * Light theme is the default. Dark theme activates via either:
+ *   - <html data-theme="dark">         (manual selection via Profile → Appearance)
+ *   - @media (prefers-color-scheme: dark) when no manual choice is set
+ *
+ * Phase 8.2 of UPGRADE-PLAN.md.
+ *
+ * Dark palette derives from the same brand DNA — terracotta + teal + cream
+ * shifted into a warm dark register. We never go true black; the surface
+ * is a deep espresso (#1A1715) so the brand still feels Cup & Co at midnight.
+ */
 :root {
   --cup-primary: #C2410C;       /* terracotta */
   --cup-primary-hover: #9A3412;
@@ -21,12 +32,71 @@
   --cup-stroke: #E7E5E4;
   --cup-success: #15803D;
   --cup-error: #B91C1C;
+  --cup-warning: #D97706;
   --cup-star: #F59E0B;
 
   /* Aliases kept for older code */
   --cup-orange: var(--cup-primary);
   --cup-orange-2: var(--cup-sunrise-from);
   --cup-brown: var(--cup-espresso);
+
+  color-scheme: light;
+}
+
+/* Dark theme overrides — applied by manual <html data-theme="dark"> */
+html[data-theme='dark'] {
+  /* Warm-shifted brand on a dark surface — terracotta brightens slightly so
+   * it stays vivid; teal stays the same. Cream becomes a muted apricot. */
+  --cup-primary: #FB923C;
+  --cup-primary-hover: #F97316;
+  --cup-primary-tint: #7C2D12;
+  --cup-accent: #2DD4BF;
+  --cup-accent-hover: #5EEAD4;
+  --cup-accent-tint: #134E4A;
+  --cup-sunrise-from: #FBBF24;
+  --cup-sunrise-to: #F97316;
+  --cup-cream: #2A2520;
+  --cup-paper: #1A1715;
+  --cup-surface: #252220;
+  --cup-espresso: #F5F0E8;
+  --cup-cocoa: #D6CFC2;
+  --cup-muted: #A8A29E;
+  --cup-stroke: #3F3A35;
+  --cup-success: #4ADE80;
+  --cup-error: #F87171;
+  --cup-warning: #FBBF24;
+  --cup-star: #FCD34D;
+
+  color-scheme: dark;
+}
+
+/* System-preference fallback when no manual choice was made. The
+ * ThemeProvider sets data-theme="light" or data-theme="dark" once it
+ * mounts; this media query covers the SSR / pre-hydration paint. */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme='light']):not([data-theme='dark']) {
+    --cup-primary: #FB923C;
+    --cup-primary-hover: #F97316;
+    --cup-primary-tint: #7C2D12;
+    --cup-accent: #2DD4BF;
+    --cup-accent-hover: #5EEAD4;
+    --cup-accent-tint: #134E4A;
+    --cup-sunrise-from: #FBBF24;
+    --cup-sunrise-to: #F97316;
+    --cup-cream: #2A2520;
+    --cup-paper: #1A1715;
+    --cup-surface: #252220;
+    --cup-espresso: #F5F0E8;
+    --cup-cocoa: #D6CFC2;
+    --cup-muted: #A8A29E;
+    --cup-stroke: #3F3A35;
+    --cup-success: #4ADE80;
+    --cup-error: #F87171;
+    --cup-warning: #FBBF24;
+    --cup-star: #FCD34D;
+
+    color-scheme: dark;
+  }
 }
 
 html, body {
@@ -37,6 +107,8 @@ html, body {
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Smooth the theme swap so it doesn't feel like a flash. */
+  transition: background-color 200ms ease, color 200ms ease;
 }
 
 html[dir="rtl"] body {
@@ -70,7 +142,8 @@ button { cursor: pointer; }
   background: linear-gradient(135deg, var(--cup-sunrise-from) 0%, var(--cup-sunrise-to) 100%);
 }
 
-/* Reduced motion */
+/* Reduced motion — also disables our theme-swap transition for users
+ * who've requested it. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

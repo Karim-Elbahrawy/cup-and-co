@@ -3,6 +3,7 @@ import { Inter, Sora, Cairo } from 'next/font/google';
 import './globals.css';
 import { HtmlLangSync } from '@/components/HtmlLangSync';
 import { AnalyticsProvider } from '@/components/AnalyticsProvider';
+import { ThemeProvider, ThemeBootstrap } from '@/components/ThemeProvider';
 
 const sora = Sora({ subsets: ['latin'], variable: '--font-heading' });
 const inter = Inter({ subsets: ['latin'], variable: '--font-body' });
@@ -37,7 +38,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#C2410C',
+  // Phase 8.2 — different status bar tint per scheme so iOS Safari
+  // doesn't render a white bar over a dark UI (or vice versa).
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#C2410C' },
+    { media: '(prefers-color-scheme: dark)', color: '#1A1715' },
+  ],
   width: 'device-width',
   initialScale: 1,
   // Don't disable user-scaling — that blocks zoom for low-vision users.
@@ -51,9 +57,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
       className={`${sora.variable} ${inter.variable} ${cairo.variable}`}
     >
+      <head>
+        {/* Inline theme bootstrap — runs BEFORE React hydrates so we
+            avoid the white-flash-then-dark on initial paint. Phase 8.2. */}
+        <ThemeBootstrap />
+      </head>
       <body>
         <HtmlLangSync />
-        <AnalyticsProvider>{children}</AnalyticsProvider>
+        <AnalyticsProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </AnalyticsProvider>
       </body>
     </html>
   );
