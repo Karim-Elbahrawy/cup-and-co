@@ -95,10 +95,10 @@ export const api = {
       noAuth: true,
     }),
 
-  verifyOtp: (phone: string, code: string) =>
+  verifyOtp: (phone: string, code: string, referralCode?: string) =>
     apiFetch<AuthResponse>('/auth/otp/verify', {
       method: 'POST',
-      body: { phone, code },
+      body: referralCode ? { phone, code, referralCode } : { phone, code },
       noAuth: true,
     }),
 
@@ -311,6 +311,30 @@ export const api = {
 
   // -- Phase 6.4 smart suggestion --
   mySuggestion: () => apiFetch<{ suggestion: Suggestion | null }>('/me/suggestion'),
+
+  // -- Phase 7.1 referrals --
+  trackReferralClick: (code: string) =>
+    apiFetch<{ referralId: string; code: string }>('/referrals/track-click', {
+      method: 'POST',
+      body: { code },
+      noAuth: true,
+    }),
+
+  myReferral: () =>
+    apiFetch<{
+      code: string;
+      stats: { totalClicks: number; totalSignups: number; totalConversions: number; totalPointsEarned: number };
+      recent: Array<{
+        id: string;
+        status: 'pending' | 'signed_up' | 'converted' | 'rejected';
+        refClickedAt: string;
+        signedUpAt: string | null;
+        convertedAt: string | null;
+        referrerReward: number | null;
+      }>;
+      shareLinkPath: string;
+      rewards: { referrer: number; referee: number; minOrderEgp: number };
+    }>('/me/referral'),
 };
 
 // Phase 6.1 types — kept inline so callers can import alongside `api`.

@@ -56,6 +56,17 @@ import {
 } from './services/tierEngine.js';
 import { suggestForUser } from './services/suggestionEngine.js';
 import { getCatalog } from './db/catalogRepo.js';
+import {
+  ensureReferralCode,
+  trackReferralClick,
+  linkRefereeOnSignup,
+  tryConvertReferralOnFirstPaidOrder,
+  listReferralsByReferrer,
+  getReferralStats,
+  REFERRER_REWARD,
+  REFEREE_REWARD,
+  MIN_CONVERSION_ORDER_EGP,
+} from './db/referralRepo.js';
 import { catalogRouter } from './routes/catalog.js';
 import {
   listCampuses,
@@ -457,7 +468,12 @@ export function createApp(): express.Express {
         e.status = 503;
         throw e;
       }
-      const { phone, code } = otpVerifySchema.parse(req.body);
+      // Phase 7.1: optional referralCode forwarded by the client when
+      // the user came in via a /r/<code> deep link
+      const verifyInput = otpVerifySchema.extend({
+        referralCode: z.string().min(5).max(10).optional(),
+      }).parse(req.body);
+      const { phone, code } = verifyInput;
       const stored = otpStore.get(phone);
       const validOverride = process.env.DEV_OTP_OVERRIDE && code === process.env.DEV_OTP_OVERRIDE;
       if (!validOverride) {
@@ -471,7 +487,8 @@ export function createApp(): express.Express {
       // Reuse existing userId for this phone so returning users keep their data
       const existingId = phoneToUserId.get(phone);
       const userId = existingId ?? randomUUID();
-      if (!existingId) phoneToUserId.set(phone, userId);
+      const isNewUser = !existingId;
+      if (isNewUser) phoneToUserId.set(phone, userId);
 
       const user = {
         id: userId,
@@ -491,6 +508,26 @@ export function createApp(): express.Express {
           created_at: new Date().toISOString(),
         });
       }
+      // Phase 7.1: ensure user has a referral code (idempotent)
+      ensureReferralCode(userId);
+
+      // Phase 7.1: link referee to referrer if a code was provided AND this is
+      // a new signup. The repo enforces same-device + age anti-fraud.
+      if (isNewUser && verifyInput.referralCode) {
+        const reg = usersRegistry.get(userId)!;
+        linkRefereeOnSignup({
+          code: verifyInput.referralCode,
+          refereeId: userId,
+          ip: req.ip ?? null,
+          userAgent: req.header('user-agent') ?? null,
+          referrerSignedUpAt: (referrerId) => {
+            const r = usersRegistry.get(referrerId);
+            return r ? new Date(r.created_at) : null;
+          },
+          refereeSignedUpAt: new Date(reg.created_at),
+        });
+      }
+
       const token = signSession(user);
       res.json({ token, user });
     } catch (e) { next(e); }
@@ -574,6 +611,55 @@ export function createApp(): express.Express {
       }
       res.json({ suggestion });
     } catch (e) { next(e); }
+  });
+
+  // -------- Phase 7.1 referrals --------
+
+  // Public click tracking. Called from the /r/<code> landing page
+  // (also accepts via authenticated context — no harm). Returns the
+  // referral id so the client can persist a cookie / localStorage
+  // entry to forward at signup.
+  app.post('/referrals/track-click', (req, res, next) => {
+    try {
+      const { code } = z.object({ code: z.string().min(5).max(10) }).parse(req.body);
+      const referral = trackReferralClick({
+        code,
+        ip: req.ip ?? null,
+        userAgent: req.header('user-agent') ?? null,
+      });
+      if (!referral) {
+        const err = new Error('Unknown referral code.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      res.status(201).json({ referralId: referral.id, code });
+    } catch (e) { next(e); }
+  });
+
+  // Authenticated user's own code + stats + recent referrals.
+  app.get('/me/referral', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    const code = ensureReferralCode(u.id);
+    const stats = getReferralStats(u.id);
+    const recent = listReferralsByReferrer(u.id).slice(0, 20).map((r) => ({
+      id: r.id,
+      status: r.status,
+      refClickedAt: r.refClickedAt,
+      signedUpAt: r.signedUpAt,
+      convertedAt: r.convertedAt,
+      referrerReward: r.referrerReward,
+    }));
+    res.json({
+      code,
+      stats,
+      recent,
+      shareLinkPath: `/r/${code}`,
+      rewards: {
+        referrer: REFERRER_REWARD,
+        referee: REFEREE_REWARD,
+        minOrderEgp: MIN_CONVERSION_ORDER_EGP,
+      },
+    });
   });
 
   app.patch('/me', requireAuth, (req, res, next) => {
@@ -1353,6 +1439,19 @@ export function createApp(): express.Express {
               recordLoyaltyEvent(order.userId, 'streak_bonus', 50, order.id);
             }
           }
+          // Phase 7.1: try referral conversion on this paid order.
+          {
+            const ref = tryConvertReferralOnFirstPaidOrder({
+              refereeId: order.userId,
+              orderTotalEgp: order.totalEgp,
+            });
+            if (ref && ref.status === 'converted' && ref.referrerReward && ref.refereeReward) {
+              userPoints.set(ref.referrerId, (userPoints.get(ref.referrerId) ?? 0) + ref.referrerReward);
+              recordLoyaltyEvent(ref.referrerId, 'referral', ref.referrerReward, order.id);
+              userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + ref.refereeReward);
+              recordLoyaltyEvent(order.userId, 'referral_signup_bonus', ref.refereeReward, order.id);
+            }
+          }
           if (order.status === 'received') {
             applyStatusTransition(order, 'accepted', 'auto-accept on payment');
             await notifyOrderStatus(order, 'accepted');
@@ -1576,6 +1675,17 @@ export function createApp(): express.Express {
         if (streakResult.bonusEarned) {
           userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + 50);
           recordLoyaltyEvent(order.userId, 'streak_bonus', 50, order.id);
+        }
+        // Phase 7.1: try referral conversion on this paid order.
+        const ref = tryConvertReferralOnFirstPaidOrder({
+          refereeId: order.userId,
+          orderTotalEgp: order.totalEgp,
+        });
+        if (ref && ref.status === 'converted' && ref.referrerReward && ref.refereeReward) {
+          userPoints.set(ref.referrerId, (userPoints.get(ref.referrerId) ?? 0) + ref.referrerReward);
+          recordLoyaltyEvent(ref.referrerId, 'referral', ref.referrerReward, order.id);
+          userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + ref.refereeReward);
+          recordLoyaltyEvent(order.userId, 'referral_signup_bonus', ref.refereeReward, order.id);
         }
       }
       // On cancel/refund: refund redeemed points and reverse any awarded points
