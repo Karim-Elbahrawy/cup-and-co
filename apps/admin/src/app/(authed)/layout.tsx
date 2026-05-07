@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/components/AdminShell';
 import { ToastHost } from '@/components/Toast';
+import { CampusProvider } from '@/components/CampusProvider';
 import { getSession, type AdminSession } from '@/lib/session';
 
 /**
@@ -42,7 +43,9 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
 
   return (
     <ToastHost>
-      <AdminShell session={session}>{children}</AdminShell>
+      <CampusProvider>
+        <AdminShell session={session}>{children}</AdminShell>
+      </CampusProvider>
     </ToastHost>
   );
 }
