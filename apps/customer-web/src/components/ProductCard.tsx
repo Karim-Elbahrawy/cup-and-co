@@ -26,6 +26,7 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
 
   const name = pickName(product, language);
   const price = formatPrice(product.base_price_egp, language);
+  const isOutOfStock = product.stock_count !== null && product.stock_count <= 0;
 
   return (
     <motion.div
@@ -35,7 +36,7 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
     >
       <Link
         href={`/products/${product.id}`}
-        aria-label={`${name}, ${price}`}
+        aria-label={`${name}, ${price}${isOutOfStock ? ', out of stock' : ''}`}
         className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cup-primary)] focus-visible:ring-offset-2 rounded-[16px]"
       >
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-white">
@@ -44,19 +45,30 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
             alt=""
             width={300}
             height={300}
-            className="h-full w-full rounded-2xl object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+            className={`h-full w-full rounded-2xl object-contain p-2 transition-transform duration-300 group-hover:scale-105 ${isOutOfStock ? 'opacity-40' : ''}`}
           />
+          {isOutOfStock && (
+            <div className="absolute inset-0 flex items-end justify-center rounded-2xl pb-3">
+              <span className="rounded-full bg-rose-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-rose-600 ring-1 ring-rose-200">
+                Out of stock
+              </span>
+            </div>
+          )}
         </div>
         <div className="mt-3 px-1">
           <p className="line-clamp-1 font-heading text-sm font-semibold text-[var(--cup-espresso)]">
             {name}
           </p>
           <div className="mt-1.5 flex items-center justify-between">
-            <span className="text-sm font-bold text-[var(--cup-primary)]">{price}</span>
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--cup-cocoa)]">
-              <Star size={12} aria-hidden="true" className="fill-[var(--cup-star)] stroke-[var(--cup-star)]" />
-              {product.rating_avg.toFixed(1)}
+            <span className={`text-sm font-bold ${isOutOfStock ? 'text-cup-muted line-through' : 'text-[var(--cup-primary)]'}`}>
+              {price}
             </span>
+            {product.review_mode === 'full' && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--cup-cocoa)]">
+                <Star size={12} aria-hidden="true" className="fill-[var(--cup-star)] stroke-[var(--cup-star)]" />
+                {product.rating_avg.toFixed(1)}
+              </span>
+            )}
           </div>
         </div>
       </Link>

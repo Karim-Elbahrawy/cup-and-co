@@ -7,6 +7,7 @@ import type {
   KioskStatus,
   ProductDetailResponse,
   Review,
+  ReviewMode,
 } from '@cup-and-co/types';
 import { getServiceClient } from './supabase.js';
 import { config } from '../config.js';
@@ -106,16 +107,27 @@ function p(
     sort_order,
     rating_avg,
     rating_count,
+    stock_count: null,
+    review_mode: 'full',
   };
 }
 
+/** Coffee categories that get shot + size + sugar options. */
+const COFFEE_CATEGORY_IDS = [
+  '11111111-1111-1111-1111-111111111101', // hot_coffee
+  '11111111-1111-1111-1111-111111111102', // cold_coffee
+  '11111111-1111-1111-1111-111111111103', // milk_coffee
+];
+
 const COFFEE_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
-  { group_name: 'size',  name_en: 'Small',  name_ar: 'صغير',  price_delta_egp: -5 },
-  { group_name: 'size',  name_en: 'Medium', name_ar: 'وسط',   price_delta_egp: 0 },
-  { group_name: 'size',  name_en: 'Large',  name_ar: 'كبير',  price_delta_egp: 10 },
-  { group_name: 'sugar', name_en: 'Normal', name_ar: 'عادي',  price_delta_egp: 0 },
-  { group_name: 'sugar', name_en: 'Less',   name_ar: 'أقل',   price_delta_egp: 0 },
-  { group_name: 'sugar', name_en: 'No',     name_ar: 'بدون',  price_delta_egp: 0 },
+  { group_name: 'shots', name_en: 'Single',  name_ar: 'شوت واحد', price_delta_egp: 0 },
+  { group_name: 'shots', name_en: 'Double',  name_ar: 'شوتين',    price_delta_egp: 5 },
+  { group_name: 'size',  name_en: 'Small',   name_ar: 'صغير',     price_delta_egp: -5 },
+  { group_name: 'size',  name_en: 'Medium',  name_ar: 'وسط',      price_delta_egp: 0 },
+  { group_name: 'size',  name_en: 'Large',   name_ar: 'كبير',     price_delta_egp: 10 },
+  { group_name: 'sugar', name_en: 'Normal',  name_ar: 'عادي',     price_delta_egp: 0 },
+  { group_name: 'sugar', name_en: 'Less',    name_ar: 'أقل',      price_delta_egp: 0 },
+  { group_name: 'sugar', name_en: 'No',      name_ar: 'بدون',     price_delta_egp: 0 },
 ];
 
 const ICE_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
@@ -127,8 +139,7 @@ const ICE_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
 function fallbackOptionsFor(productId: string): ProductOption[] {
   const product = FALLBACK.products.find((x) => x.id === productId);
   if (!product) return [];
-  const coffeeCategories = ['11111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111102', '11111111-1111-1111-1111-111111111103'];
-  if (coffeeCategories.includes(product.category_id)) {
+  if (COFFEE_CATEGORY_IDS.includes(product.category_id)) {
     const isCold = product.category_id === '11111111-1111-1111-1111-111111111102';
     const all: Omit<ProductOption, 'product_id' | 'id'>[] = isCold
       ? [...COFFEE_OPTIONS, ...ICE_OPTIONS]
@@ -138,13 +149,72 @@ function fallbackOptionsFor(productId: string): ProductOption[] {
   return [];
 }
 
+// ---------------------------------------------------------------------------
+// Admin-mutable in-memory overlays (survive hot-reloads in dev; reset on
+// process restart — swap for a DB-backed store in production).
+// ---------------------------------------------------------------------------
+
+/** Per-product review-mode override set by admin. Defaults to 'full'. */
+const productReviewModes = new Map<string, ReviewMode>();
+
+/**
+ * Per-product stock override.
+ * `undefined` (absent) = unlimited; `0` = sold out; positive = units left.
+ */
+const productStockMap = new Map<string, number>();
+
+export function setProductReviewMode(id: string, mode: ReviewMode): void {
+  productReviewModes.set(id, mode);
+}
+
+/** Pass `null` to remove the stock cap (unlimited). */
+export function setProductStock(id: string, count: number | null): void {
+  if (count === null) {
+    productStockMap.delete(id);
+  } else {
+    productStockMap.set(id, count);
+  }
+}
+
+/** Returns the live stock count for a product. `null` = unlimited. */
+export function getProductStock(id: string): number | null {
+  const v = productStockMap.get(id);
+  return v === undefined ? null : v;
+}
+
+/**
+ * Decrements stock by `qty`. Call only after confirming there is enough stock.
+ * No-ops for unlimited products (not in the map).
+ */
+export function decrementStock(id: string, qty: number): void {
+  const current = productStockMap.get(id);
+  if (current !== undefined) {
+    productStockMap.set(id, Math.max(0, current - qty));
+  }
+}
+
+/** Applies in-memory stock and review-mode overlays to a product. */
+function withMeta(product: Product): Product {
+  const stockVal = productStockMap.get(product.id);
+  const modeVal = productReviewModes.get(product.id);
+  if (stockVal === undefined && modeVal === undefined) return product;
+  return {
+    ...product,
+    stock_count: stockVal !== undefined ? stockVal : product.stock_count,
+    review_mode: modeVal ?? product.review_mode,
+  };
+}
+
 function isSupabaseReady(): boolean {
   return !!(config.supabase.serviceRoleKey && config.supabase.url && !config.supabase.url.includes('127.0.0.1:54321'));
 }
 
 export async function getCatalog(): Promise<CatalogResponse> {
   if (!isSupabaseReady()) {
-    return FALLBACK;
+    return {
+      ...FALLBACK,
+      products: FALLBACK.products.map(withMeta),
+    };
   }
   try {
     const sb = getServiceClient();
@@ -157,14 +227,15 @@ export async function getCatalog(): Promise<CatalogResponse> {
     if (categoriesRes.error || productsRes.error || offersRes.error) {
       throw new Error('Catalog query failed');
     }
+    const rawProducts = (productsRes.data ?? []) as Product[];
     return {
       categories: categoriesRes.data as Category[],
-      products: (productsRes.data ?? []) as Product[],
+      products: rawProducts.map(withMeta),
       offers: (offersRes.data ?? []) as Offer[],
       kiosk: (kioskRes.data ?? FALLBACK.kiosk) as KioskStatus,
     };
   } catch {
-    return FALLBACK;
+    return { ...FALLBACK, products: FALLBACK.products.map(withMeta) };
   }
 }
 
@@ -173,7 +244,7 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
     const product = FALLBACK.products.find((x) => x.id === id);
     if (!product) return null;
     return {
-      product,
+      product: withMeta(product),
       options: fallbackOptionsFor(id),
       reviews: [],
       is_favorited: false,
@@ -189,7 +260,7 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
     ]);
     if (productRes.error || !productRes.data) return null;
     return {
-      product: productRes.data as Product,
+      product: withMeta(productRes.data as Product),
       options: (optionsRes.data ?? []) as ProductOption[],
       reviews: (reviewsRes.data ?? []) as Review[],
       is_favorited: !!favRes.data,
@@ -197,6 +268,6 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
   } catch {
     const product = FALLBACK.products.find((x) => x.id === id);
     if (!product) return null;
-    return { product, options: fallbackOptionsFor(id), reviews: [], is_favorited: false };
+    return { product: withMeta(product), options: fallbackOptionsFor(id), reviews: [], is_favorited: false };
   }
 }

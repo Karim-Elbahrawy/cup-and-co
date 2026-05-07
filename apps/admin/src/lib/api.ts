@@ -252,10 +252,17 @@ export const adminApi = {
   setProductAvailability: (productId: string, available: boolean) =>
     api<{ id: string; available: boolean }>(
       `/admin/menu/products/${productId}/availability`,
-      {
-        method: 'PATCH',
-        body: { available },
-      },
+      { method: 'PATCH', body: { available } },
+    ),
+  setProductReviewMode: (productId: string, mode: 'full' | 'write_only' | 'hidden') =>
+    api<{ id: string; review_mode: string }>(
+      `/admin/menu/products/${productId}/review-mode`,
+      { method: 'PATCH', body: { mode } },
+    ),
+  setProductStock: (productId: string, stock_count: number | null) =>
+    api<{ id: string; stock_count: number | null }>(
+      `/admin/menu/products/${productId}/stock`,
+      { method: 'PATCH', body: { stock_count } },
     ),
   // Phase 5: Reviews
   listReviews: (signal?: AbortSignal) =>

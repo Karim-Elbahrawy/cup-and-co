@@ -1,27 +1,58 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { Eye, EyeOff, MessageSquare } from 'lucide-react';
+import { api, adminApi, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/useSession';
 import { can } from '@/lib/permissions';
 import { formatEgp } from '@/lib/format';
-import type { Product, Category, CatalogResponse } from '@cup-and-co/types';
+import type { Product, Category, CatalogResponse, ReviewMode } from '@cup-and-co/types';
 
 /**
- * Menu admin. Owners can manage everything (Phase 2 brings price/photo edits);
- * baristas can only flip the `is_available` toggle. Both roles share the same
- * list view — we just hide the owner-only affordances when role is barista.
- *
- * The availability toggle is currently optimistic and falls back gracefully
- * when the `/admin/menu/:id/availability` endpoint isn't implemented yet —
- * that endpoint lands in Phase 2. Until then, toggles work locally only.
+ * Menu admin. Owners can manage everything; baristas can flip availability
+ * and update stock. Review-mode cycling is owner-only (canManage gate).
  */
+
+const REVIEW_MODE_CYCLE: ReviewMode[] = ['full', 'write_only', 'hidden'];
+
+const REVIEW_MODE_META: Record<
+  ReviewMode,
+  { label: string; tooltip: string; cls: string }
+> = {
+  full: {
+    label: 'FULL',
+    tooltip: 'Stars + review list + write form all visible to customers',
+    cls: 'border-cup-teal-200 bg-cup-teal-100 text-cup-teal-700',
+  },
+  write_only: {
+    label: 'WRITE',
+    tooltip: 'Write form visible; stars and review list hidden',
+    cls: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+  },
+  hidden: {
+    label: 'OFF',
+    tooltip: 'Entire reviews section hidden from customers',
+    cls: 'border-cup-stroke bg-cup-brown-100 text-cup-brown-500',
+  },
+};
+
+function nextReviewMode(current: ReviewMode): ReviewMode {
+  const idx = REVIEW_MODE_CYCLE.indexOf(current);
+  return REVIEW_MODE_CYCLE[(idx + 1) % REVIEW_MODE_CYCLE.length];
+}
+
 export default function MenuPage() {
   const session = useSession();
   const [products, setProducts] = useState<Product[] | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [reviewPendingId, setReviewPendingId] = useState<string | null>(null);
+
+  // Local overlays — optimistically updated on admin action; seeded from catalog
+  const [reviewModeMap, setReviewModeMap] = useState<Record<string, ReviewMode>>({});
+  const [stockMap, setStockMap] = useState<Record<string, number | null>>({});
+  const stockTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -31,6 +62,14 @@ export default function MenuPage() {
         if (cancelled) return;
         setProducts(data.products);
         setCategories(data.categories);
+        const modes: Record<string, ReviewMode> = {};
+        const stocks: Record<string, number | null> = {};
+        for (const p of data.products) {
+          modes[p.id] = p.review_mode;
+          stocks[p.id] = p.stock_count;
+        }
+        setReviewModeMap(modes);
+        setStockMap(stocks);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof ApiError ? err.message : 'Could not load menu.');
@@ -55,9 +94,7 @@ export default function MenuPage() {
     );
     setPendingId(product.id);
     try {
-      // TODO Phase 2: PATCH /admin/menu/:id { is_available } — endpoint not yet live.
-      // For Phase 1 we accept the local-only toggle and clear any error.
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await adminApi.setProductAvailability(product.id, !product.is_available);
       setError(null);
     } catch (err) {
       setProducts(previous);
@@ -65,6 +102,36 @@ export default function MenuPage() {
     } finally {
       setPendingId(null);
     }
+  }
+
+  async function cycleReviewMode(product: Product) {
+    if (!canManage) return;
+    const current = reviewModeMap[product.id] ?? product.review_mode;
+    const next = nextReviewMode(current);
+    setReviewModeMap((m) => ({ ...m, [product.id]: next }));
+    setReviewPendingId(product.id);
+    try {
+      await adminApi.setProductReviewMode(product.id, next);
+    } catch (err) {
+      setReviewModeMap((m) => ({ ...m, [product.id]: current }));
+      setError(err instanceof ApiError ? err.message : 'Could not update review mode.');
+    } finally {
+      setReviewPendingId(null);
+    }
+  }
+
+  function handleStockInput(productId: string, rawValue: string) {
+    const parsed = rawValue === '' ? null : parseInt(rawValue, 10);
+    if (parsed !== null && isNaN(parsed)) return;
+    setStockMap((m) => ({ ...m, [productId]: parsed }));
+    clearTimeout(stockTimers.current[productId]);
+    stockTimers.current[productId] = setTimeout(async () => {
+      try {
+        await adminApi.setProductStock(productId, parsed);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Could not update stock.');
+      }
+    }, 600);
   }
 
   const grouped = (products ?? []).reduce<Record<string, Product[]>>((acc, p) => {
@@ -82,8 +149,8 @@ export default function MenuPage() {
           <h1 className="font-heading text-3xl font-bold text-cup-brown-900">Menu</h1>
           <p className="mt-1 text-sm text-cup-muted">
             {canManage
-              ? 'Manage availability today; full editing lands Phase 2.'
-              : 'Flip availability when an item runs out. Read-only otherwise.'}
+              ? 'Set availability, stock counts, and control what reviews customers see.'
+              : 'Flip availability and update stock when items run low.'}
           </p>
         </div>
         {canManage && (
@@ -126,29 +193,81 @@ export default function MenuPage() {
                   {category.name_en}
                 </h2>
                 <ul className="mt-4 divide-y divide-cup-stroke" role="list">
-                  {grouped[category.id]?.map((product) => (
-                    <li
-                      key={product.id}
-                      className="flex flex-wrap items-center gap-4 py-3 first:pt-0 last:pb-0"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-heading text-sm font-semibold text-cup-brown-900">
-                          {product.name_en}
-                        </p>
-                        <p className="truncate text-xs text-cup-muted">
-                          {product.description_en || '—'}
-                        </p>
-                      </div>
-                      <span className="font-mono text-sm font-semibold text-cup-orange-700">
-                        {formatEgp(product.base_price_egp)}
-                      </span>
-                      <AvailabilityToggle
-                        product={product}
-                        disabled={!canToggle || pendingId === product.id}
-                        onToggle={() => toggleAvailability(product)}
-                      />
-                    </li>
-                  ))}
+                  {grouped[category.id]?.map((product) => {
+                    const reviewMode = reviewModeMap[product.id] ?? product.review_mode;
+                    const stockVal = stockMap[product.id] ?? product.stock_count;
+                    const isOutOfStock = stockVal !== null && stockVal <= 0;
+
+                    return (
+                      <li
+                        key={product.id}
+                        className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0"
+                      >
+                        {/* Name + description */}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-heading text-sm font-semibold text-cup-brown-900">
+                            {product.name_en}
+                            {isOutOfStock && (
+                              <span className="ms-2 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-600">
+                                Out of stock
+                              </span>
+                            )}
+                          </p>
+                          <p className="truncate text-xs text-cup-muted">
+                            {product.description_en || '—'}
+                          </p>
+                        </div>
+
+                        {/* Price */}
+                        <span className="font-mono text-sm font-semibold text-cup-orange-700">
+                          {formatEgp(product.base_price_egp)}
+                        </span>
+
+                        {/* Stock input */}
+                        {canToggle && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-cup-muted">
+                              Stock
+                            </span>
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="∞"
+                              aria-label={`Stock count for ${product.name_en}`}
+                              value={stockVal === null ? '' : String(stockVal)}
+                              onChange={(e) => handleStockInput(product.id, e.target.value)}
+                              className="w-16 rounded-lg border border-cup-stroke bg-white px-2 py-1 text-center font-mono text-xs text-cup-brown-900 focus:border-cup-orange-500 focus:outline-none focus:ring-1 focus:ring-cup-orange-500"
+                            />
+                          </div>
+                        )}
+
+                        {/* Review mode cycle button */}
+                        {canManage && (
+                          <button
+                            type="button"
+                            title={REVIEW_MODE_META[reviewMode].tooltip}
+                            disabled={reviewPendingId === product.id}
+                            onClick={() => cycleReviewMode(product)}
+                            className={`inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 disabled:cursor-not-allowed disabled:opacity-50 ${REVIEW_MODE_META[reviewMode].cls}`}
+                          >
+                            {reviewMode === 'full' && <Eye size={11} aria-hidden />}
+                            {reviewMode === 'write_only' && (
+                              <MessageSquare size={11} aria-hidden />
+                            )}
+                            {reviewMode === 'hidden' && <EyeOff size={11} aria-hidden />}
+                            {REVIEW_MODE_META[reviewMode].label}
+                          </button>
+                        )}
+
+                        {/* Availability toggle */}
+                        <AvailabilityToggle
+                          product={product}
+                          disabled={!canToggle || pendingId === product.id}
+                          onToggle={() => toggleAvailability(product)}
+                        />
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ))}
@@ -194,7 +313,7 @@ function AvailabilityToggle({
           }`}
         />
       </span>
-      {available ? 'Available' : 'Out of stock'}
+      {available ? 'Available' : 'Unavailable'}
     </button>
   );
 }

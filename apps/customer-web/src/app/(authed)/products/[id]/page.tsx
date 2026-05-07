@@ -11,7 +11,7 @@ import { useCart } from '@/lib/cart';
 import { useT } from '@/lib/i18n';
 import type { Product, ProductOption, Review, ReviewInput } from '@/lib/types';
 
-const GROUP_ORDER = ['size', 'sugar', 'ice', 'milk', 'extras'] as const;
+const GROUP_ORDER = ['shots', 'size', 'sugar', 'ice', 'milk', 'extras'] as const;
 type Group = (typeof GROUP_ORDER)[number];
 
 export default function ProductDetailPage({
@@ -196,7 +196,9 @@ export default function ProductDetailPage({
   const { product } = data;
   const name = language === 'ar' ? product.name_ar : product.name_en;
   const description = language === 'ar' ? product.description_ar : product.description_en;
+  const isOutOfStock = product.stock_count !== null && product.stock_count <= 0;
   const groupLabel: Record<Group, string> = {
+    shots: 'Shots',
     size: t('product.size'),
     sugar: t('product.sugar'),
     ice: t('product.ice'),
@@ -265,13 +267,15 @@ export default function ProductDetailPage({
             <h1 className="font-heading text-[28px] font-bold leading-tight text-cup-brown-900">
               {name}
             </h1>
-            <div className="mt-1 flex items-center gap-1.5 text-sm">
-              <Star className="h-4 w-4 fill-cup-star text-cup-star" />
-              <span className="font-semibold text-cup-brown-900">
-                {product.rating_avg.toFixed(1)}
-              </span>
-              <span className="text-cup-muted">/5</span>
-            </div>
+            {product.review_mode === 'full' && (
+              <div className="mt-1 flex items-center gap-1.5 text-sm">
+                <Star className="h-4 w-4 fill-cup-star text-cup-star" />
+                <span className="font-semibold text-cup-brown-900">
+                  {product.rating_avg.toFixed(1)}
+                </span>
+                <span className="text-cup-muted">/5</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 rounded-pill bg-white p-1.5 shadow-subtle">
@@ -308,6 +312,11 @@ export default function ProductDetailPage({
 
         {description && (
           <p className="mt-3 text-sm leading-relaxed text-cup-brown-700">{description}</p>
+        )}
+        {isOutOfStock && (
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 ring-1 ring-rose-200">
+            Out of stock
+          </div>
         )}
       </section>
 
@@ -355,133 +364,138 @@ export default function ProductDetailPage({
         })}
       </section>
 
-      {/* Reviews section */}
-      <section className="mt-8 space-y-4 px-6">
-        <h2 className="font-heading text-lg font-bold text-cup-brown-900">Reviews</h2>
+      {/* Reviews section — hidden entirely when review_mode is 'hidden';
+           write form shown in 'write_only' and 'full'; list only in 'full'. */}
+      {product.review_mode !== 'hidden' && (
+        <section className="mt-8 space-y-4 px-6">
+          <h2 className="font-heading text-lg font-bold text-cup-brown-900">Reviews</h2>
 
-        {/* Write a review */}
-        <div className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle">
-          <p className="font-heading text-sm font-semibold text-cup-brown-900">
-            Write a Review
-          </p>
+          {/* Write a review — visible in 'write_only' and 'full' modes */}
+          <div className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle">
+            <p className="font-heading text-sm font-semibold text-cup-brown-900">
+              Write a Review
+            </p>
 
-          {/* Star rating selector */}
-          <div className="mt-3 flex gap-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                onClick={() => setReviewRating(star)}
-                aria-label={`Rate ${star} star${star !== 1 ? 's' : ''}`}
-                className="transition active:scale-90"
-              >
-                <Star
-                  className={`h-7 w-7 ${
-                    star <= reviewRating
-                      ? 'fill-cup-star text-cup-star'
-                      : 'fill-transparent text-cup-stroke'
-                  }`}
-                />
-              </button>
-            ))}
-          </div>
-
-          {/* Comment */}
-          <textarea
-            value={reviewComment}
-            onChange={(e) => setReviewComment(e.target.value)}
-            placeholder="Share your experience..."
-            rows={3}
-            className="mt-3 w-full resize-none rounded-xl border border-cup-stroke bg-cup-paper px-4 py-3 font-body text-sm text-cup-brown-900 placeholder:text-cup-muted focus:border-cup-orange-500 focus:outline-none focus:ring-1 focus:ring-cup-orange-500"
-          />
-
-          {reviewError && (
-            <p className="mt-2 text-xs text-cup-error">{reviewError}</p>
-          )}
-
-          {reviewSuccess && (
-            <motion.p
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-2 text-xs font-semibold text-cup-teal-600"
-            >
-              Review submitted! Thank you.
-            </motion.p>
-          )}
-
-          <button
-            type="button"
-            onClick={handleSubmitReview}
-            disabled={reviewRating === 0 || !reviewComment.trim() || submittingReview}
-            className="mt-3 flex items-center gap-2 rounded-full bg-cup-orange-500 px-6 py-3 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-95 disabled:opacity-50"
-          >
-            <Send className="h-4 w-4" />
-            {submittingReview ? 'Submitting...' : 'Submit Review'}
-          </button>
-        </div>
-
-        {/* Existing reviews */}
-        {data.reviews.length > 0 ? (
-          <motion.div
-            className="space-y-3"
-            initial="hidden"
-            animate="visible"
-            variants={{
-              visible: { transition: { staggerChildren: 0.04 } },
-            }}
-          >
-            {data.reviews
-              .filter((r) => !r.hidden)
-              .map((review) => (
-                <motion.div
-                  key={review.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 8 },
-                    visible: { opacity: 1, y: 0 },
-                  }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-                  className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle"
+            {/* Star rating selector */}
+            <div className="mt-3 flex gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setReviewRating(star)}
+                  aria-label={`Rate ${star} star${star !== 1 ? 's' : ''}`}
+                  className="transition active:scale-90"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-cup-paper text-cup-muted">
-                      <User className="h-4 w-4" />
-                    </span>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-3.5 w-3.5 ${
-                              i < review.rating
-                                ? 'fill-cup-star text-cup-star'
-                                : 'fill-transparent text-cup-stroke'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-cup-muted">
-                        {new Date(review.created_at).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  {review.comment && (
-                    <p className="mt-2 text-sm leading-relaxed text-cup-brown-700">
-                      {review.comment}
-                    </p>
-                  )}
-                </motion.div>
+                  <Star
+                    className={`h-7 w-7 ${
+                      star <= reviewRating
+                        ? 'fill-cup-star text-cup-star'
+                        : 'fill-transparent text-cup-stroke'
+                    }`}
+                  />
+                </button>
               ))}
-          </motion.div>
-        ) : (
-          <div className="rounded-2xl border border-cup-stroke bg-white p-6 text-center shadow-subtle">
-            <p className="text-sm text-cup-muted">No reviews yet. Be the first!</p>
+            </div>
+
+            {/* Comment */}
+            <textarea
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+              placeholder="Share your experience..."
+              rows={3}
+              className="mt-3 w-full resize-none rounded-xl border border-cup-stroke bg-cup-paper px-4 py-3 font-body text-sm text-cup-brown-900 placeholder:text-cup-muted focus:border-cup-orange-500 focus:outline-none focus:ring-1 focus:ring-cup-orange-500"
+            />
+
+            {reviewError && (
+              <p className="mt-2 text-xs text-cup-error">{reviewError}</p>
+            )}
+
+            {reviewSuccess && (
+              <motion.p
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-2 text-xs font-semibold text-cup-teal-600"
+              >
+                Review submitted! Thank you.
+              </motion.p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSubmitReview}
+              disabled={reviewRating === 0 || !reviewComment.trim() || submittingReview}
+              className="mt-3 flex items-center gap-2 rounded-full bg-cup-orange-500 px-6 py-3 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-95 disabled:opacity-50"
+            >
+              <Send className="h-4 w-4" />
+              {submittingReview ? 'Submitting...' : 'Submit Review'}
+            </button>
           </div>
-        )}
-      </section>
+
+          {/* Existing reviews — only visible in 'full' mode */}
+          {product.review_mode === 'full' && (
+            data.reviews.length > 0 ? (
+              <motion.div
+                className="space-y-3"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: { transition: { staggerChildren: 0.04 } },
+                }}
+              >
+                {data.reviews
+                  .filter((r) => !r.hidden)
+                  .map((review) => (
+                    <motion.div
+                      key={review.id}
+                      variants={{
+                        hidden: { opacity: 0, y: 8 },
+                        visible: { opacity: 1, y: 0 },
+                      }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                      className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-8 w-8 place-items-center rounded-full bg-cup-paper text-cup-muted">
+                          <User className="h-4 w-4" />
+                        </span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`h-3.5 w-3.5 ${
+                                  i < review.rating
+                                    ? 'fill-cup-star text-cup-star'
+                                    : 'fill-transparent text-cup-stroke'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-[10px] text-cup-muted">
+                            {new Date(review.created_at).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      {review.comment && (
+                        <p className="mt-2 text-sm leading-relaxed text-cup-brown-700">
+                          {review.comment}
+                        </p>
+                      )}
+                    </motion.div>
+                  ))}
+              </motion.div>
+            ) : (
+              <div className="rounded-2xl border border-cup-stroke bg-white p-6 text-center shadow-subtle">
+                <p className="text-sm text-cup-muted">No reviews yet. Be the first!</p>
+              </div>
+            )
+          )}
+        </section>
+      )}
 
       {/* Sticky bottom add-to-cart */}
       <div
@@ -491,10 +505,14 @@ export default function ProductDetailPage({
         <button
           type="button"
           onClick={handleAddToCart}
-          disabled={adding}
-          className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.32)] transition active:scale-[0.98] disabled:opacity-70"
+          disabled={adding || isOutOfStock}
+          className={`mx-auto flex w-full max-w-7xl items-center justify-between rounded-pill px-6 py-4 font-heading text-base font-semibold text-white transition active:scale-[0.98] disabled:opacity-70 ${
+            isOutOfStock
+              ? 'bg-cup-brown-400 shadow-none cursor-not-allowed'
+              : 'bg-cup-orange-600 shadow-[0_8px_24px_rgba(194,65,12,0.32)]'
+          }`}
         >
-          <span>{t('common.addToCart')}</span>
+          <span>{isOutOfStock ? 'Out of Stock' : t('common.addToCart')}</span>
           <span className="flex items-center gap-2">
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span

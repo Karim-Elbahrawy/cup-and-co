@@ -20,7 +20,15 @@ export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded
 
 export type LoyaltySource = 'online_paid' | 'cash_in_app' | 'qr_receipt' | 'game_reward';
 
-export type OptionGroup = 'size' | 'sugar' | 'ice' | 'milk' | 'extras';
+export type OptionGroup = 'size' | 'sugar' | 'ice' | 'milk' | 'extras' | 'shots';
+
+/**
+ * Controls what customers see in the Reviews section on the product detail page.
+ * - `full`       — stars (rating avg), review list, and write-review form are all visible.
+ * - `write_only` — only the write-review form is shown; no stars, no existing review list.
+ * - `hidden`     — the entire reviews section is hidden; no stars, no form, no list.
+ */
+export type ReviewMode = 'full' | 'write_only' | 'hidden';
 
 export interface User {
   id: string;
@@ -59,6 +67,10 @@ export interface Product {
   sort_order: number;
   rating_avg: number;
   rating_count: number;
+  /** null = unlimited inventory; 0 = sold out; positive = units remaining. */
+  stock_count: number | null;
+  /** Admin-set display mode for the reviews section on the product detail page. */
+  review_mode: ReviewMode;
 }
 
 export interface ProductOption {
