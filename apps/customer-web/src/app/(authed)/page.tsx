@@ -15,8 +15,10 @@ import { SkeletonProductGrid } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
 import { UserAvatar } from '@/components/UserAvatar';
 import { WelcomeBackBanner } from '@/components/WelcomeBackBanner';
+import { ActiveOrderBanner } from '@/components/ActiveOrderBanner';
 import { api } from '@/lib/api';
 import { useFeatureFlag } from '@/lib/featureFlags';
+import { useActiveOrder } from '@/lib/useActiveOrder';
 import { useSession } from '@/lib/session';
 import { useT } from '@/lib/i18n';
 import type { CatalogResponse } from '@/lib/types';
@@ -38,6 +40,11 @@ export default function HomePage() {
   // Feature flags — see apps/api/src/services/featureFlags.ts for definitions.
   const welcomeBannerVariant = useFeatureFlag('welcome_banner');
   const offersVisibility = useFeatureFlag('home_offers_visible', 'enabled');
+
+  // Surfaces any in-flight order at the top of the page. Polls every 30s
+  // while active; stops once terminal. See useActiveOrder for the
+  // SSE-vs-polling rationale.
+  const { order: activeOrder } = useActiveOrder();
 
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,6 +117,13 @@ export default function HomePage() {
   return (
     <PageTransition>
       <main className="mx-auto flex w-full max-w-[1080px] flex-1 flex-col gap-6 px-5 pt-6">
+        {/* Active-order banner — shown only while a non-terminal order exists.
+            Sits above the greeting so a returning user sees their pickup code
+            and ETA before anything else on the home screen. */}
+        {activeOrder && (
+          <ActiveOrderBanner order={activeOrder} language={language} />
+        )}
+
         {/* Welcome-back pill — gated by `welcome_banner` flag (50/50 demo) */}
         {welcomeBannerVariant === 'variant_a' && (
           <WelcomeBackBanner name={firstName} language={language} />

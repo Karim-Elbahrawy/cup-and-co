@@ -83,6 +83,18 @@ export interface ApiStatusEvent {
   note?: string;
 }
 
+/**
+ * Server-computed prep ETA (matches apps/api/src/services/prepEta.ts).
+ * `basis` drives copy on the client: queue / in_prep / scheduled show a
+ * countdown, ready / cancelled hide the pill entirely.
+ */
+export type PrepEtaBasis = 'queue' | 'in_prep' | 'ready' | 'cancelled' | 'scheduled';
+
+export interface PrepEta {
+  etaMinutes: number;
+  basis: PrepEtaBasis;
+}
+
 export interface ApiOrder {
   id: string;
   userId: string;
@@ -102,6 +114,9 @@ export interface ApiOrder {
   statusHistory: ApiStatusEvent[];
   createdAt: string;
   pickedUpAt: string | null;
+  /** Optional — present on the list endpoint so the home banner can show
+   *  a live ETA without an extra round-trip. Older API builds omit it. */
+  prepEta?: PrepEta;
 }
 
 export interface TimelineStep {
@@ -110,21 +125,6 @@ export interface TimelineStep {
   at: string | null;
   active: boolean;
   done: boolean;
-}
-
-/**
- * Server-computed prep ETA. `basis` tells the client which copy to show:
- *   - `'queue'`     — order is still waiting; ETA includes queue position.
- *   - `'in_prep'`   — order is being made; ETA = remaining prep budget.
- *   - `'ready'`     — order is ready/out_for_delivery/completed; ETA = 0.
- *   - `'cancelled'` — order is cancelled/refunded; ETA = 0.
- *   - `'scheduled'` — pre-order; ETA derives from `scheduledFor`.
- */
-export type PrepEtaBasis = 'queue' | 'in_prep' | 'ready' | 'cancelled' | 'scheduled';
-
-export interface PrepEta {
-  etaMinutes: number;
-  basis: PrepEtaBasis;
 }
 
 export interface OrderResponse {
