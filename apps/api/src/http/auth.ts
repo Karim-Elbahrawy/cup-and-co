@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import * as Sentry from '@sentry/node';
 import type { Request, Response, NextFunction } from 'express';
 import type { UserRole, VerificationStatus } from '@cup-and-co/types';
 import { config } from '../config.js';
@@ -36,8 +37,9 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       const token = auth.slice(7);
       const decoded = jwt.verify(token, config.jwt.secret) as AuthUser;
       req.user = decoded;
-      // Phase 1.2: identify with role only — no PII. Future phases will add
-      // tier and campus_id once those are in the JWT.
+      // Phase 1.1: tag Sentry scope with user_id only — no phone/role in error reports.
+      Sentry.setUser({ id: decoded.id });
+      // Phase 1.2: identify for PostHog analytics with role only — no PII.
       identifyAnalytics(decoded.id, { role: decoded.role });
       return next();
     }
@@ -49,6 +51,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       const phone = req.header('x-user-phone') ?? '+201000000001';
       if (id) {
         req.user = { id, phone, role, verificationStatus, phoneVerified: true };
+        Sentry.setUser({ id });
         identifyAnalytics(id, { role });
         return next();
       }
