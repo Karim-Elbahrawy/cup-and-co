@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { DollarSign, TrendingUp, Users, Star, EyeOff, MessageSquare } from 'lucide-react';
+import {
+  DollarSign, TrendingUp, Users, Star, EyeOff, MessageSquare,
+  ArrowUp, ArrowDown, ArrowUpDown,
+} from 'lucide-react';
 import { useToast } from '@/components/Toast';
 import { useSession } from '@/lib/useSession';
 import {
@@ -13,20 +16,74 @@ import {
   type AdminReportReviews,
 } from '@/lib/api';
 
+// ── Sort helpers ─────────────────────────────────────────────────────────────
+
+type SortDir = 'asc' | 'desc';
+
+function useSortState<K extends string>(defaultKey: K, defaultDir: SortDir = 'desc') {
+  const [key, setKey] = useState<K>(defaultKey);
+  const [dir, setDir] = useState<SortDir>(defaultDir);
+
+  const toggle = (nextKey: K) => {
+    if (nextKey === key) {
+      setDir(d => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setKey(nextKey);
+      setDir(defaultDir);
+    }
+  };
+
+  return { key, dir, toggle };
+}
+
+type TopItemSortKey = 'count' | 'revenue' | 'name_en';
+type RatingSortKey   = 'avgRating' | 'reviewCount' | 'name_en';
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
 export default function ReportsPage() {
-  const toast = useToast();
+  const toast   = useToast();
   const session = useSession();
-  const router = useRouter();
+  const router  = useRouter();
 
   useEffect(() => {
     if (session && session.role !== 'owner') router.replace('/');
   }, [session, router]);
 
-  const [revenue, setRevenue] = useState<AdminReportRevenue | null>(null);
-  const [topItems, setTopItems] = useState<AdminReportTopItem[]>([]);
-  const [breakdown, setBreakdown] = useState<AdminReportRoleBreakdown | null>(null);
+  const [revenue,       setRevenue]       = useState<AdminReportRevenue | null>(null);
+  const [topItems,      setTopItems]      = useState<AdminReportTopItem[]>([]);
+  const [breakdown,     setBreakdown]     = useState<AdminReportRoleBreakdown | null>(null);
   const [reviewsReport, setReviewsReport] = useState<AdminReportReviews | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading,       setLoading]       = useState(true);
+
+  const topSort    = useSortState<TopItemSortKey>('count');
+  const ratingSort = useSortState<RatingSortKey>('avgRating');
+
+  // Sorted top-items
+  const sortedTopItems = useMemo(() => {
+    const items = [...topItems];
+    items.sort((a, b) => {
+      let delta = 0;
+      if (topSort.key === 'name_en') delta = a.name_en.localeCompare(b.name_en);
+      else delta = (a[topSort.key] as number) - (b[topSort.key] as number);
+      return topSort.dir === 'asc' ? delta : -delta;
+    });
+    return items;
+  }, [topItems, topSort.key, topSort.dir]);
+
+  // Sorted ratings
+  const sortedByRating = useMemo(() => {
+    if (!reviewsReport) return [];
+    const items = [...reviewsReport.byProduct];
+    items.sort((a, b) => {
+      let delta = 0;
+      if (ratingSort.key === 'name_en')    delta = a.name_en.localeCompare(b.name_en);
+      else if (ratingSort.key === 'avgRating')  delta = a.avgRating   - b.avgRating;
+      else if (ratingSort.key === 'reviewCount') delta = a.reviewCount - b.reviewCount;
+      return ratingSort.dir === 'asc' ? delta : -delta;
+    });
+    return items;
+  }, [reviewsReport, ratingSort.key, ratingSort.dir]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,24 +133,58 @@ export default function ReportsPage() {
         </div>
       </section>
 
-      {/* ── Top Items ── */}
+      {/* ── Most Ordered Products ── */}
       <section className="rounded-card border border-cup-stroke bg-white p-5 shadow-sm">
-        <h2 className="mb-4 text-lg font-bold text-cup-brown-900">Top Items</h2>
-        {topItems.length === 0 ? (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-cup-brown-900">Most Ordered Products</h2>
+          <SortPills
+            options={[
+              { key: 'count',   label: 'Qty Sold' },
+              { key: 'revenue', label: 'Revenue'  },
+              { key: 'name_en', label: 'Name'     },
+            ]}
+            active={topSort.key}
+            dir={topSort.dir}
+            onSelect={topSort.toggle}
+          />
+        </div>
+
+        {sortedTopItems.length === 0 ? (
           <p className="text-sm text-cup-muted">No order data yet.</p>
         ) : (
           <div className="overflow-hidden rounded-lg border border-cup-stroke">
             <table className="w-full text-left text-sm">
               <thead className="bg-cup-cream-100 text-xs font-semibold uppercase text-cup-muted">
                 <tr>
-                  <th className="px-4 py-3">Product</th>
-                  <th className="px-4 py-3 text-right">Qty Sold</th>
-                  <th className="px-4 py-3 text-right">Revenue</th>
+                  <SortTh
+                    label="Product"
+                    sortKey="name_en"
+                    active={topSort.key}
+                    dir={topSort.dir}
+                    onSort={topSort.toggle}
+                    className="px-4 py-3"
+                  />
+                  <SortTh
+                    label="Qty Sold"
+                    sortKey="count"
+                    active={topSort.key}
+                    dir={topSort.dir}
+                    onSort={topSort.toggle}
+                    className="px-4 py-3 text-right"
+                  />
+                  <SortTh
+                    label="Revenue"
+                    sortKey="revenue"
+                    active={topSort.key}
+                    dir={topSort.dir}
+                    onSort={topSort.toggle}
+                    className="px-4 py-3 text-right"
+                  />
                 </tr>
               </thead>
               <tbody className="divide-y divide-cup-stroke">
-                {topItems.map((item, i) => (
-                  <tr key={i}>
+                {sortedTopItems.map((item, i) => (
+                  <tr key={i} className="transition-colors hover:bg-cup-cream-50">
                     <td className="px-4 py-3 font-medium text-cup-brown-900">{item.name_en}</td>
                     <td className="px-4 py-3 text-right text-cup-brown-700">{item.count}</td>
                     <td className="px-4 py-3 text-right font-semibold text-cup-brown-900">
@@ -124,7 +215,7 @@ export default function ReportsPage() {
               </thead>
               <tbody className="divide-y divide-cup-stroke">
                 {breakdown && Object.entries(breakdown.breakdown).map(([role, data]) => (
-                  <tr key={role}>
+                  <tr key={role} className="transition-colors hover:bg-cup-cream-50">
                     <td className="px-4 py-3 font-medium capitalize text-cup-brown-900">{role}</td>
                     <td className="px-4 py-3 text-right text-cup-brown-700">{data.orders}</td>
                     <td className="px-4 py-3 text-right font-semibold text-cup-brown-900">
@@ -171,7 +262,7 @@ export default function ReportsPage() {
                 {[5, 4, 3, 2, 1].map((star) => {
                   const count = reviewsReport?.ratingDistribution[String(star)] ?? 0;
                   const total = reviewsReport?.total ?? 0;
-                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                  const pct   = total > 0 ? Math.round((count / total) * 100) : 0;
                   return (
                     <div key={star} className="flex items-center gap-3">
                       <div className="flex w-12 shrink-0 items-center gap-1">
@@ -193,14 +284,23 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Per-product summary (top 5 by review count) */}
+            {/* Top 5 by current sort */}
             <div className="rounded-card border border-cup-stroke bg-white p-5 shadow-sm">
-              <h3 className="mb-4 text-sm font-bold text-cup-brown-900">Most Reviewed Products</h3>
-              {!reviewsReport?.byProduct.length ? (
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-cup-brown-900">
+                  {ratingSort.key === 'avgRating'
+                    ? ratingSort.dir === 'desc' ? 'Best Rated Products' : 'Worst Rated Products'
+                    : ratingSort.key === 'reviewCount'
+                    ? ratingSort.dir === 'desc' ? 'Most Reviewed Products' : 'Least Reviewed Products'
+                    : 'Products A–Z'}
+                </h3>
+                <DirToggle dir={ratingSort.dir} onToggle={() => ratingSort.toggle(ratingSort.key)} />
+              </div>
+              {sortedByRating.length === 0 ? (
                 <p className="text-sm text-cup-muted">No data yet.</p>
               ) : (
                 <div className="space-y-3">
-                  {reviewsReport.byProduct.slice(0, 5).map((p) => (
+                  {sortedByRating.slice(0, 5).map((p) => (
                     <div key={p.productId} className="flex items-center gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-cup-brown-900">{p.name_en}</p>
@@ -224,25 +324,57 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Full per-product table (if more than 5 products have reviews) */}
-        {reviewsReport && reviewsReport.byProduct.length > 5 && (
+        {/* Full per-product sortable table */}
+        {reviewsReport && reviewsReport.byProduct.length > 0 && (
           <div className="rounded-card border border-cup-stroke bg-white p-5 shadow-sm">
-            <h3 className="mb-4 text-sm font-bold text-cup-brown-900">All Products</h3>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-cup-brown-900">All Products</h3>
+              <SortPills
+                options={[
+                  { key: 'avgRating',   label: 'Rating'  },
+                  { key: 'reviewCount', label: 'Reviews' },
+                  { key: 'name_en',     label: 'Name'    },
+                ]}
+                active={ratingSort.key}
+                dir={ratingSort.dir}
+                onSelect={ratingSort.toggle}
+              />
+            </div>
             <div className="overflow-hidden rounded-lg border border-cup-stroke">
               <table className="w-full text-left text-sm">
                 <thead className="bg-cup-cream-100 text-xs font-semibold uppercase text-cup-muted">
                   <tr>
-                    <th className="px-4 py-3">Product</th>
-                    <th className="px-4 py-3 text-right">Reviews</th>
-                    <th className="px-4 py-3 text-center">Avg Rating</th>
+                    <SortTh
+                      label="Product"
+                      sortKey="name_en"
+                      active={ratingSort.key}
+                      dir={ratingSort.dir}
+                      onSort={ratingSort.toggle}
+                      className="px-4 py-3"
+                    />
+                    <SortTh
+                      label="Avg Rating"
+                      sortKey="avgRating"
+                      active={ratingSort.key}
+                      dir={ratingSort.dir}
+                      onSort={ratingSort.toggle}
+                      className="px-4 py-3 text-center"
+                    />
+                    <SortTh
+                      label="Reviews"
+                      sortKey="reviewCount"
+                      active={ratingSort.key}
+                      dir={ratingSort.dir}
+                      onSort={ratingSort.toggle}
+                      className="px-4 py-3 text-right"
+                    />
                     <th className="px-4 py-3 text-right">Hidden</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-cup-stroke">
-                  {reviewsReport.byProduct.map((p) => (
-                    <tr key={p.productId}>
+                  {sortedByRating.map((p) => (
+                    <tr key={p.productId} className="transition-colors hover:bg-cup-cream-50">
                       <td className="px-4 py-3 font-medium text-cup-brown-900">{p.name_en}</td>
-                      <td className="px-4 py-3 text-right text-cup-brown-700">{p.reviewCount}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1.5">
                           <StarRow rating={p.avgRating} />
@@ -251,6 +383,7 @@ export default function ReportsPage() {
                           </span>
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-right text-cup-brown-700">{p.reviewCount}</td>
                       <td className="px-4 py-3 text-right">
                         {p.hiddenCount > 0 ? (
                           <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600">
@@ -271,6 +404,8 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function StatCard({
   icon,
@@ -306,5 +441,97 @@ function StarRow({ rating }: { rating: number }) {
         />
       ))}
     </div>
+  );
+}
+
+/** Pill-style sort selector */
+function SortPills<K extends string>({
+  options,
+  active,
+  dir,
+  onSelect,
+}: {
+  options: { key: K; label: string }[];
+  active: K;
+  dir: 'asc' | 'desc';
+  onSelect: (key: K) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      {options.map(({ key, label }) => {
+        const isActive = key === active;
+        return (
+          <button
+            key={key}
+            onClick={() => onSelect(key)}
+            className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+              isActive
+                ? 'bg-cup-brown-900 text-white'
+                : 'bg-cup-cream-100 text-cup-muted hover:bg-cup-cream-200 hover:text-cup-brown-900'
+            }`}
+          >
+            {label}
+            {isActive && (
+              dir === 'desc'
+                ? <ArrowDown className="h-3 w-3" />
+                : <ArrowUp   className="h-3 w-3" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Sortable <th> with directional arrow */
+function SortTh<K extends string>({
+  label,
+  sortKey,
+  active,
+  dir,
+  onSort,
+  className,
+}: {
+  label: string;
+  sortKey: K;
+  active: K;
+  dir: 'asc' | 'desc';
+  onSort: (key: K) => void;
+  className?: string;
+}) {
+  const isActive = sortKey === active;
+  return (
+    <th
+      className={`cursor-pointer select-none ${className ?? ''}`}
+      onClick={() => onSort(sortKey)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {isActive ? (
+          dir === 'desc'
+            ? <ArrowDown   className="h-3 w-3 text-cup-brown-700" />
+            : <ArrowUp     className="h-3 w-3 text-cup-brown-700" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </span>
+    </th>
+  );
+}
+
+/** Simple asc/desc toggle button */
+function DirToggle({ dir, onToggle }: { dir: 'asc' | 'desc'; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      title={dir === 'desc' ? 'Showing best first — click for worst first' : 'Showing worst first — click for best first'}
+      className="flex items-center gap-1 rounded-full bg-cup-cream-100 px-2.5 py-1 text-[11px] font-semibold text-cup-muted transition-colors hover:bg-cup-cream-200 hover:text-cup-brown-900"
+    >
+      {dir === 'desc' ? (
+        <><ArrowDown className="h-3 w-3" /> Best first</>
+      ) : (
+        <><ArrowUp   className="h-3 w-3" /> Worst first</>
+      )}
+    </button>
   );
 }
