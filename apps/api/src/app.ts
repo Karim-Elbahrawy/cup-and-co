@@ -36,6 +36,14 @@ import {
   getExportJob,
   type ExportJob,
 } from './services/accountLifecycle.js';
+import {
+  listOrderFavorites,
+  getOrderFavorite,
+  createOrderFavorite,
+  updateOrderFavorite,
+  deleteOrderFavorite,
+  type TimeOfDay,
+} from './db/orderFavoritesRepo.js';
 import { catalogRouter } from './routes/catalog.js';
 import {
   listCampuses,
@@ -51,13 +59,15 @@ import {
   deleteExtraProduct,
   isExtraProduct,
   setProductReviewMode,
-  setProductStock,
-  getProductStock,
+  // Legacy numeric stock_count API (Phase 3.2 stage-1).
+  getProductStock as getProductStockCount,
+  setProductStock as setProductStockCount,
 } from './db/catalogRepo.js';
 import {
+  // New staff-toggle out-of-stock API (Phase 3.2 stage-2).
+  isProductOutOfStock,
   getProductStock,
   setProductStock,
-  isProductOutOfStock,
 } from './db/productStockRepo.js';
 import { adminOffers } from './db/offersStore.js';
 
@@ -745,6 +755,119 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  // -------- Order favorites (Phase 6.1 of UPGRADE-PLAN.md) --------
+  // Distinct from product `/favorites/:id` (heart icon). These are entire
+  // saved order shapes — "my usual" — that one-tap reorder into the cart.
+
+  const favoriteItemSchema = z.object({
+    productId: z.string().min(1),
+    productNameEn: z.string().min(1).max(120),
+    productNameAr: z.string().min(1).max(120),
+    imageUrl: z.string().max(2048),
+    quantity: z.number().int().positive().max(20),
+    options: z.record(z.string()).default({}),
+    unitPriceEgp: z.number().nonnegative(),
+  });
+
+  const createFavoriteSchema = z.object({
+    name: z.string().min(1).max(80),
+    items: z.array(favoriteItemSchema).min(1).max(20),
+    timeOfDay: z.enum(['morning', 'midday', 'evening']).nullable().optional(),
+    isDefault: z.boolean().optional(),
+  });
+
+  const updateFavoriteSchema = z.object({
+    name: z.string().min(1).max(80).optional(),
+    items: z.array(favoriteItemSchema).min(1).max(20).optional(),
+    timeOfDay: z.enum(['morning', 'midday', 'evening']).nullable().optional(),
+    isDefault: z.boolean().optional(),
+  });
+
+  app.get('/me/favorites/orders', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    res.json({ favorites: listOrderFavorites(u.id) });
+  });
+
+  app.post('/me/favorites/orders', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const input = createFavoriteSchema.parse(req.body);
+      const fav = createOrderFavorite(u.id, {
+        name: input.name,
+        items: input.items.map((i) => ({ ...i })),
+        timeOfDay: (input.timeOfDay ?? null) as TimeOfDay | null,
+        isDefault: input.isDefault ?? false,
+      });
+      res.status(201).json({ favorite: fav });
+    } catch (e) { next(e); }
+  });
+
+  app.get('/me/favorites/orders/:id', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const fav = getOrderFavorite(u.id, req.params.id as string);
+      if (!fav) {
+        const err = new Error('Favorite not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      res.json({ favorite: fav });
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/me/favorites/orders/:id', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const input = updateFavoriteSchema.parse(req.body);
+      const fav = updateOrderFavorite(u.id, req.params.id as string, {
+        ...input,
+        items: input.items?.map((i) => ({ ...i })),
+        timeOfDay: input.timeOfDay as TimeOfDay | null | undefined,
+      });
+      if (!fav) {
+        const err = new Error('Favorite not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      res.json({ favorite: fav });
+    } catch (e) { next(e); }
+  });
+
+  app.delete('/me/favorites/orders/:id', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const ok = deleteOrderFavorite(u.id, req.params.id as string);
+      if (!ok) {
+        const err = new Error('Favorite not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Reorder helper — returns the cart payload the client should
+   * populate. Stateless: the client adds items to its own cart;
+   * server-side cart isn't a thing in v1.5.
+   */
+  app.post('/me/favorites/orders/:id/reorder', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const fav = getOrderFavorite(u.id, req.params.id as string);
+      if (!fav) {
+        const err = new Error('Favorite not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      res.json({
+        items: fav.items,
+        favoriteId: fav.id,
+        favoriteName: fav.name,
+      });
+    } catch (e) { next(e); }
+  });
+
   app.post('/push/register', requireAuth, (req, res, next) => {
     try {
       const u = getRequestUser(req);
@@ -815,7 +938,7 @@ export function createApp(): express.Express {
           throw e;
         }
         // Stock count check — null means unlimited, 0 means out of stock
-        const currentStock = getProductStock(item.productId);
+        const currentStock = getProductStockCount(item.productId);
         if (currentStock !== null && currentStock < item.quantity) {
           const available = currentStock <= 0 ? 'out of stock' : `only ${currentStock} left`;
           const e = new Error(`${detail.product.name_en} is ${available}.`) as Error & { status?: number };
@@ -873,9 +996,9 @@ export function createApp(): express.Express {
 
       // Decrement tracked stock counts for each item ordered
       for (const item of enriched) {
-        const stock = getProductStock(item.productId);
+        const stock = getProductStockCount(item.productId);
         if (stock !== null) {
-          setProductStock(item.productId, Math.max(0, stock - item.quantity));
+          setProductStockCount(item.productId, Math.max(0, stock - item.quantity));
         }
       }
 
@@ -1535,7 +1658,7 @@ export function createApp(): express.Express {
       const input = z.object({
         stock_count: z.number().int().nonnegative().nullable(),
       }).parse(req.body);
-      setProductStock(req.params.id as string, input.stock_count);
+      setProductStockCount(req.params.id as string, input.stock_count);
       res.json({ id: req.params.id, stock_count: input.stock_count });
     } catch (e) { next(e); }
   });

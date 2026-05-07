@@ -256,4 +256,63 @@ export const api = {
       method: 'PATCH',
       body: { campus_id: campusId },
     }),
+
+  // -- Phase 6.1 order favorites (separate from product `addFavorite`) --
+  listOrderFavorites: () => apiFetch<{ favorites: OrderFavorite[] }>('/me/favorites/orders'),
+
+  createOrderFavorite: (input: {
+    name: string;
+    items: OrderFavoriteItem[];
+    timeOfDay?: 'morning' | 'midday' | 'evening' | null;
+    isDefault?: boolean;
+  }) =>
+    apiFetch<{ favorite: OrderFavorite }>('/me/favorites/orders', {
+      method: 'POST',
+      body: input,
+    }),
+
+  updateOrderFavorite: (
+    id: string,
+    input: Partial<{
+      name: string;
+      items: OrderFavoriteItem[];
+      timeOfDay: 'morning' | 'midday' | 'evening' | null;
+      isDefault: boolean;
+    }>,
+  ) =>
+    apiFetch<{ favorite: OrderFavorite }>(`/me/favorites/orders/${id}`, {
+      method: 'PATCH',
+      body: input,
+    }),
+
+  deleteOrderFavorite: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/me/favorites/orders/${id}`, { method: 'DELETE' }),
+
+  reorderOrderFavorite: (id: string) =>
+    apiFetch<{ items: OrderFavoriteItem[]; favoriteId: string; favoriteName: string }>(
+      `/me/favorites/orders/${id}/reorder`,
+      { method: 'POST' },
+    ),
 };
+
+// Phase 6.1 types — kept inline so callers can import alongside `api`.
+export interface OrderFavoriteItem {
+  productId: string;
+  productNameEn: string;
+  productNameAr: string;
+  imageUrl: string;
+  quantity: number;
+  options: Record<string, string>;
+  unitPriceEgp: number;
+}
+
+export interface OrderFavorite {
+  id: string;
+  userId: string;
+  name: string;
+  items: OrderFavoriteItem[];
+  timeOfDay: 'morning' | 'midday' | 'evening' | null;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
