@@ -1,23 +1,33 @@
-import Image from 'next/image';
+// import Image from 'next/image';
 
 interface LogoProps {
   /** When true, hides the wordmark — useful for the collapsed sidebar. */
   iconOnly?: boolean;
+  /** Reserved for when the logo image is restored. */
   size?: number;
 }
 
 /**
- * Cup & Co monogram + "Admin" wordmark. The monogram lives in
- * `public/brand/monogram.svg` and is shared with the customer web app.
+ * Cup & Co logo placeholder.
+ * The image + wordmark are commented out until brand assets are finalised.
+ * To restore: un-comment the Image block, un-comment the import above,
+ * and drop the finished artwork into `public/brand/`.
  */
-export function Logo({ iconOnly = false, size = 36 }: LogoProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function Logo({ iconOnly = false, size: _size = 36 }: LogoProps) {
+  // Renders nothing in the sidebar header until the logo is ready.
+  // The sidebar still reserves the correct height via its own h-16 container.
+  if (iconOnly) return null;
+  return <div aria-hidden />;
+
+  /*
   return (
     <div className="flex items-center gap-2.5">
       <Image
         src="/brand/monogram.svg"
         alt="Cup & Co"
-        width={size}
-        height={size}
+        width={_size}
+        height={_size}
         priority
         className="shrink-0"
       />
@@ -33,4 +43,5 @@ export function Logo({ iconOnly = false, size = 36 }: LogoProps) {
       )}
     </div>
   );
+  */
 }
