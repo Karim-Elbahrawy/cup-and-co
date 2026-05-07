@@ -8,6 +8,7 @@ import { ChevronLeft, CreditCard, Wallet, Banknote, Loader2 } from 'lucide-react
 import { api, ApiError } from '@/lib/api';
 import { useCart, cartSubtotal } from '@/lib/cart';
 import { useT } from '@/lib/i18n';
+import { track } from '@/lib/analytics';
 
 type Fulfillment = 'pickup' | 'delivery';
 type PaymentMethod = 'paymob_card' | 'paymob_wallet' | 'cash';
@@ -41,6 +42,35 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (items.length === 0 && !orderPlacedRef.current) router.replace('/cart');
   }, [items.length, router]);
+
+  // Phase 1.2: checkout_started — fire once per checkout-page mount when
+  // there's actually something to check out. Empty-cart visits redirect
+  // and shouldn't pollute the funnel.
+  const checkoutStartedRef = useRef(false);
+  useEffect(() => {
+    if (checkoutStartedRef.current) return;
+    if (items.length === 0) return;
+    checkoutStartedRef.current = true;
+    track({
+      name: 'checkout_started',
+      props: {
+        subtotal: cartSubtotal(items),
+        item_count: items.reduce((s, it) => s + it.quantity, 0),
+        currency: 'EGP',
+      },
+    });
+  }, [items]);
+
+  // Wraps setPayment so every method change is recorded.
+  function handlePaymentChange(method: PaymentMethod) {
+    setPayment(method);
+    const analyticsMethod =
+      method === 'paymob_card' ? 'card' : method === 'paymob_wallet' ? 'wallet' : 'cash';
+    track({
+      name: 'payment_method_selected',
+      props: { method: analyticsMethod },
+    });
+  }
 
   const subtotal = cartSubtotal(items);
   const pointsDiscount = Math.min(Math.floor(redeemPoints / 100) * 5, subtotal);
@@ -138,19 +168,19 @@ export default function CheckoutPage() {
               icon={<CreditCard className="h-5 w-5" />}
               label={t('checkout.payWithCard')}
               selected={payment === 'paymob_card'}
-              onClick={() => setPayment('paymob_card')}
+              onClick={() => handlePaymentChange('paymob_card')}
             />
             <PaymentCard
               icon={<Wallet className="h-5 w-5" />}
               label={t('checkout.payWithWallet')}
               selected={payment === 'paymob_wallet'}
-              onClick={() => setPayment('paymob_wallet')}
+              onClick={() => handlePaymentChange('paymob_wallet')}
             />
             <PaymentCard
               icon={<Banknote className="h-5 w-5" />}
               label={t('checkout.payWithCash')}
               selected={payment === 'cash'}
-              onClick={() => setPayment('cash')}
+              onClick={() => handlePaymentChange('cash')}
             />
           </div>
         </Section>
