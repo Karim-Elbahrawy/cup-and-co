@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { track } from './analytics';
 
 export interface CartItem {
   productId: string;
@@ -42,6 +43,17 @@ export const useCart = create<CartState>()(
         set((state) => {
           const qty = item.quantity ?? 1;
           const key = lineKey(item);
+          // Analytics: add_to_cart (Phase 1.2 of UPGRADE-PLAN.md). Fired
+          // regardless of whether this merges with an existing line.
+          track({
+            name: 'add_to_cart',
+            props: {
+              product_id: item.productId,
+              quantity: qty,
+              unit_price: item.unitPriceEgp,
+              currency: 'EGP',
+            },
+          });
           const existing = state.items.find((it) => lineKey(it) === key);
           if (existing) {
             return {
