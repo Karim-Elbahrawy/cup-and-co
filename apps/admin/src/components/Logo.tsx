@@ -8,21 +8,18 @@ interface LogoProps {
 }
 
 /**
- * Cup & Co logo placeholder.
- * The image + wordmark are commented out until brand assets are finalised.
+ * Cup & Co sidebar wordmark.
+ * The monogram image is commented out until brand assets are finalised.
  * To restore: un-comment the Image block, un-comment the import above,
- * and drop the finished artwork into `public/brand/`.
+ * and drop the finished artwork into `public/brand/monogram.svg`.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Logo({ iconOnly = false, size: _size = 36 }: LogoProps) {
-  // Renders nothing in the sidebar header until the logo is ready.
-  // The sidebar still reserves the correct height via its own h-16 container.
   if (iconOnly) return null;
-  return <div aria-hidden />;
 
-  /*
   return (
     <div className="flex items-center gap-2.5">
+      {/*
       <Image
         src="/brand/monogram.svg"
         alt="Cup & Co"
@@ -31,17 +28,15 @@ export function Logo({ iconOnly = false, size: _size = 36 }: LogoProps) {
         priority
         className="shrink-0"
       />
-      {!iconOnly && (
-        <div className="flex flex-col leading-tight">
-          <span className="font-heading text-base font-bold tracking-tight text-cup-brown-900">
-            Cup &amp; Co
-          </span>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cup-orange-600">
-            Admin
-          </span>
-        </div>
-      )}
+      */}
+      <div className="flex flex-col leading-tight">
+        <span className="font-heading text-base font-bold tracking-tight text-cup-brown-900">
+          Cup &amp; Co
+        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cup-orange-600">
+          Admin
+        </span>
+      </div>
     </div>
   );
-  */
 }
