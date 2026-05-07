@@ -8,6 +8,7 @@ import { ProductCard } from '@/components/ProductCard';
 import { CategoryChip } from '@/components/CategoryChip';
 import { DailyOrderBar } from '@/components/DailyOrderBar';
 import { OffersCarousel } from '@/components/OffersCarousel';
+import { StreakWidget } from '@/components/StreakWidget';
 import { PageTransition } from '@/components/PageTransition';
 import { SkeletonProductGrid } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
@@ -130,6 +131,9 @@ export default function HomePage() {
           onSearchChange={setSearch}
           searchPlaceholder={t('common.search')}
         />
+
+        {/* Phase 6.2 streak widget — renders nothing for current_streak === 0 */}
+        <StreakWidget />
 
         {/* Hero promo */}
         <PromoCard

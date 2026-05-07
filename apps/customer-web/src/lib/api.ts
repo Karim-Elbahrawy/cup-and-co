@@ -293,6 +293,9 @@ export const api = {
       `/me/favorites/orders/${id}/reorder`,
       { method: 'POST' },
     ),
+
+  // -- Phase 6.2 streaks --
+  myStreak: () => apiFetch<{ streak: StreakState }>('/me/streak'),
 };
 
 // Phase 6.1 types — kept inline so callers can import alongside `api`.
@@ -313,6 +316,18 @@ export interface OrderFavorite {
   items: OrderFavoriteItem[];
   timeOfDay: 'morning' | 'midday' | 'evening' | null;
   isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Phase 6.2 streak state.
+export interface StreakState {
+  currentStreak: number;
+  longestStreak: number;
+  lastOrderDate: string | null;
+  freezesUsedThisWeek: number;
+  freezesResetAt: string;
+  lastBonusStreak: number;
   createdAt: string;
   updatedAt: string;
 }

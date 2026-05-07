@@ -44,6 +44,7 @@ import {
   deleteOrderFavorite,
   type TimeOfDay,
 } from './db/orderFavoritesRepo.js';
+import { getStreakState, recordOrderForStreak } from './db/streakRepo.js';
 import { catalogRouter } from './routes/catalog.js';
 import {
   listCampuses,
@@ -475,6 +476,13 @@ export function createApp(): express.Express {
       user: { ...u, ...profile },
       points: userPoints.get(u.id) ?? 0,
     });
+  });
+
+  // Phase 6.2 — streak read endpoint. Public shape so the home widget
+  // can render with one fetch.
+  app.get('/me/streak', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    res.json({ streak: getStreakState(u.id) });
   });
 
   app.patch('/me', requireAuth, (req, res, next) => {
@@ -1240,6 +1248,15 @@ export function createApp(): express.Express {
           });
           userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
           recordLoyaltyEvent(order.userId, 'online_paid', earned, order.id);
+          // Phase 6.2 — record the paid order against the user's streak.
+          // Day-7 multiples grant a +50 pt bonus.
+          {
+            const streakResult = recordOrderForStreak(order.userId);
+            if (streakResult.bonusEarned) {
+              userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + 50);
+              recordLoyaltyEvent(order.userId, 'streak_bonus', 50, order.id);
+            }
+          }
           if (order.status === 'received') {
             applyStatusTransition(order, 'accepted', 'auto-accept on payment');
             await notifyOrderStatus(order, 'accepted');
@@ -1455,6 +1472,12 @@ export function createApp(): express.Express {
         const earned = calculateEarnedPoints({ amountEgp: order.totalEgp, source: 'cash_in_app' });
         userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
         recordLoyaltyEvent(order.userId, 'cash_in_app', earned, order.id);
+        // Phase 6.2 — streak update on cash completion.
+        const streakResult = recordOrderForStreak(order.userId);
+        if (streakResult.bonusEarned) {
+          userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + 50);
+          recordLoyaltyEvent(order.userId, 'streak_bonus', 50, order.id);
+        }
       }
       // On cancel/refund: refund redeemed points and reverse any awarded points
       if (status === 'cancelled' || status === 'refunded') {
