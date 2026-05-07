@@ -46,8 +46,19 @@ function VerifyPageInner() {
       setSubmitting(true);
       setError(null);
       try {
-        const { token, user } = await api.verifyOtp(phone, next);
+        // Phase 7.1: forward referral code stored by /r/<code> landing
+        let referralCode: string | undefined;
+        try {
+          referralCode = localStorage.getItem('cup-co-referral-code') ?? undefined;
+        } catch {
+          // localStorage blocked
+        }
+        const { token, user } = await api.verifyOtp(phone, next, referralCode);
         setSession(token, user);
+        // Clean up so a re-login doesn't double-credit
+        if (referralCode) {
+          try { localStorage.removeItem('cup-co-referral-code'); } catch { /* ignore */ }
+        }
         router.replace('/role');
       } catch (err) {
         const message = err instanceof ApiError ? err.message : t('common.error');
