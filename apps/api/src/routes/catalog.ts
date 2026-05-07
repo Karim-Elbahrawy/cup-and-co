@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getCatalog, getProductDetail } from '../db/catalogRepo.js';
+import { getProductStock } from '../db/productStockRepo.js';
 import { adminOffers } from '../db/offersStore.js';
 
 export function catalogRouter(): Router {
@@ -25,6 +26,13 @@ export function catalogRouter(): Router {
         );
       }
 
+      // Phase 3.2: merge stock state onto each product so the customer-web
+      // catalog can render an out-of-stock pill without a second roundtrip.
+      catalog.products = catalog.products.map((p) => {
+        const stock = getProductStock(p.id);
+        return { ...p, is_out_of_stock: stock.is_out_of_stock, out_of_stock_until: stock.out_of_stock_until };
+      });
+
       res.json(catalog);
     } catch (e) { next(e); }
   });
@@ -37,6 +45,13 @@ export function catalogRouter(): Router {
         res.status(404).json({ error: 'Product not found.' });
         return;
       }
+      // Phase 3.2: surface stock state.
+      const stock = getProductStock(detail.product.id);
+      detail.product = {
+        ...detail.product,
+        is_out_of_stock: stock.is_out_of_stock,
+        out_of_stock_until: stock.out_of_stock_until,
+      };
       res.json(detail);
     } catch (e) { next(e); }
   });

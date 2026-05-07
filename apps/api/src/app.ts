@@ -54,6 +54,11 @@ import {
   setProductStock,
   getProductStock,
 } from './db/catalogRepo.js';
+import {
+  getProductStock,
+  setProductStock,
+  isProductOutOfStock,
+} from './db/productStockRepo.js';
 import { adminOffers } from './db/offersStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
@@ -809,11 +814,20 @@ export function createApp(): express.Express {
           e.status = 409;
           throw e;
         }
-        // Stock check — null means unlimited, 0 means out of stock
+        // Stock count check — null means unlimited, 0 means out of stock
         const currentStock = getProductStock(item.productId);
         if (currentStock !== null && currentStock < item.quantity) {
           const available = currentStock <= 0 ? 'out of stock' : `only ${currentStock} left`;
           const e = new Error(`${detail.product.name_en} is ${available}.`) as Error & { status?: number };
+          e.status = 409;
+          throw e;
+        }
+        // Phase 3.2: also reject if barista flipped the staff toggle. Catches
+        // the race where a customer added to cart then the toggle moved
+        // before checkout. The customer-web cart guard hides add-to-cart
+        // proactively.
+        if (isProductOutOfStock(item.productId)) {
+          const e = new Error(`Out of stock: ${detail.product.name_en}`) as Error & { status?: number };
           e.status = 409;
           throw e;
         }
@@ -1419,6 +1433,30 @@ export function createApp(): express.Express {
       productAvailability.set(req.params.id as string, input.available);
       res.json({ id: req.params.id, available: input.available });
     } catch (e) { next(e); }
+  });
+
+  // Phase 3.2: stock toggle (separate from availability — staff use this
+  // for "ran out of beans" while leaving the product on the menu for
+  // tomorrow). Optional `until` auto-clears at that timestamp.
+  app.patch('/admin/menu/products/:id/stock', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
+      const input = z
+        .object({
+          is_out_of_stock: z.boolean(),
+          out_of_stock_until: z.string().datetime().nullable().optional(),
+        })
+        .parse(req.body);
+      const next = setProductStock(req.params.id as string, {
+        is_out_of_stock: input.is_out_of_stock,
+        out_of_stock_until: input.out_of_stock_until ?? null,
+      });
+      res.json({ id: req.params.id, ...next });
+    } catch (e) { next(e); }
+  });
+
+  app.get('/admin/menu/products/:id/stock', requireAuth, requireAdmin, (req, res) => {
+    res.json({ id: req.params.id, ...getProductStock(req.params.id as string) });
   });
 
   app.post('/admin/menu/products', requireAuth, requireAdmin, (req, res, next) => {

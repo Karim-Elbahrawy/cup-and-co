@@ -67,6 +67,14 @@ export interface Product {
    * null, falls back to `image_url`.
    */
   image_id?: string | null;
+  /**
+   * Phase 3.2 — staff-managed out-of-stock toggle that complements
+   * `stock_count`. `is_out_of_stock` overrides display regardless of
+   * count. `out_of_stock_until` auto-clears the flag at that timestamp
+   * via a cron job.
+   */
+  is_out_of_stock?: boolean;
+  out_of_stock_until?: string | null;
 }
 
 export interface ProductOption {

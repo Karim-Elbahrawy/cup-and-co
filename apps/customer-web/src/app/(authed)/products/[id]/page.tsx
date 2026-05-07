@@ -543,6 +543,16 @@ export default function ProductDetailPage({
         className="fixed inset-x-0 bottom-0 z-50 border-t border-cup-stroke bg-white/95 px-6 py-4 backdrop-blur"
         style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       >
+        {/* Phase 3.2: out-of-stock notice replaces the add-to-cart CTA */}
+        {product.is_out_of_stock ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mx-auto flex w-full max-w-3xl items-center justify-center rounded-pill bg-cup-stroke px-6 py-4 font-heading text-base font-semibold text-cup-muted"
+          >
+            {language === 'ar' ? 'هذا المنتج غير متوفر حاليًا' : 'Out of stock — check back soon'}
+          </div>
+        ) : (
         <button
           type="button"
           onClick={handleAddToCart}
@@ -568,6 +578,7 @@ export default function ProductDetailPage({
             </AnimatePresence>
           </span>
         </button>
+        )}
       </div>
     </main>
   );
