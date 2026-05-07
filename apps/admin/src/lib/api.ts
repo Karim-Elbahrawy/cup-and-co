@@ -267,8 +267,10 @@ export const adminApi = {
         body: { available },
       },
     ),
-  // Phase 3.2 — stock toggle (separate from availability).
-  setProductStock: (
+  // Phase 3.2 — staff out-of-stock toggle (separate from availability and
+  // from the numeric `setProductStock` count below). The two endpoints
+  // share the URL but accept different payloads server-side.
+  setProductOutOfStock: (
     productId: string,
     isOutOfStock: boolean,
     outOfStockUntil?: string | null,

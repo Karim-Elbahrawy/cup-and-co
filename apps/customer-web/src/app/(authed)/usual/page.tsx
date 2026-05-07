@@ -4,10 +4,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ChevronLeft, Coffee, History, RotateCcw, ShoppingBag, Sparkles } from 'lucide-react';
+import { ArrowRight, ChevronLeft, Coffee, History, RotateCcw, ShoppingBag, Sparkles, Star, Trash2, Bookmark } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PageTransition } from '@/components/PageTransition';
-import { api } from '@/lib/api';
+import { api, type OrderFavorite, type OrderFavoriteItem } from '@/lib/api';
 import { useCart, type CartItem } from '@/lib/cart';
 import { useT, formatPrice } from '@/lib/i18n';
 import type { ApiOrder, ApiOrderItem } from '@/lib/types';
@@ -51,6 +51,13 @@ export default function UsualPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
+  // Phase 6.1 — saved favorites (server-side)
+  const [savedFavorites, setSavedFavorites] = useState<OrderFavorite[] | null>(null);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
+  const [pendingSaveItems, setPendingSaveItems] = useState<OrderFavoriteItem[] | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     api
@@ -60,6 +67,14 @@ export default function UsualPage() {
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
+      });
+    api
+      .listOrderFavorites()
+      .then((res) => {
+        if (!cancelled) setSavedFavorites(res.favorites);
+      })
+      .catch(() => {
+        if (!cancelled) setSavedFavorites([]);
       });
 
     return () => {
@@ -188,6 +203,74 @@ export default function UsualPage() {
     }, 220);
   }
 
+  // Phase 6.1 — open the save dialog with items pulled from the
+  // detected usual order. Defaults the name to the first item's name.
+  function openSaveDialog(items: OrderFavoriteItem[]) {
+    setPendingSaveItems(items);
+    const firstName = items[0]?.[language === 'ar' ? 'productNameAr' : 'productNameEn'] ?? '';
+    setSaveName(firstName);
+    setSaveAsDefault(false);
+    setSaveOpen(true);
+  }
+
+  async function confirmSave() {
+    if (!pendingSaveItems || saveName.trim().length === 0) return;
+    try {
+      const res = await api.createOrderFavorite({
+        name: saveName.trim(),
+        items: pendingSaveItems,
+        isDefault: saveAsDefault,
+      });
+      setSavedFavorites((prev) => (prev ? [res.favorite, ...prev] : [res.favorite]));
+      setSaveOpen(false);
+      setPendingSaveItems(null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  async function reorderFavorite(fav: OrderFavorite) {
+    setBusyKey(`fav:${fav.id}`);
+    for (const item of fav.items) {
+      addToCart({
+        productId: item.productId,
+        productNameEn: item.productNameEn,
+        productNameAr: item.productNameAr,
+        imageUrl: item.imageUrl,
+        options: item.options,
+        unitPriceEgp: item.unitPriceEgp,
+        quantity: item.quantity,
+      });
+    }
+    setTimeout(() => {
+      setBusyKey(null);
+      router.push('/cart');
+    }, 220);
+  }
+
+  async function deleteFavorite(fav: OrderFavorite) {
+    if (!confirm(`Delete "${fav.name}"?`)) return;
+    try {
+      await api.deleteOrderFavorite(fav.id);
+      setSavedFavorites((prev) => prev?.filter((f) => f.id !== fav.id) ?? null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  // Convert detected ApiOrder items into the OrderFavoriteItem shape.
+  function itemsForSave(order: ApiOrder): OrderFavoriteItem[] {
+    return order.items.map((it) => ({
+      productId: it.productId,
+      productNameEn: it.productNameEn,
+      productNameAr: it.productNameAr,
+      imageUrl: it.imageUrl,
+      quantity: it.quantity,
+      options: it.options,
+      unitPriceEgp: it.unitPriceEgp,
+    }));
+  }
+
   return (
     <PageTransition>
       <main className="min-h-screen bg-cup-paper pb-24">
@@ -262,9 +345,137 @@ export default function UsualPage() {
                       {busyKey === `order:${ranked.usualOrder.id}` ? copy.added : copy.reorderAll}
                       <ArrowRight className="h-4 w-4" />
                     </button>
+                    {/* Phase 6.1 — Save as favorite */}
+                    <button
+                      type="button"
+                      onClick={() => openSaveDialog(itemsForSave(ranked.usualOrder!))}
+                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/40 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/10"
+                    >
+                      <Bookmark className="h-3.5 w-3.5" />
+                      {t('favorites.saveAsFavorite')}
+                    </button>
                   </div>
                 </div>
               </section>
+
+              {/* Phase 6.1 — Saved favorites section */}
+              {savedFavorites !== null && savedFavorites.length > 0 && (
+                <section>
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <h2 className="font-heading text-xl font-bold text-cup-brown-900">
+                        {t('favorites.sectionTitle')}
+                      </h2>
+                      <p className="mt-1 text-sm text-cup-muted">{t('favorites.sectionSubtitle')}</p>
+                    </div>
+                  </div>
+                  <ul className="mt-4 grid gap-3 md:grid-cols-2">
+                    {savedFavorites.map((fav) => (
+                      <li
+                        key={fav.id}
+                        className="rounded-card border border-cup-stroke bg-white p-4 shadow-subtle"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="truncate font-heading text-base font-bold text-cup-brown-900">
+                                {fav.name}
+                              </p>
+                              {fav.isDefault && (
+                                <span className="inline-flex items-center gap-1 rounded-pill bg-cup-cream-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cup-orange-700">
+                                  <Star className="h-3 w-3 fill-current" />
+                                  {t('favorites.isDefault')}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-xs text-cup-muted">
+                              {fav.items.length} {copy.items}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => deleteFavorite(fav)}
+                            aria-label={t('favorites.delete')}
+                            className="grid h-8 w-8 place-items-center rounded-full border border-cup-stroke text-cup-muted transition hover:border-cup-error hover:text-cup-error"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {fav.items.slice(0, 4).map((it, idx) => (
+                            <span
+                              key={`${fav.id}-${idx}`}
+                              className="rounded-pill bg-cup-paper px-2.5 py-1 text-[11px] font-medium text-cup-cocoa"
+                            >
+                              {language === 'ar' ? it.productNameAr : it.productNameEn}
+                              {it.quantity > 1 ? ` ×${it.quantity}` : ''}
+                            </span>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => reorderFavorite(fav)}
+                          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-subtle transition active:scale-[0.98]"
+                        >
+                          {busyKey === `fav:${fav.id}` ? t('favorites.saved') : t('favorites.reorder')}
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {/* Phase 6.1 — Save dialog (inline, no portal) */}
+              {saveOpen && (
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={t('favorites.saveAsFavorite')}
+                  className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-6 pt-12 backdrop-blur-sm sm:items-center"
+                >
+                  <div className="w-full max-w-md rounded-card bg-white p-5 shadow-elevated">
+                    <h3 className="font-heading text-lg font-bold text-cup-brown-900">
+                      {t('favorites.saveAsFavorite')}
+                    </h3>
+                    <input
+                      type="text"
+                      value={saveName}
+                      onChange={(e) => setSaveName(e.target.value)}
+                      placeholder={t('favorites.namePlaceholder')}
+                      maxLength={80}
+                      autoFocus
+                      className="mt-3 w-full rounded-2xl border border-cup-stroke bg-white px-3 py-2.5 text-sm focus:border-cup-orange-600 focus:outline-none"
+                    />
+                    <label className="mt-3 flex items-start gap-2 text-sm text-cup-cocoa">
+                      <input
+                        type="checkbox"
+                        checked={saveAsDefault}
+                        onChange={(e) => setSaveAsDefault(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-cup-stroke text-cup-orange-600 focus:ring-cup-orange-600"
+                      />
+                      <span>{t('favorites.saveDefaultPrompt')}</span>
+                    </label>
+                    <div className="mt-5 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSaveOpen(false)}
+                        className="flex-1 rounded-pill border border-cup-stroke px-4 py-2 text-sm font-semibold text-cup-cocoa"
+                      >
+                        {t('favorites.cancel')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={confirmSave}
+                        disabled={saveName.trim().length === 0}
+                        className="flex-1 rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        {t('favorites.saveButton')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <section>
                 <div className="flex items-end justify-between gap-3">

@@ -238,4 +238,24 @@ export interface Translations {
     switchNotice: string;
     noneAvailable: string;
   };
+  favorites: {
+    sectionTitle: string;
+    sectionSubtitle: string;
+    saveAsFavorite: string;
+    saveDefaultPrompt: string;
+    namePlaceholder: string;
+    saveButton: string;
+    cancel: string;
+    reorder: string;
+    delete: string;
+    setDefault: string;
+    isDefault: string;
+    timeMorning: string;
+    timeMidday: string;
+    timeEvening: string;
+    anyTime: string;
+    emptyTitle: string;
+    emptyBody: string;
+    saved: string;
+  };
 }
