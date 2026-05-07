@@ -201,4 +201,34 @@ export interface Translations {
     about: string;
     iOSOnly: string;
   };
+  privacy: {
+    title: string;
+    intro: string;
+    exportSection: string;
+    exportDescription: string;
+    exportButton: string;
+    exportPreparing: string;
+    exportReady: string;
+    exportDownload: string;
+    exportRateLimited: string;
+    deleteSection: string;
+    deleteDescription: string;
+    deleteButton: string;
+    deleteConfirmTitle: string;
+    deleteConfirmBody: string;
+    deleteConfirmGrace: string;
+    deleteSendCode: string;
+    deleteCodeLabel: string;
+    deleteCodePlaceholder: string;
+    deleteFinalConfirm: string;
+    deleteCancelButton: string;
+    deletePendingTitle: string;
+    deletePendingBody: string;
+    deletePendingGraceUntil: string;
+    deleteUndoButton: string;
+    deleteUndoneTitle: string;
+    deleteUndoneBody: string;
+    error: string;
+    invalidCode: string;
+  };
 }
