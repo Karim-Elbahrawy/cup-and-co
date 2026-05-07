@@ -65,7 +65,10 @@ export default function MenuPage() {
         const modes: Record<string, ReviewMode> = {};
         const stocks: Record<string, number | null> = {};
         for (const p of data.products) {
-          modes[p.id] = p.review_mode;
+          // Guard: DB column may be absent if migration 0004 hasn't run yet
+          modes[p.id] = (p.review_mode != null && p.review_mode in REVIEW_MODE_META)
+            ? p.review_mode
+            : 'full';
           stocks[p.id] = p.stock_count;
         }
         setReviewModeMap(modes);
@@ -106,7 +109,8 @@ export default function MenuPage() {
 
   async function cycleReviewMode(product: Product) {
     if (!canManage) return;
-    const current: ReviewMode = (reviewModeMap[product.id] ?? product.review_mode) ?? 'full';
+    const rawCurrent = reviewModeMap[product.id] ?? product.review_mode;
+    const current: ReviewMode = (rawCurrent != null && rawCurrent in REVIEW_MODE_META ? rawCurrent : 'full');
     const next = nextReviewMode(current);
     setReviewModeMap((m) => ({ ...m, [product.id]: next }));
     setReviewPendingId(product.id);
@@ -194,7 +198,8 @@ export default function MenuPage() {
                 </h2>
                 <ul className="mt-4 space-y-0 divide-y divide-cup-stroke" role="list">
                   {grouped[category.id]?.map((product) => {
-                    const reviewMode: ReviewMode = (reviewModeMap[product.id] ?? product.review_mode) ?? 'full';
+                    const rawMode = reviewModeMap[product.id] ?? product.review_mode;
+                    const reviewMode: ReviewMode = (rawMode != null && rawMode in REVIEW_MODE_META ? rawMode : 'full');
                     const stockVal = stockMap[product.id] ?? product.stock_count;
                     const isOutOfStock = stockVal !== null && stockVal <= 0;
 
