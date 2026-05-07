@@ -308,6 +308,9 @@ export const api = {
       pointsToNext: number | null;
       history: TierHistoryEntry[];
     }>('/me/tier'),
+
+  // -- Phase 6.4 smart suggestion --
+  mySuggestion: () => apiFetch<{ suggestion: Suggestion | null }>('/me/suggestion'),
 };
 
 // Phase 6.1 types — kept inline so callers can import alongside `api`.
@@ -363,4 +366,16 @@ export interface TierHistoryEntry {
   trailing12mPoints: number;
   reason: string;
   changedAt: string;
+}
+
+// Phase 6.4 smart suggestion shape.
+export interface Suggestion {
+  productId: string;
+  productNameEn: string;
+  productNameAr: string;
+  imageUrl: string;
+  basePriceEgp: number;
+  bucket: 'morning' | 'midday' | 'evening';
+  season: 'summer' | 'winter';
+  reason: 'history' | 'season' | 'bestseller';
 }

@@ -54,6 +54,8 @@ import {
   TIER_THRESHOLDS_OUT,
   type LoyaltyTier,
 } from './services/tierEngine.js';
+import { suggestForUser } from './services/suggestionEngine.js';
+import { getCatalog } from './db/catalogRepo.js';
 import { catalogRouter } from './routes/catalog.js';
 import {
   listCampuses,
@@ -538,6 +540,40 @@ export function createApp(): express.Express {
   app.get('/me/streak', requireAuth, (req, res) => {
     const u = getRequestUser(req);
     res.json({ streak: getStreakState(u.id) });
+  });
+
+  // Phase 6.4 — smart suggestion for the home card.
+  app.get('/me/suggestion', requireAuth, async (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      // Build flat history from this user's orders.
+      const history: Array<{ productId: string; createdAt: string }> = [];
+      for (const o of orders.values()) {
+        if (o.userId !== u.id) continue;
+        for (const it of o.items) {
+          history.push({ productId: it.productId, createdAt: o.createdAt });
+        }
+      }
+      const catalog = await getCatalog();
+      const suggestion = suggestForUser({
+        history,
+        products: catalog.products.map((p) => ({
+          id: p.id,
+          name_en: p.name_en,
+          name_ar: p.name_ar,
+          image_url: p.image_url,
+          base_price_egp: p.base_price_egp,
+          is_available: p.is_available,
+          is_out_of_stock: false,
+          category_id: p.category_id,
+        })),
+      });
+      if (!suggestion) {
+        res.json({ suggestion: null });
+        return;
+      }
+      res.json({ suggestion });
+    } catch (e) { next(e); }
   });
 
   app.patch('/me', requireAuth, (req, res, next) => {

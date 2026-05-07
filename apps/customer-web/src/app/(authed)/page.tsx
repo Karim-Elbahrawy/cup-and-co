@@ -9,6 +9,7 @@ import { CategoryChip } from '@/components/CategoryChip';
 import { DailyOrderBar } from '@/components/DailyOrderBar';
 import { OffersCarousel } from '@/components/OffersCarousel';
 import { StreakWidget } from '@/components/StreakWidget';
+import { SuggestionCard } from '@/components/SuggestionCard';
 import { PageTransition } from '@/components/PageTransition';
 import { SkeletonProductGrid } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
@@ -124,6 +125,9 @@ export default function HomePage() {
             </div>
           </div>
         </header>
+
+        {/* Phase 6.4 smart suggestion — silently hides when none / dismissed */}
+        <SuggestionCard />
 
         {/* Daily habit / quick-order bar */}
         <DailyOrderBar
