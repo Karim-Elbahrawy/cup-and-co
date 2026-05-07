@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import type { UserRole, VerificationStatus } from '@cup-and-co/types';
 import { config } from '../config.js';
+import { identify as identifyAnalytics } from '../services/analytics.js';
 
 export interface AuthUser {
   id: string;
@@ -35,6 +36,9 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       const token = auth.slice(7);
       const decoded = jwt.verify(token, config.jwt.secret) as AuthUser;
       req.user = decoded;
+      // Phase 1.2: identify with role only — no PII. Future phases will add
+      // tier and campus_id once those are in the JWT.
+      identifyAnalytics(decoded.id, { role: decoded.role });
       return next();
     }
 
@@ -45,6 +49,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       const phone = req.header('x-user-phone') ?? '+201000000001';
       if (id) {
         req.user = { id, phone, role, verificationStatus, phoneVerified: true };
+        identifyAnalytics(id, { role });
         return next();
       }
     }

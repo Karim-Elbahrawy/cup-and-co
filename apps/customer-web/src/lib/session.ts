@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { SessionUser } from './types';
+import { identify, resetAnalytics } from './analytics';
 
 export type Language = 'en' | 'ar';
 
@@ -35,10 +36,21 @@ export const useSession = create<SessionState>()(
       user: null,
       language: 'en',
       hydrated: false,
-      setSession: (token, user) => set({ token, user }),
+      setSession: (token, user) => {
+        // Phase 1.2 analytics: identify on login. Role-only attribute; tier
+        // and campus_id will be added when those phases land.
+        identify(user.id, { role: user.role });
+        set({ token, user });
+      },
       setUser: (user) => set({ user }),
       setRole: (role) =>
-        set((s) => (s.user ? { user: { ...s.user, role } } : s)),
+        set((s) => {
+          if (s.user) {
+            identify(s.user.id, { role });
+            return { user: { ...s.user, role } };
+          }
+          return s;
+        }),
       setLanguage: (language) => set({ language }),
       setFullName: (fullName) =>
         set((s) => (s.user ? { user: { ...s.user, fullName } } : s)),
@@ -46,7 +58,11 @@ export const useSession = create<SessionState>()(
         set((s) => (s.user ? { user: { ...s.user, avatarId } } : s)),
       setGender: (gender) =>
         set((s) => (s.user ? { user: { ...s.user, gender } } : s)),
-      logout: () => set({ token: null, user: null }),
+      logout: () => {
+        // Reset PostHog so subsequent anonymous activity isn't attributed.
+        resetAnalytics();
+        set({ token: null, user: null });
+      },
       setHydrated: () => set({ hydrated: true }),
     }),
     {

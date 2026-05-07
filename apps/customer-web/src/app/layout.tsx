@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Sora, Cairo } from 'next/font/google';
 import './globals.css';
 import { HtmlLangSync } from '@/components/HtmlLangSync';
+import { AnalyticsProvider } from '@/components/AnalyticsProvider';
 
 const sora = Sora({ subsets: ['latin'], variable: '--font-heading' });
 const inter = Inter({ subsets: ['latin'], variable: '--font-body' });
@@ -52,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body>
         <HtmlLangSync />
-        {children}
+        <AnalyticsProvider>{children}</AnalyticsProvider>
       </body>
     </html>
   );

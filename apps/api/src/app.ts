@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { errorHandler } from './http/errors.js';
+import { track as trackAnalytics } from './services/analytics.js';
 import { config } from './config.js';
 import { requireAuth, requireAdmin, getRequestUser, getAdminRole, signSession } from './http/auth.js';
 import { assertAdminPermission } from './services/permissions.js';
@@ -146,6 +147,17 @@ const submitScoreSchema = z.object({
 
 // -------------- Helpers --------------
 
+// Maps internal loyalty source strings → PostHog `points_earned.source` enum.
+// Sources not in this map (refund, redeemed) fire a different analytics event
+// or none at all. Phase 1.2 of UPGRADE-PLAN.md.
+const LOYALTY_SOURCE_TO_ANALYTICS: Record<string, 'order' | 'scan' | 'game' | 'referral'> = {
+  online_paid: 'order',
+  cash_in_app: 'order',
+  qr_receipt: 'scan',
+  game_reward: 'game',
+  referral: 'referral',
+};
+
 function recordLoyaltyEvent(userId: string, source: string, points: number, orderId: string | null = null) {
   const balance = userPoints.get(userId) ?? 0;
   const history = loyaltyHistory.get(userId) ?? [];
@@ -158,6 +170,20 @@ function recordLoyaltyEvent(userId: string, source: string, points: number, orde
     createdAt: new Date().toISOString(),
   });
   loyaltyHistory.set(userId, history);
+
+  // Mirror to PostHog. Earn vs redeem differentiated by sign + known source.
+  const analyticsSource = LOYALTY_SOURCE_TO_ANALYTICS[source];
+  if (points > 0 && analyticsSource) {
+    trackAnalytics(userId, {
+      name: 'points_earned',
+      props: { source: analyticsSource, amount: points, new_balance: balance },
+    });
+  } else if (source === 'redeemed' && points < 0) {
+    trackAnalytics(userId, {
+      name: 'points_redeemed',
+      props: { discount_amount: Math.abs(points), points_spent: Math.abs(points), new_balance: balance },
+    });
+  }
 }
 
 function emitOrderUpdate(order: Order) {
@@ -535,6 +561,23 @@ export function createApp(): express.Express {
       }
 
       emitOrderUpdate(order);
+
+      // Analytics: order_placed (Phase 1.2 of UPGRADE-PLAN.md). Fired after
+      // emitOrderUpdate so the customer-facing SSE update isn't blocked by a
+      // potential network call to PostHog (which is queued anyway).
+      trackAnalytics(user.id, {
+        name: 'order_placed',
+        props: {
+          order_id: order.id,
+          total: order.totalEgp,
+          payment_method: order.paymentMethod,
+          fulfillment: order.fulfillmentType,
+          item_count: order.items.length,
+          points_earned: order.paymentMethod === 'cash' ? 0 : pointsAwarded, // cash points credit later on completion
+          currency: 'EGP',
+        },
+      });
+
       const responseBody = { order, timeline: trackingTimelineFor(order) };
       if (idempotencyKey) {
         orderIdempotency.set(`${user.id}::${idempotencyKey}`, {
@@ -968,6 +1011,22 @@ export function createApp(): express.Express {
         await notifyOrderStatus(order, status as Parameters<typeof statusNotificationCopy>[0]['status']);
       }
       emitOrderUpdate(order);
+
+      // Analytics: order_status_changed + order_completed (Phase 1.2).
+      const previousStatus = order.statusHistory[order.statusHistory.length - 2]?.status ?? 'received';
+      trackAnalytics(order.userId, {
+        name: 'order_status_changed',
+        props: { order_id: order.id, from_status: previousStatus, to_status: status },
+      });
+      if (status === 'completed') {
+        const created = new Date(order.createdAt).getTime();
+        const completed = Date.now();
+        const minutes = Math.max(0, Math.round((completed - created) / 60_000));
+        trackAnalytics(order.userId, {
+          name: 'order_completed',
+          props: { order_id: order.id, time_to_completion_min: minutes },
+        });
+      }
       res.json({ order, timeline: trackingTimelineFor(order) });
     } catch (e) { next(e); }
   });
