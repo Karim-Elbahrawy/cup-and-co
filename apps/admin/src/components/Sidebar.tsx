@@ -13,6 +13,7 @@ import {
   Users,
   Tag,
   BarChart3,
+  ChefHat,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 import { Logo } from './Logo';
@@ -32,6 +33,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: 'Today', href: '/', icon: LayoutDashboard },
   { label: 'Orders', href: '/orders', icon: ListOrdered },
+  { label: 'KDS', href: '/kds', icon: ChefHat },
   {
     label: 'Menu',
     href: '/menu',
