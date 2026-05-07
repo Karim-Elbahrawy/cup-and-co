@@ -225,13 +225,20 @@ export interface CatalogResponse {
   kiosk: KioskStatus;
 }
 
+/**
+ * Controls what the customer sees on the product detail page.
+ * - `full`      – stars, review list, and write-review form are all shown (default).
+ * - `view_only` – stars and the review list are shown; the write-review form is hidden.
+ * - `hidden`    – nothing review-related is shown (no stars, no list, no form).
+ */
+export type ReviewMode = 'full' | 'view_only' | 'hidden';
+
 export interface ProductDetailResponse {
   product: Product;
   options: ProductOption[];
   reviews: Review[];
   is_favorited: boolean;
-  /** When false, the admin has hidden all reviews for this product from customers. */
-  reviews_visible: boolean;
+  review_mode: ReviewMode;
 }
 
 export interface LoyaltyResponse {

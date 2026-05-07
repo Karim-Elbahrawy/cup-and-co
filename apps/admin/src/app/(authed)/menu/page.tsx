@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CupSoda, Eye, EyeOff, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { CupSoda, Eye, EyeOff, MessageSquareOff, Pencil, Plus, Search, Star, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { adminApi, api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/useSession';
@@ -38,11 +38,15 @@ export default function MenuPage() {
   const [deleting, setDeleting] = useState<Product | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
+  type ReviewMode = 'full' | 'view_only' | 'hidden';
+  const REVIEW_MODE_CYCLE: ReviewMode[] = ['full', 'view_only', 'hidden'];
+
   const canToggle = can(session?.role, 'menu:update_availability');
   const canManage = can(session?.role, 'menu:manage');
   const canManageReviews = can(session?.role, 'reviews:manage');
-  // Per-product review visibility: true = show reviews to customers (default).
-  const [showReviewsMap, setShowReviewsMap] = useState<Record<string, boolean>>({});
+  // Per-product review mode. 'full' = stars + list + write; 'view_only' = stars + list;
+  // 'hidden' = nothing shown. Defaults to 'full' when not set.
+  const [reviewModeMap, setReviewModeMap] = useState<Record<string, ReviewMode>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -83,15 +87,22 @@ export default function MenuPage() {
     }
   }
 
-  async function handleReviewsToggle(productId: string, currentVisible: boolean) {
-    const next = !currentVisible;
-    setShowReviewsMap((prev) => ({ ...prev, [productId]: next }));
+  async function handleReviewModeClick(productId: string) {
+    const current: ReviewMode = reviewModeMap[productId] ?? 'full';
+    const nextIdx = (REVIEW_MODE_CYCLE.indexOf(current) + 1) % REVIEW_MODE_CYCLE.length;
+    const next = REVIEW_MODE_CYCLE[nextIdx]!;
+    setReviewModeMap((prev) => ({ ...prev, [productId]: next }));
     try {
-      await adminApi.setProductReviewsVisible(productId, next);
-      toast('success', next ? 'Reviews visible to customers.' : 'Reviews hidden from customers.');
+      await adminApi.setProductReviewMode(productId, next);
+      const labels: Record<ReviewMode, string> = {
+        full: 'Full reviews shown (stars, list, write form).',
+        view_only: 'Stars and review list shown — write form hidden.',
+        hidden: 'All reviews hidden from customers.',
+      };
+      toast('success', labels[next]);
     } catch (err) {
-      setShowReviewsMap((prev) => ({ ...prev, [productId]: currentVisible }));
-      toast('error', err instanceof ApiError ? err.message : 'Could not update review visibility.');
+      setReviewModeMap((prev) => ({ ...prev, [productId]: current }));
+      toast('error', err instanceof ApiError ? err.message : 'Could not update review mode.');
     }
   }
 
@@ -281,11 +292,11 @@ export default function MenuPage() {
                       canManage={canManage}
                       canManageReviews={canManageReviews}
                       pending={pendingId === product.id}
-                      showReviews={showReviewsMap[product.id] ?? true}
+                      reviewMode={reviewModeMap[product.id] ?? 'full'}
                       onToggle={() => toggleAvailability(product)}
                       onEdit={() => setEditing(product)}
                       onDelete={() => setDeleting(product)}
-                      onToggleReviews={() => handleReviewsToggle(product.id, showReviewsMap[product.id] ?? true)}
+                      onCycleReviewMode={() => handleReviewModeClick(product.id)}
                     />
                   ))}
                 </ul>
@@ -299,6 +310,38 @@ export default function MenuPage() {
 
 // ─── ProductCard ───────────────────────────────────────────────────────────
 
+type ReviewMode = 'full' | 'view_only' | 'hidden';
+
+const REVIEW_MODE_META: Record<ReviewMode, {
+  label: string;
+  next: string;
+  icon: React.ReactNode;
+  style: string;
+  badge: string;
+}> = {
+  full: {
+    label: 'Stars · Reviews · Write form',
+    next: 'Next: stars + reviews only',
+    icon: <Star className="h-3.5 w-3.5" aria-hidden />,
+    style: 'border-cup-teal-200 bg-cup-teal-50 text-cup-teal-700 hover:bg-cup-teal-100',
+    badge: 'bg-cup-teal-200 text-cup-teal-800',
+  },
+  view_only: {
+    label: 'Stars · Reviews only',
+    next: 'Next: hide all',
+    icon: <Eye className="h-3.5 w-3.5" aria-hidden />,
+    style: 'border-cup-orange-200 bg-cup-orange-50 text-cup-orange-700 hover:bg-cup-orange-100',
+    badge: 'bg-cup-orange-200 text-cup-orange-800',
+  },
+  hidden: {
+    label: 'Reviews hidden',
+    next: 'Next: show all',
+    icon: <EyeOff className="h-3.5 w-3.5" aria-hidden />,
+    style: 'border-cup-stroke bg-cup-paper text-cup-muted hover:bg-cup-cream-100',
+    badge: 'bg-cup-stroke text-cup-muted',
+  },
+};
+
 function ProductCard({
   product,
   isCustom,
@@ -306,11 +349,11 @@ function ProductCard({
   canManage,
   canManageReviews,
   pending,
-  showReviews,
+  reviewMode,
   onToggle,
   onEdit,
   onDelete,
-  onToggleReviews,
+  onCycleReviewMode,
 }: {
   product: Product;
   isCustom: boolean;
@@ -318,11 +361,11 @@ function ProductCard({
   canManage: boolean;
   canManageReviews: boolean;
   pending: boolean;
-  showReviews: boolean;
+  reviewMode: ReviewMode;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onToggleReviews: () => void;
+  onCycleReviewMode: () => void;
 }) {
   return (
     <li
@@ -387,31 +430,26 @@ function ProductCard({
         )}
       </div>
 
-      {/* Review visibility toggle row (owners only) */}
-      {canManageReviews && (
-        <button
-          type="button"
-          onClick={onToggleReviews}
-          aria-pressed={showReviews}
-          className={`flex w-full items-center justify-between rounded-chip border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 ${
-            showReviews
-              ? 'border-cup-teal-200 bg-cup-teal-50 text-cup-teal-700 hover:bg-cup-teal-100'
-              : 'border-cup-stroke bg-cup-paper text-cup-muted hover:bg-cup-cream-100'
-          }`}
-        >
-          <span className="flex items-center gap-1.5">
-            {showReviews ? (
-              <Eye className="h-3.5 w-3.5" aria-hidden />
-            ) : (
-              <EyeOff className="h-3.5 w-3.5" aria-hidden />
-            )}
-            {showReviews ? 'Reviews shown to customers' : 'Reviews hidden from customers'}
-          </span>
-          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${showReviews ? 'bg-cup-teal-200 text-cup-teal-800' : 'bg-cup-stroke text-cup-muted'}`}>
-            {showReviews ? 'ON' : 'OFF'}
-          </span>
-        </button>
-      )}
+      {/* Review mode cycle button (owners only) */}
+      {canManageReviews && (() => {
+        const meta = REVIEW_MODE_META[reviewMode];
+        return (
+          <button
+            type="button"
+            onClick={onCycleReviewMode}
+            title={meta.next}
+            className={`flex w-full items-center justify-between rounded-chip border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 ${meta.style}`}
+          >
+            <span className="flex items-center gap-1.5">
+              {meta.icon}
+              {meta.label}
+            </span>
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.badge}`}>
+              {reviewMode === 'full' ? 'FULL' : reviewMode === 'view_only' ? 'VIEW' : 'OFF'}
+            </span>
+          </button>
+        );
+      })()}
     </li>
   );
 }

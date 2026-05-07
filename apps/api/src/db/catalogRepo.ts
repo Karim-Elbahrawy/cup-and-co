@@ -7,6 +7,7 @@ import type {
   KioskStatus,
   ProductDetailResponse,
   Review,
+  ReviewMode,
 } from '@cup-and-co/types';
 import { getServiceClient } from './supabase.js';
 import { config } from '../config.js';
@@ -152,17 +153,16 @@ function fallbackOptionsFor(productId: string): ProductOption[] {
   return all.map((o, i) => ({ ...o, id: `${productId}-opt-${i}`, product_id: productId }));
 }
 
-// ─── Per-product review-visibility overlay ────────────────────────────────────
-// Default is visible (true). The admin can flip this per-product at runtime.
-const productShowReviews = new Map<string, boolean>();
+// ─── Per-product review-mode overlay ─────────────────────────────────────────
+// Default is 'full'. The admin can cycle this per-product at runtime.
+const productReviewMode = new Map<string, ReviewMode>();
 
-export function setProductShowReviews(productId: string, visible: boolean): void {
-  productShowReviews.set(productId, visible);
+export function setProductReviewMode(productId: string, mode: ReviewMode): void {
+  productReviewMode.set(productId, mode);
 }
 
-export function getProductShowReviews(productId: string): boolean {
-  const override = productShowReviews.get(productId);
-  return override === undefined ? true : override;
+export function getProductReviewMode(productId: string): ReviewMode {
+  return productReviewMode.get(productId) ?? 'full';
 }
 
 function isSupabaseReady(): boolean {
@@ -299,7 +299,9 @@ export async function getCatalog(): Promise<CatalogResponse> {
 }
 
 export async function getProductDetail(id: string, userId?: string): Promise<ProductDetailResponse | null> {
-  const reviewsVisible = getProductShowReviews(id);
+  const reviewMode = getProductReviewMode(id);
+  // Only fetch reviews from DB when the mode actually shows them.
+  const fetchReviews = reviewMode !== 'hidden';
 
   if (!isSupabaseReady()) {
     const product =
@@ -311,7 +313,7 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
       options: fallbackOptionsFor(id),
       reviews: [],
       is_favorited: false,
-      reviews_visible: reviewsVisible,
+      review_mode: reviewMode,
     };
   }
   try {
@@ -319,7 +321,7 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
     const [productRes, optionsRes, reviewsRes, favRes] = await Promise.all([
       sb.from('products').select('*').eq('id', id).single(),
       sb.from('product_options').select('*').eq('product_id', id).order('sort_order'),
-      reviewsVisible
+      fetchReviews
         ? sb.from('reviews').select('*').eq('product_id', id).eq('hidden', false).order('created_at', { ascending: false }).limit(20)
         : Promise.resolve({ data: [] as Review[], error: null }),
       userId ? sb.from('favorites').select('id').eq('product_id', id).eq('user_id', userId).maybeSingle() : Promise.resolve({ data: null }),
@@ -330,11 +332,11 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
       options: (optionsRes.data ?? []) as ProductOption[],
       reviews: (reviewsRes.data ?? []) as Review[],
       is_favorited: !!favRes.data,
-      reviews_visible: reviewsVisible,
+      review_mode: reviewMode,
     };
   } catch {
     const product = FALLBACK.products.find((x) => x.id === id);
     if (!product) return null;
-    return { product, options: fallbackOptionsFor(id), reviews: [], is_favorited: false, reviews_visible: reviewsVisible };
+    return { product, options: fallbackOptionsFor(id), reviews: [], is_favorited: false, review_mode: reviewMode };
   }
 }

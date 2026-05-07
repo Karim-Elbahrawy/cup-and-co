@@ -12,6 +12,7 @@ export type {
   Offer,
   KioskStatus,
   Review,
+  ReviewMode,
   CatalogResponse,
   ProductDetailResponse,
   Order,

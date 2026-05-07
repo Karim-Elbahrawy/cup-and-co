@@ -9,7 +9,7 @@ import { ChevronLeft, Heart, Minus, Plus, Star, Send, User } from 'lucide-react'
 import { api, ApiError } from '@/lib/api';
 import { useCart } from '@/lib/cart';
 import { useT } from '@/lib/i18n';
-import type { Product, ProductOption, Review, ReviewInput } from '@/lib/types';
+import type { Product, ProductOption, Review, ReviewInput, ReviewMode } from '@/lib/types';
 
 const GROUP_ORDER = ['shots', 'size', 'sugar', 'ice', 'milk', 'extras'] as const;
 type Group = (typeof GROUP_ORDER)[number];
@@ -29,7 +29,7 @@ export default function ProductDetailPage({
     options: ProductOption[];
     reviews: Review[];
     is_favorited: boolean;
-    reviews_visible: boolean;
+    review_mode: ReviewMode;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -56,7 +56,7 @@ export default function ProductDetailPage({
           options: detail.options,
           reviews: detail.reviews ?? [],
           is_favorited: detail.is_favorited,
-          reviews_visible: detail.reviews_visible ?? true,
+          review_mode: detail.review_mode ?? 'full',
         });
         setFavorite(detail.is_favorited);
 
@@ -276,7 +276,7 @@ export default function ProductDetailPage({
             <h1 className="font-heading text-[28px] font-bold leading-tight text-cup-brown-900">
               {name}
             </h1>
-            {data.reviews_visible && product.rating_count > 0 && (
+            {data.review_mode !== 'hidden' && product.rating_count > 0 && (
               <div className="mt-1 flex items-center gap-1.5 text-sm">
                 <Star className="h-4 w-4 fill-cup-star text-cup-star" />
                 <span className="font-semibold text-cup-brown-900">
@@ -368,8 +368,8 @@ export default function ProductDetailPage({
         })}
       </section>
 
-      {/* Reviews section — hidden when admin has disabled reviews for this product */}
-      {data.reviews_visible && <section className="mx-auto mt-8 max-w-[1080px] space-y-4 px-6">
+      {/* Reviews section — gated by admin review_mode per product */}
+      {data.review_mode !== 'hidden' && <section className="mx-auto mt-8 max-w-[1080px] space-y-4 px-6">
         <h2 className="font-heading text-lg font-bold text-cup-brown-900">{t('product.reviews.header')}</h2>
 
         {/* Rating distribution */}
@@ -396,7 +396,8 @@ export default function ProductDetailPage({
           </div>
         )}
 
-        {/* Write a review */}
+        {/* Write a review — only shown in 'full' mode */}
+        {data.review_mode === 'full' && (
         <div className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle">
           <p className="font-heading text-sm font-semibold text-cup-brown-900">
             {t('product.reviews.writeAReview')}
@@ -456,6 +457,7 @@ export default function ProductDetailPage({
             {submittingReview ? `${t('product.reviews.submitButton')}...` : t('product.reviews.submitButton')}
           </button>
         </div>
+        )}
 
         {/* Existing reviews */}
         {data.reviews.length > 0 ? (

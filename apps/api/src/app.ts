@@ -28,8 +28,7 @@ import {
   updateExtraProduct,
   deleteExtraProduct,
   isExtraProduct,
-  setProductShowReviews,
-  getProductShowReviews,
+  setProductReviewMode,
 } from './db/catalogRepo.js';
 import { adminOffers } from './db/offersStore.js';
 
@@ -1161,13 +1160,15 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
-  // Toggle whether reviews section is visible to customers for a product.
-  app.patch('/admin/menu/products/:id/reviews-visible', requireAuth, requireAdmin, (req, res, next) => {
+  // Set the review display mode for a product ('full' | 'view_only' | 'hidden').
+  app.patch('/admin/menu/products/:id/review-mode', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reviews:manage');
-      const input = z.object({ reviews_visible: z.boolean() }).parse(req.body);
-      setProductShowReviews(req.params.id as string, input.reviews_visible);
-      res.json({ id: req.params.id, reviews_visible: input.reviews_visible });
+      const input = z.object({
+        review_mode: z.enum(['full', 'view_only', 'hidden']),
+      }).parse(req.body);
+      setProductReviewMode(req.params.id as string, input.review_mode);
+      res.json({ id: req.params.id, review_mode: input.review_mode });
     } catch (e) { next(e); }
   });
 
