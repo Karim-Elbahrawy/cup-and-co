@@ -4,6 +4,8 @@ import './globals.css';
 import { HtmlLangSync } from '@/components/HtmlLangSync';
 import { AnalyticsProvider } from '@/components/AnalyticsProvider';
 import { ThemeProvider, ThemeBootstrap } from '@/components/ThemeProvider';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 
 const sora = Sora({ subsets: ['latin'], variable: '--font-heading' });
 const inter = Inter({ subsets: ['latin'], variable: '--font-body' });
@@ -64,6 +66,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <HtmlLangSync />
+        {/* Phase 8.1 — surface offline state + register the cache SW */}
+        <OfflineIndicator />
+        <ServiceWorkerRegister />
         <AnalyticsProvider>
           <ThemeProvider>{children}</ThemeProvider>
         </AnalyticsProvider>
