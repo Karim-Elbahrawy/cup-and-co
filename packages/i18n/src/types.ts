@@ -127,6 +127,7 @@ export interface Translations {
     viewItems: string;
     pickupInstruction: string;
     deliveryInstruction: string;
+    deliveryAddress: string;
   };
   loyalty: {
     rewards: string;

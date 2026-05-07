@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Check, XCircle } from 'lucide-react';
+import { ChevronLeft, Check, XCircle, MapPin } from 'lucide-react';
 import { api, ApiError, BASE_URL } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { useT } from '@/lib/i18n';
@@ -180,21 +180,45 @@ export default function OrderTrackingPage({
         <span className="w-10" aria-hidden="true" />
       </header>
 
-      {/* Pickup code hero */}
+      {/* Pickup code hero / Delivery details hero */}
       <section className="mx-auto mt-2 max-w-3xl px-5">
-        <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cup-muted">
-            {t('orders.pickupCode')}
-          </p>
-          <p className="mt-1 font-heading text-[64px] font-bold leading-none text-cup-orange-600">
-            {order.pickupCode ?? '—'}
-          </p>
-          <p className="mt-2 text-sm text-cup-muted">
-            {order.fulfillmentType === 'pickup'
-              ? t('orders.pickupInstruction')
-              : t('orders.deliveryInstruction')}
-          </p>
-        </div>
+        {order.fulfillmentType === 'pickup' ? (
+          <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cup-muted">
+              {t('orders.pickupCode')}
+            </p>
+            <p className="mt-1 font-heading text-[64px] font-bold leading-none text-cup-orange-600">
+              {order.pickupCode ?? '—'}
+            </p>
+            <p className="mt-2 text-sm text-cup-muted">
+              {t('orders.pickupInstruction')}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-cup-orange-600/10">
+                <MapPin className="h-4 w-4 text-cup-orange-600" />
+              </span>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cup-muted">
+                {t('orders.deliveryAddress')}
+              </p>
+            </div>
+            <p className="mt-3 font-heading text-lg font-bold leading-snug text-cup-brown-900">
+              {order.notes
+                ? order.notes.split(' — ')[0]
+                : (language === 'ar' ? 'عنوان غير محدد' : 'No address provided')}
+            </p>
+            {order.notes?.includes(' — ') && (
+              <p className="mt-1 text-sm text-cup-muted">
+                {order.notes.split(' — ').slice(1).join(' — ')}
+              </p>
+            )}
+            <p className="mt-3 text-sm text-cup-muted">
+              {t('orders.deliveryInstruction')}
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Cancel order */}
@@ -228,7 +252,7 @@ export default function OrderTrackingPage({
           <ol className="relative space-y-6 ps-2" aria-label="Order status">
             {timeline.map((step, idx) => {
               const isLast = idx === timeline.length - 1;
-              const { solid, soft } = stepColor(idx, timeline.length);
+              const { solid, soft } = stepColor(idx, timeline.length, step.status);
               return (
                 <li key={`${step.status}-${idx}`} className="relative flex gap-4">
                   {/* connector line — colored when done, stroke when pending */}
@@ -384,10 +408,13 @@ function StepDot({
 }
 
 /**
- * Interpolates a color from terracotta-orange (step 0) through amber and lime
- * to emerald-green (last step), giving the order timeline a progress ramp.
+ * Returns a color for a timeline step. 'preparing' is always yellow; every
+ * other step interpolates from terracotta-orange (first) to emerald-green (last).
  */
-function stepColor(idx: number, total: number): { solid: string; soft: string } {
+function stepColor(idx: number, total: number, status?: string): { solid: string; soft: string } {
+  if (status === 'preparing') {
+    return { solid: 'rgb(234, 179, 8)', soft: 'rgba(234, 179, 8, 0.18)' };
+  }
   const t = total <= 1 ? 1 : idx / (total - 1);
 
   // Four anchor colors: orange → amber → lime → green

@@ -129,6 +129,7 @@ export const en: Translations = {
     viewItems: 'View items',
     pickupInstruction: 'Show this at the counter when you arrive.',
     deliveryInstruction: 'Confirm with the courier on delivery.',
+    deliveryAddress: 'Delivery Address',
   },
   loyalty: {
     rewards: 'Rewards',

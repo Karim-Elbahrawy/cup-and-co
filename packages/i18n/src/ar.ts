@@ -129,6 +129,7 @@ export const ar: Translations = {
     viewItems: 'عرض العناصر',
     pickupInstruction: 'أظهر هذا عند الكاونتر عند وصولك.',
     deliveryInstruction: 'أكد مع المندوب عند التوصيل.',
+    deliveryAddress: 'عنوان التوصيل',
   },
   loyalty: {
     rewards: 'المكافآت',

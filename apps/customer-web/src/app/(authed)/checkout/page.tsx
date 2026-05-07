@@ -21,6 +21,7 @@ export default function CheckoutPage() {
   const clear = useCart((s) => s.clear);
 
   const [fulfillment, setFulfillment] = useState<Fulfillment>('pickup');
+  const [delivery, setDelivery] = useState({ building: '', floor: '', room: '' });
   const [scheduled, setScheduled] = useState<string>(''); // empty = ASAP
   const [payment, setPayment] = useState<PaymentMethod>('cash');
   const [notes, setNotes] = useState('');
@@ -42,15 +43,30 @@ export default function CheckoutPage() {
   const total = Math.max(0, subtotal - pointsDiscount - couponDiscount);
 
   async function placeOrder() {
+    if (fulfillment === 'delivery' && !delivery.building.trim()) {
+      setError(language === 'ar' ? 'الرجاء إدخال عنوان التوصيل' : 'Please enter a delivery address');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
+      // Build address prefix for delivery orders
+      let orderNotes = notes;
+      if (fulfillment === 'delivery') {
+        const parts = [
+          delivery.building.trim(),
+          delivery.floor.trim() ? (language === 'ar' ? `طابق ${delivery.floor.trim()}` : `Floor ${delivery.floor.trim()}`) : '',
+          delivery.room.trim() ? (language === 'ar' ? `غرفة ${delivery.room.trim()}` : `Room ${delivery.room.trim()}`) : '',
+        ].filter(Boolean);
+        const addr = parts.join(', ');
+        orderNotes = notes.trim() ? `${addr} — ${notes.trim()}` : addr;
+      }
       const res = await api.createOrder({
         fulfillmentType: fulfillment,
         paymentMethod: payment,
         scheduledFor: scheduled ? scheduled : null,
         redeemPoints,
-        notes: notes || undefined,
+        notes: orderNotes || undefined,
         items: items.map((it) => ({
           productId: it.productId,
           quantity: it.quantity,
@@ -107,8 +123,38 @@ export default function CheckoutPage() {
           />
         </Section>
 
+        {/* Delivery address — only when delivery is selected */}
+        {fulfillment === 'delivery' && (
+          <Section label={language === 'ar' ? 'عنوان التوصيل' : 'Delivery Address'}>
+            <div className="space-y-2">
+              <input
+                value={delivery.building}
+                onChange={(e) => setDelivery((d) => ({ ...d, building: e.target.value }))}
+                placeholder={language === 'ar' ? 'المبنى أو الموقع على الحرم الجامعي' : 'Building or campus location'}
+                className="w-full rounded-card border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+              />
+              <div className="flex gap-2">
+                <input
+                  value={delivery.floor}
+                  onChange={(e) => setDelivery((d) => ({ ...d, floor: e.target.value }))}
+                  placeholder={language === 'ar' ? 'الطابق' : 'Floor'}
+                  className="flex-1 rounded-card border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+                />
+                <input
+                  value={delivery.room}
+                  onChange={(e) => setDelivery((d) => ({ ...d, room: e.target.value }))}
+                  placeholder={language === 'ar' ? 'غرفة / مكتب' : 'Room / Office'}
+                  className="flex-1 rounded-card border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+                />
+              </div>
+            </div>
+          </Section>
+        )}
+
         {/* Time slot */}
-        <Section label={t('checkout.pickupTime')}>
+        <Section label={fulfillment === 'delivery'
+          ? (language === 'ar' ? 'وقت التوصيل' : 'Delivery Time')
+          : t('checkout.pickupTime')}>
           <div className="flex flex-wrap gap-2">
             <SlotChip
               label={t('checkout.asap')}
