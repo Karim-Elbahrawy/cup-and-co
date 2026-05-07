@@ -233,4 +233,11 @@ export const en: Translations = {
     error: 'Something went wrong. Please try again.',
     invalidCode: 'That code is invalid or expired. Try sending a new one.',
   },
+  campus: {
+    title: 'Campus',
+    intro: 'Choose where you are ordering from. Each campus has its own menu and pickup hours.',
+    current: 'Current campus',
+    switchNotice: 'Switching campuses clears your cart, since menus differ between locations.',
+    noneAvailable: 'No campuses are active right now. Please contact support.',
+  },
 };

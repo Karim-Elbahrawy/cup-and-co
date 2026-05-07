@@ -12,6 +12,7 @@ import {
   History,
   KeyRound,
   LogOut,
+  MapPin,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -148,6 +149,11 @@ export default function ProfilePage() {
           <SectionLabel>{t('profile.myProfile')}</SectionLabel>
           <div className="rounded-card bg-white shadow-card overflow-hidden">
             <NavRow icon={<Tag size={16} />} label={t('profile.accountId')} />
+            <NavRow
+              icon={<MapPin size={16} />}
+              label={t('campus.title')}
+              href="/profile/campus"
+            />
             <NavRow
               icon={<Shield size={16} />}
               label={t('profile.privacyAndData')}

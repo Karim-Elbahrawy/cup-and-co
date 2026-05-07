@@ -231,4 +231,11 @@ export interface Translations {
     error: string;
     invalidCode: string;
   };
+  campus: {
+    title: string;
+    intro: string;
+    current: string;
+    switchNotice: string;
+    noneAvailable: string;
+  };
 }
