@@ -21,6 +21,21 @@ import {
   type Order,
 } from './services/orders.js';
 import { createPushService, statusNotificationCopy } from './services/push.js';
+import {
+  issueDeleteOtp,
+  verifyDeleteOtp,
+  markDeletionConfirmed,
+  cancelDeletion,
+  getDeletionState,
+  isAccountDeleted,
+  deletionGraceUntil,
+  ACCOUNT_GRACE_DAYS,
+  canRequestExport,
+  createExportJob,
+  completeExportJob,
+  getExportJob,
+  type ExportJob,
+} from './services/accountLifecycle.js';
 import { catalogRouter } from './routes/catalog.js';
 import {
   getProductDetail,
@@ -147,6 +162,11 @@ const submitScoreSchema = z.object({
   sessionId: z.string().min(1),
   score: z.number().int().nonnegative(),
   durationSeconds: z.number().positive(),
+});
+
+// Account lifecycle (Phase 1.3 of UPGRADE-PLAN.md)
+const deleteConfirmSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
 });
 
 // -------------- Helpers --------------
@@ -415,6 +435,224 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  /**
+   * Reject an action if the caller's account is in the deletion-pending
+   * state. Use on every endpoint that should NOT work during the grace
+   * period (place order, scan QR, redeem points, etc.). Skip on:
+   *   - /me/account/cancel-deletion (the one path back)
+   *   - /me/account/status
+   *   - /me/data/exports/:jobId      (download what's already prepared)
+   *   - /auth/*                      (login is what brings them back)
+   */
+  function assertAccountActive(req: express.Request): void {
+    const u = req.user;
+    if (!u) return;
+    if (isAccountDeleted(u.id)) {
+      const err = new Error(
+        'Your account is scheduled for deletion. Sign in to cancel within 30 days, or contact support.',
+      ) as Error & { status?: number };
+      err.status = 403;
+      throw err;
+    }
+  }
+
+  // -------- Account lifecycle (Phase 1.3 of UPGRADE-PLAN.md) --------
+  /**
+   * Step 1 — request deletion. Generates a 6-digit code and (in prod)
+   * sends it via SMS. The code is keyed to the user, separate from the
+   * login OTP, so it can never be intercepted and reused as a login.
+   * Rate-limited via the same IP-based limiter as auth.
+   */
+  app.post('/me/account/delete-request', requireAuth, otpRateLimit, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      // Already in the middle of deletion? Just re-issue a fresh code.
+      const { code, expiresAt } = issueDeleteOtp(u.id);
+      // TODO (Phase 4.x): swap for real SMS via Vonage/Twilio integration.
+      // For dev/test, return the code in the response so e2e tests can
+      // exercise the flow without an SMS gateway. NOTE the comparison —
+      // production envs MUST never expose the code.
+      const exposeDevCode = config.nodeEnv !== 'production';
+      const responseBody: Record<string, unknown> = {
+        ok: true,
+        expiresAt: new Date(expiresAt).toISOString(),
+      };
+      if (exposeDevCode) responseBody.devCode = code;
+      res.json(responseBody);
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Step 2 — confirm deletion with the OTP. Sets `deleted_at` and starts
+   * the 30-day grace window. The user's existing JWT remains valid (so
+   * they can call cancel-deletion), but `assertAccountActive` blocks
+   * other endpoints.
+   */
+  app.post('/me/account/delete-confirm', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const { code } = deleteConfirmSchema.parse(req.body);
+      if (!verifyDeleteOtp(u.id, code)) {
+        const err = new Error('Invalid or expired confirmation code.') as Error & { status?: number };
+        err.status = 401;
+        throw err;
+      }
+      const state = markDeletionConfirmed(u.id);
+      // TODO when Supabase is wired in prod: also UPDATE users SET deleted_at,
+      // deletion_requested_at via service-role client, and INSERT audit_log.
+      res.json({
+        ok: true,
+        deletedAt: state.deletedAt,
+        deletionRequestedAt: state.deletionRequestedAt,
+        graceUntil: deletionGraceUntil(state),
+        graceDays: ACCOUNT_GRACE_DAYS,
+        message: `Your account will be permanently anonymized in ${ACCOUNT_GRACE_DAYS} days. Sign in before then to cancel.`,
+      });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Cancel deletion within grace window. Idempotent — calling on an
+   * already-active account just confirms the state.
+   */
+  app.post('/me/account/cancel-deletion', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      cancelDeletion(u.id);
+      // TODO when Supabase is wired: UPDATE users SET deleted_at=NULL,
+      // deletion_requested_at=NULL.
+      res.json({ ok: true, message: 'Account deletion cancelled. Welcome back.' });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Read deletion state for the current user. Used by the client to
+   * show a "your account is scheduled for deletion" banner.
+   */
+  app.get('/me/account/status', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    const state = getDeletionState(u.id);
+    if (!state) {
+      res.json({ status: 'active' });
+      return;
+    }
+    res.json({
+      status: state.deletedAt ? 'deletion_pending' : 'deletion_requested',
+      deletionRequestedAt: state.deletionRequestedAt,
+      deletedAt: state.deletedAt,
+      graceUntil: deletionGraceUntil(state),
+      graceDays: ACCOUNT_GRACE_DAYS,
+    });
+  });
+
+  /**
+   * Request a data export. Rate-limited to one per 7 days. In prod the
+   * actual export is generated by an Edge Function; in dev we generate
+   * inline so the flow can be tested without Supabase Storage.
+   */
+  app.post('/me/data/export', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      if (!canRequestExport(u.id)) {
+        const err = new Error(
+          'Data export already requested in the last 7 days. Please wait before requesting another.',
+        ) as Error & { status?: number };
+        err.status = 429;
+        throw err;
+      }
+      const job = createExportJob(u.id);
+
+      // Synchronously assemble the payload from in-memory state. Each
+      // section corresponds to one PII surface in the data model.
+      const profile = userProfiles.get(u.id) ?? {};
+      const ownedOrders = Array.from(orders.values()).filter((o) => o.userId === u.id);
+      const ownedReviews = (reviews.get(u.id) ?? []).map((r) => ({ ...r }));
+      const ownedFavorites = Array.from(favorites.get(u.id) ?? new Set<string>());
+      const ownedLoyalty = (loyaltyHistory.get(u.id) ?? []).map((e) => ({ ...e }));
+      const ownedPushDevices = pushDevices.get(u.id) ?? [];
+      const ownedPrizes = prizes.get(u.id) ?? [];
+
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        exportFormat: 'cup-and-co.export.v1',
+        notice: 'This is a complete copy of your personal data held by Cup & Co. Phone numbers, names, and university details are included. Treat this file as sensitive — store it securely and delete after use.',
+        profile: { id: u.id, phone: u.phone, role: u.role, ...profile },
+        points_balance: userPoints.get(u.id) ?? 0,
+        orders: ownedOrders,
+        reviews: ownedReviews,
+        favorites: ownedFavorites,
+        loyalty_history: ownedLoyalty,
+        push_devices: ownedPushDevices,
+        prizes: ownedPrizes,
+        contact: {
+          questions: 'For questions about this data export, contact support@cupandco.app',
+          rights: 'Under Egypt PDPL Law 151 of 2020, you have the right to access, correct, and erase your personal data.',
+        },
+      };
+
+      const completed = completeExportJob(job.id, payload);
+      if (!completed) {
+        const err = new Error('Export job lost during processing.') as Error & { status?: number };
+        err.status = 500;
+        throw err;
+      }
+      res.status(201).json({
+        jobId: completed.id,
+        status: completed.status,
+        downloadUrl: `/me/data/exports/${completed.id}/download`,
+        expiresAt: completed.expiresAt,
+      });
+    } catch (e) { next(e); }
+  });
+
+  app.get('/me/data/exports/:jobId', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const job = getExportJob(req.params.jobId as string, u.id);
+      if (!job) {
+        const err = new Error('Export not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      const payload: Record<string, unknown> = {
+        jobId: job.id,
+        status: job.status,
+        createdAt: job.createdAt,
+        doneAt: job.doneAt,
+        expiresAt: job.expiresAt,
+        error: job.error,
+      };
+      if (job.status === 'done') {
+        payload.downloadUrl = `/me/data/exports/${job.id}/download`;
+      }
+      res.json(payload);
+    } catch (e) { next(e); }
+  });
+
+  app.get('/me/data/exports/:jobId/download', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const job = getExportJob(req.params.jobId as string, u.id);
+      if (!job || job.status !== 'done' || !job.payload) {
+        const err = new Error('Export not ready or expired.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      // Expiry check
+      if (job.expiresAt && new Date(job.expiresAt) < new Date()) {
+        const err = new Error('Export has expired. Please request a new one.') as Error & { status?: number };
+        err.status = 410;
+        throw err;
+      }
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="cup-and-co-data-${job.id}.json"`,
+      );
+      res.send(JSON.stringify(job.payload, null, 2));
+    } catch (e) { next(e); }
+  });
+
   app.post('/me/verification', requireAuth, (req, res, next) => {
     try {
       const u = getRequestUser(req);
@@ -479,6 +717,7 @@ export function createApp(): express.Express {
 
   app.post('/orders', requireAuth, async (req, res, next) => {
     try {
+      assertAccountActive(req);
       const user = getRequestUser(req);
       const idempotencyKey = req.header('Idempotency-Key')?.trim();
       if (idempotencyKey) {
@@ -704,6 +943,7 @@ export function createApp(): express.Express {
   // Phase 3: reviews
   app.post('/reviews', requireAuth, (req, res, next) => {
     try {
+      assertAccountActive(req);
       const user = getRequestUser(req);
       const input = z.object({
         productId: z.string().min(1),
@@ -853,6 +1093,7 @@ export function createApp(): express.Express {
   // -------- Games --------
   app.post('/games/sessions', requireAuth, (req, res, next) => {
     try {
+      assertAccountActive(req);
       const user = getRequestUser(req);
       const session = games.startSession({
         userId: user.id,
@@ -870,6 +1111,7 @@ export function createApp(): express.Express {
 
   app.post('/games/scores', requireAuth, (req, res, next) => {
     try {
+      assertAccountActive(req);
       const user = getRequestUser(req);
       const input = submitScoreSchema.parse(req.body);
       const result = games.submitScore({ ...input, userId: user.id });

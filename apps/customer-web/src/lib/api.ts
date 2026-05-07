@@ -190,4 +190,55 @@ export const api = {
 
   searchProducts: (q: string) =>
     apiFetch<CatalogResponse>(`/catalog?q=${encodeURIComponent(q)}`),
+
+  // -- Phase 1.3 account lifecycle / data export --
+  accountStatus: () =>
+    apiFetch<{
+      status: 'active' | 'deletion_requested' | 'deletion_pending';
+      deletionRequestedAt?: string;
+      deletedAt?: string | null;
+      graceUntil?: string;
+      graceDays?: number;
+    }>('/me/account/status'),
+
+  requestAccountDeletion: () =>
+    apiFetch<{ ok: boolean; expiresAt: string; devCode?: string }>(
+      '/me/account/delete-request',
+      { method: 'POST' },
+    ),
+
+  confirmAccountDeletion: (code: string) =>
+    apiFetch<{
+      ok: boolean;
+      deletedAt: string;
+      deletionRequestedAt: string;
+      graceUntil: string;
+      graceDays: number;
+      message: string;
+    }>('/me/account/delete-confirm', { method: 'POST', body: { code } }),
+
+  cancelAccountDeletion: () =>
+    apiFetch<{ ok: boolean; message: string }>(
+      '/me/account/cancel-deletion',
+      { method: 'POST' },
+    ),
+
+  requestDataExport: () =>
+    apiFetch<{
+      jobId: string;
+      status: 'pending' | 'running' | 'done' | 'failed';
+      downloadUrl: string;
+      expiresAt: string | null;
+    }>('/me/data/export', { method: 'POST' }),
+
+  getDataExport: (jobId: string) =>
+    apiFetch<{
+      jobId: string;
+      status: 'pending' | 'running' | 'done' | 'failed';
+      createdAt: string;
+      doneAt: string | null;
+      expiresAt: string | null;
+      error: string | null;
+      downloadUrl?: string;
+    }>(`/me/data/exports/${jobId}`),
 };

@@ -147,7 +147,13 @@ export default function ProfilePage() {
         <div>
           <SectionLabel>{t('profile.myProfile')}</SectionLabel>
           <div className="rounded-card bg-white shadow-card overflow-hidden">
-            <NavRow icon={<Tag size={16} />} label={t('profile.accountId')} last />
+            <NavRow icon={<Tag size={16} />} label={t('profile.accountId')} />
+            <NavRow
+              icon={<Shield size={16} />}
+              label={t('profile.privacyAndData')}
+              href="/profile/privacy"
+              last
+            />
           </div>
         </div>
 
@@ -235,25 +241,37 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function NavRow({
   icon,
   label,
+  href,
   last = false,
 }: {
   icon: React.ReactNode;
   label: string;
+  href?: string;
   last?: boolean;
 }) {
-  return (
-    <button
-      type="button"
-      className={[
-        'flex w-full items-center gap-3 px-4 py-3.5 text-start transition-colors hover:bg-[var(--cup-paper)] active:bg-[var(--cup-paper)]',
-        !last ? 'border-b border-[var(--cup-stroke)]' : '',
-      ].join(' ')}
-    >
+  const className = [
+    'flex w-full items-center gap-3 px-4 py-3.5 text-start transition-colors hover:bg-[var(--cup-paper)] active:bg-[var(--cup-paper)]',
+    !last ? 'border-b border-[var(--cup-stroke)]' : '',
+  ].join(' ');
+  const inner = (
+    <>
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--cup-cream)] text-[var(--cup-primary)]">
         {icon}
       </span>
       <span className="flex-1 text-sm font-semibold text-[var(--cup-espresso)]">{label}</span>
       <ChevronRight size={16} className="text-[var(--cup-muted)]" aria-hidden="true" />
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className={className}>
+      {inner}
     </button>
   );
 }
