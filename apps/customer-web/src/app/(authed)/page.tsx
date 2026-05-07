@@ -14,7 +14,9 @@ import { PageTransition } from '@/components/PageTransition';
 import { SkeletonProductGrid } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
 import { UserAvatar } from '@/components/UserAvatar';
+import { WelcomeBackBanner } from '@/components/WelcomeBackBanner';
 import { api } from '@/lib/api';
+import { useFeatureFlag } from '@/lib/featureFlags';
 import { useSession } from '@/lib/session';
 import { useT } from '@/lib/i18n';
 import type { CatalogResponse } from '@/lib/types';
@@ -32,6 +34,10 @@ export default function HomePage() {
   const { t, language } = useT();
   const user = useSession((s) => s.user);
   const reduce = useReducedMotion();
+
+  // Feature flags — see apps/api/src/services/featureFlags.ts for definitions.
+  const welcomeBannerVariant = useFeatureFlag('welcome_banner');
+  const offersVisibility = useFeatureFlag('home_offers_visible', 'enabled');
 
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,6 +110,11 @@ export default function HomePage() {
   return (
     <PageTransition>
       <main className="mx-auto flex w-full max-w-[1080px] flex-1 flex-col gap-6 px-5 pt-6">
+        {/* Welcome-back pill — gated by `welcome_banner` flag (50/50 demo) */}
+        {welcomeBannerVariant === 'variant_a' && (
+          <WelcomeBackBanner name={firstName} language={language} />
+        )}
+
         {/* Greeting + bell */}
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -148,8 +159,9 @@ export default function HomePage() {
           onCtaClick={() => document.getElementById('popular-heading')?.scrollIntoView({ behavior: 'smooth' })}
         />
 
-        {/* Active offers — outstanding swipe carousel */}
-        {catalog && catalog.offers.length > 0 && (
+        {/* Active offers — outstanding swipe carousel.
+            Gated by `home_offers_visible` kill-switch flag. */}
+        {offersVisibility !== 'disabled' && catalog && catalog.offers.length > 0 && (
           <OffersCarousel
             offers={catalog.offers}
             language={language}

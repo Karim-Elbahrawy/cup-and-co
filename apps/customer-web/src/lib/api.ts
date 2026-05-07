@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   CatalogResponse,
   CreateOrderRequest,
+  FeatureFlagsResponse,
   GameScoreResponse,
   GameSession,
   LeaderboardCurrentResponse,
@@ -103,6 +104,13 @@ export const api = {
     }),
 
   me: () => apiFetch<MeResponse>('/me'),
+
+  /**
+   * Returns this user's variant assignment for every known feature flag.
+   * Bucketing is deterministic server-side, so the result is safe to cache
+   * for the duration of a session.
+   */
+  myFeatureFlags: () => apiFetch<FeatureFlagsResponse>('/me/feature-flags'),
 
   patchMe: (input: {
     full_name?: string;

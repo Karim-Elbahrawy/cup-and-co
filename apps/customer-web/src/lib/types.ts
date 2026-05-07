@@ -237,3 +237,22 @@ export interface Prize {
 export interface PrizesResponse {
   prizes: Prize[];
 }
+
+// -- Feature flags -----------------------------------------------------------
+
+/**
+ * Names of every feature flag the API knows about. Keep this in sync with
+ * `apps/api/src/services/featureFlags.ts:FlagName` — the API ignores
+ * unknown names, so a stale client just falls back to the default variant
+ * via `useFeatureFlag()`.
+ */
+export type FeatureFlagName =
+  | 'welcome_banner'
+  | 'home_offers_visible';
+
+/** Variant assignment for the current user, keyed by flag name. */
+export type FeatureFlagAssignments = Partial<Record<FeatureFlagName, string>>;
+
+export interface FeatureFlagsResponse {
+  flags: FeatureFlagAssignments;
+}

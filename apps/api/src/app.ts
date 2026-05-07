@@ -67,6 +67,7 @@ import {
   REFEREE_REWARD,
   MIN_CONVERSION_ORDER_EGP,
 } from './db/referralRepo.js';
+import { evaluateAllFlags } from './services/featureFlags.js';
 import { catalogRouter } from './routes/catalog.js';
 import {
   listCampuses,
@@ -660,6 +661,16 @@ export function createApp(): express.Express {
         minOrderEgp: MIN_CONVERSION_ORDER_EGP,
       },
     });
+  });
+
+  /**
+   * Returns this user's variant assignments for every known feature flag.
+   * Bucketing is deterministic (SHA-256 over `userId:flagName`), so the
+   * client may cache the response per session without risk of drift.
+   */
+  app.get('/me/feature-flags', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    res.json({ flags: evaluateAllFlags(u.id) });
   });
 
   app.patch('/me', requireAuth, (req, res, next) => {
