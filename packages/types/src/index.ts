@@ -260,3 +260,44 @@ export interface LeaderboardResponse {
   my_rank: number | null;
   my_score: number | null;
 }
+
+// Phase 2.1 of UPGRADE-PLAN.md — multi-campus types.
+export interface Campus {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_ar: string;
+  timezone: string;
+  currency: string;
+  default_language: 'en' | 'ar';
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Kiosk {
+  id: string;
+  campus_id: string;
+  slug: string;
+  name_en: string;
+  name_ar: string;
+  building: string | null;
+  lat: number | null;
+  lng: number | null;
+  is_open: boolean;
+  is_active: boolean;
+  message_en: string | null;
+  message_ar: string | null;
+  capacity_per_slot: number;
+  slot_minutes: number;
+  opens_at: string; // 'HH:MM' or 'HH:MM:SS'
+  closes_at: string;
+}
+
+export interface CampusListResponse {
+  campuses: Campus[];
+}
+
+export interface CampusKiosksResponse {
+  campus: Campus;
+  kiosks: Kiosk[];
+}
