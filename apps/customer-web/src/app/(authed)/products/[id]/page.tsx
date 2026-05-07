@@ -9,9 +9,9 @@ import { ChevronLeft, Heart, Minus, Plus, Star, Send, User } from 'lucide-react'
 import { api, ApiError } from '@/lib/api';
 import { useCart } from '@/lib/cart';
 import { useT } from '@/lib/i18n';
-import type { Product, ProductOption, Review, ReviewInput } from '@/lib/types';
+import type { Product, ProductOption, Review, ReviewInput, ReviewMode } from '@/lib/types';
 
-const GROUP_ORDER = ['size', 'sugar', 'ice', 'milk', 'extras'] as const;
+const GROUP_ORDER = ['shots', 'size', 'sugar', 'ice', 'milk', 'extras'] as const;
 type Group = (typeof GROUP_ORDER)[number];
 
 export default function ProductDetailPage({
@@ -29,6 +29,7 @@ export default function ProductDetailPage({
     options: ProductOption[];
     reviews: Review[];
     is_favorited: boolean;
+    review_mode: ReviewMode;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -53,19 +54,24 @@ export default function ProductDetailPage({
         setData({
           product: detail.product,
           options: detail.options,
-          reviews: (detail as unknown as { reviews?: Review[] }).reviews ?? [],
+          reviews: detail.reviews ?? [],
           is_favorited: detail.is_favorited,
+          review_mode: detail.review_mode ?? 'full',
         });
         setFavorite(detail.is_favorited);
 
-        // Pre-select medium size + normal sugar/ice if those groups exist.
+        // Pre-select sensible defaults per group:
+        //   shots → Double, size → Medium, sugar/ice → Normal.
         const initial: Record<string, string> = {};
         const groups = groupBy(detail.options);
         for (const g of GROUP_ORDER) {
           const opts = groups[g];
           if (!opts || opts.length === 0) continue;
-          const medium = opts.find((o) => o.name_en === 'Medium' || o.name_en === 'Normal');
-          initial[g] = (medium ?? opts[0]).name_en;
+          const preferred =
+            g === 'shots'
+              ? opts.find((o) => o.name_en === 'Double') ?? opts[0]
+              : opts.find((o) => o.name_en === 'Medium' || o.name_en === 'Normal') ?? opts[0];
+          initial[g] = preferred.name_en;
         }
         setSelected(initial);
       } catch (e) {
@@ -194,14 +200,16 @@ export default function ProductDetailPage({
   if (!data) return <ProductDetailSkeleton />;
 
   const { product } = data;
+  const isOutOfStock = product.stock_count !== null && product.stock_count <= 0;
   const name = language === 'ar' ? product.name_ar : product.name_en;
   const description = language === 'ar' ? product.description_ar : product.description_en;
   const groupLabel: Record<Group, string> = {
+    shots: language === 'ar' ? 'عدد الشوتات' : 'Shots',
     size: t('product.size'),
     sugar: t('product.sugar'),
     ice: t('product.ice'),
-    milk: 'Milk',
-    extras: 'Extras',
+    milk: language === 'ar' ? 'الحليب' : 'Milk',
+    extras: language === 'ar' ? 'إضافات' : 'Extras',
   };
 
   return (
@@ -269,13 +277,20 @@ export default function ProductDetailPage({
             <h1 className="font-heading text-[28px] font-bold leading-tight text-cup-brown-900">
               {name}
             </h1>
-            <div className="mt-1 flex items-center gap-1.5 text-sm">
-              <Star className="h-4 w-4 fill-cup-star text-cup-star" />
-              <span className="font-semibold text-cup-brown-900">
-                {product.rating_avg.toFixed(1)}
+            {isOutOfStock && (
+              <span className="mt-1.5 inline-block rounded-pill bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-cup-error">
+                Out of Stock
               </span>
-              <span className="text-cup-muted">/5</span>
-            </div>
+            )}
+            {data.review_mode === 'full' && product.rating_count > 0 && (
+              <div className="mt-1 flex items-center gap-1.5 text-sm">
+                <Star className="h-4 w-4 fill-cup-star text-cup-star" />
+                <span className="font-semibold text-cup-brown-900">
+                  {product.rating_avg.toFixed(1)}
+                </span>
+                <span className="text-cup-muted">/5</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 rounded-pill bg-white p-1.5 shadow-subtle">
@@ -359,12 +374,12 @@ export default function ProductDetailPage({
         })}
       </section>
 
-      {/* Reviews section */}
-      <section className="mx-auto mt-8 max-w-[1080px] space-y-4 px-6">
+      {/* Reviews section — gated by admin review_mode per product */}
+      {data.review_mode !== 'hidden' && <section className="mx-auto mt-8 max-w-[1080px] space-y-4 px-6">
         <h2 className="font-heading text-lg font-bold text-cup-brown-900">{t('product.reviews.header')}</h2>
 
-        {/* Rating distribution */}
-        {data.reviews.filter((r) => !r.hidden).length > 0 && (
+        {/* Rating distribution — only in full mode */}
+        {data.review_mode === 'full' && data.reviews.filter((r) => !r.hidden).length > 0 && (
           <div className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle">
             {[5, 4, 3, 2, 1].map((stars) => {
               const visible = data.reviews.filter((r) => !r.hidden);
@@ -387,7 +402,7 @@ export default function ProductDetailPage({
           </div>
         )}
 
-        {/* Write a review */}
+        {/* Write a review — always visible here; section is already gated to non-hidden */}
         <div className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle">
           <p className="font-heading text-sm font-semibold text-cup-brown-900">
             {t('product.reviews.writeAReview')}
@@ -448,8 +463,8 @@ export default function ProductDetailPage({
           </button>
         </div>
 
-        {/* Existing reviews */}
-        {data.reviews.length > 0 ? (
+        {/* Existing reviews — only in full mode */}
+        {data.review_mode === 'full' && (data.reviews.length > 0 ? (
           <motion.div
             className="space-y-3"
             initial="hidden"
@@ -508,8 +523,8 @@ export default function ProductDetailPage({
           <div className="rounded-2xl border border-cup-stroke bg-white p-6 text-center shadow-subtle">
             <p className="text-sm text-cup-muted">No reviews yet. Be the first!</p>
           </div>
-        )}
-      </section>
+        ))}
+      </section>}
 
       {/* Sticky bottom add-to-cart */}
       <div
@@ -519,10 +534,14 @@ export default function ProductDetailPage({
         <button
           type="button"
           onClick={handleAddToCart}
-          disabled={adding}
-          className="mx-auto flex w-full max-w-3xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.32)] transition active:scale-[0.98] disabled:opacity-70"
+          disabled={adding || isOutOfStock}
+          className={`mx-auto flex w-full max-w-3xl items-center justify-between rounded-pill px-6 py-4 font-heading text-base font-semibold text-white transition active:scale-[0.98] disabled:opacity-70 ${
+            isOutOfStock
+              ? 'cursor-not-allowed bg-cup-muted shadow-none'
+              : 'bg-cup-orange-600 shadow-[0_8px_24px_rgba(194,65,12,0.32)]'
+          }`}
         >
-          <span>{t('common.addToCart')}</span>
+          <span>{isOutOfStock ? 'Out of Stock' : t('common.addToCart')}</span>
           <span className="flex items-center gap-2">
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span

@@ -1,3 +1,7 @@
+// Sentry instrumentation MUST load before any other module so it can patch
+// Node's require graph for auto-instrumentation. Do not move this import.
+import './instrument.js';
+
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { shutdownAnalytics } from './services/analytics.js';

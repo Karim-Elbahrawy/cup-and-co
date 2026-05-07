@@ -20,7 +20,7 @@ export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded
 
 export type LoyaltySource = 'online_paid' | 'cash_in_app' | 'qr_receipt' | 'game_reward';
 
-export type OptionGroup = 'size' | 'sugar' | 'ice' | 'milk' | 'extras';
+export type OptionGroup = 'shots' | 'size' | 'sugar' | 'ice' | 'milk' | 'extras';
 
 export interface User {
   id: string;
@@ -59,6 +59,8 @@ export interface Product {
   sort_order: number;
   rating_avg: number;
   rating_count: number;
+  /** null = unlimited stock; 0 = out of stock; >0 = units remaining */
+  stock_count: number | null;
 }
 
 export interface ProductOption {
@@ -225,11 +227,20 @@ export interface CatalogResponse {
   kiosk: KioskStatus;
 }
 
+/**
+ * Controls what the customer sees on the product detail page.
+ * - `full`      – stars, review list, and write-review form are all shown (default).
+ * - `view_only` – stars and the review list are shown; the write-review form is hidden.
+ * - `hidden`    – nothing review-related is shown (no stars, no list, no form).
+ */
+export type ReviewMode = 'full' | 'write_only' | 'hidden';
+
 export interface ProductDetailResponse {
   product: Product;
   options: ProductOption[];
   reviews: Review[];
   is_favorited: boolean;
+  review_mode: ReviewMode;
 }
 
 export interface LoyaltyResponse {

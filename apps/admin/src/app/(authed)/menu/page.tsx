@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CupSoda, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { CupSoda, Eye, EyeOff, MessageSquare, MessageSquareOff, Pencil, Plus, Search, Star, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { adminApi, api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/useSession';
@@ -38,8 +38,15 @@ export default function MenuPage() {
   const [deleting, setDeleting] = useState<Product | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
+  type ReviewMode = 'full' | 'write_only' | 'hidden';
+  const REVIEW_MODE_CYCLE: ReviewMode[] = ['full', 'write_only', 'hidden'];
+
   const canToggle = can(session?.role, 'menu:update_availability');
   const canManage = can(session?.role, 'menu:manage');
+  const canManageReviews = can(session?.role, 'reviews:manage');
+  // Per-product review mode. 'full' = stars + list + write; 'write_only' = write form only;
+  // 'hidden' = nothing shown. Defaults to 'full' when not set.
+  const [reviewModeMap, setReviewModeMap] = useState<Record<string, ReviewMode>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +84,39 @@ export default function MenuPage() {
       toast('error', err instanceof ApiError ? err.message : 'Could not update availability.');
     } finally {
       setPendingId(null);
+    }
+  }
+
+  async function handleReviewModeClick(productId: string) {
+    const current: ReviewMode = reviewModeMap[productId] ?? 'full';
+    const nextIdx = (REVIEW_MODE_CYCLE.indexOf(current) + 1) % REVIEW_MODE_CYCLE.length;
+    const next = REVIEW_MODE_CYCLE[nextIdx]!;
+    setReviewModeMap((prev) => ({ ...prev, [productId]: next }));
+    try {
+      await adminApi.setProductReviewMode(productId, next);
+      const labels: Record<ReviewMode, string> = {
+        full: 'Full reviews shown (stars, list, write form).',
+        write_only: 'Write-review form shown — stars and list hidden.',
+        hidden: 'All reviews hidden from customers.',
+      };
+      toast('success', labels[next]);
+    } catch (err) {
+      setReviewModeMap((prev) => ({ ...prev, [productId]: current }));
+      toast('error', err instanceof ApiError ? err.message : 'Could not update review mode.');
+    }
+  }
+
+  const [stockMap, setStockMap] = useState<Record<string, number | null>>({});
+
+  async function handleStockChange(productId: string, count: number | null) {
+    const previous = stockMap[productId] ?? null;
+    setStockMap((prev) => ({ ...prev, [productId]: count }));
+    try {
+      await adminApi.setProductStock(productId, count);
+      toast('success', count === null ? 'Stock set to unlimited.' : `Stock set to ${count}.`);
+    } catch (err) {
+      setStockMap((prev) => ({ ...prev, [productId]: previous }));
+      toast('error', err instanceof ApiError ? err.message : 'Could not update stock.');
     }
   }
 
@@ -264,10 +304,15 @@ export default function MenuPage() {
                       isCustom={isCustom(product)}
                       canToggle={canToggle}
                       canManage={canManage}
+                      canManageReviews={canManageReviews}
                       pending={pendingId === product.id}
+                      reviewMode={reviewModeMap[product.id] ?? 'full'}
+                      stockCount={stockMap[product.id] ?? null}
                       onToggle={() => toggleAvailability(product)}
                       onEdit={() => setEditing(product)}
                       onDelete={() => setDeleting(product)}
+                      onCycleReviewMode={() => handleReviewModeClick(product.id)}
+                      onStockChange={(count) => handleStockChange(product.id, count)}
                     />
                   ))}
                 </ul>
@@ -281,25 +326,82 @@ export default function MenuPage() {
 
 // ─── ProductCard ───────────────────────────────────────────────────────────
 
+type ReviewMode = 'full' | 'write_only' | 'hidden';
+
+const REVIEW_MODE_META: Record<ReviewMode, {
+  label: string;
+  next: string;
+  icon: React.ReactNode;
+  style: string;
+  badge: string;
+}> = {
+  full: {
+    label: 'Stars · Reviews · Write form',
+    next: 'Next: write form only (hide stars & list)',
+    icon: <Star className="h-3.5 w-3.5" aria-hidden />,
+    style: 'border-cup-teal-200 bg-cup-teal-50 text-cup-teal-700 hover:bg-cup-teal-100',
+    badge: 'bg-cup-teal-200 text-cup-teal-800',
+  },
+  write_only: {
+    label: 'Write reviews only',
+    next: 'Next: hide all reviews',
+    icon: <MessageSquare className="h-3.5 w-3.5" aria-hidden />,
+    style: 'border-cup-orange-200 bg-cup-orange-50 text-cup-orange-700 hover:bg-cup-orange-100',
+    badge: 'bg-cup-orange-200 text-cup-orange-800',
+  },
+  hidden: {
+    label: 'Reviews hidden',
+    next: 'Next: show all (stars, list, write form)',
+    icon: <EyeOff className="h-3.5 w-3.5" aria-hidden />,
+    style: 'border-cup-stroke bg-cup-paper text-cup-muted hover:bg-cup-cream-100',
+    badge: 'bg-cup-stroke text-cup-muted',
+  },
+};
+
 function ProductCard({
   product,
   isCustom,
   canToggle,
   canManage,
+  canManageReviews,
   pending,
+  reviewMode,
+  stockCount,
   onToggle,
   onEdit,
   onDelete,
+  onCycleReviewMode,
+  onStockChange,
 }: {
   product: Product;
   isCustom: boolean;
   canToggle: boolean;
   canManage: boolean;
+  canManageReviews: boolean;
   pending: boolean;
+  reviewMode: ReviewMode;
+  stockCount: number | null;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onCycleReviewMode: () => void;
+  onStockChange: (count: number | null) => void;
 }) {
+  const [stockInput, setStockInput] = useState(stockCount !== null ? String(stockCount) : '');
+  // Sync input if parent updates stock (e.g. after API response)
+  const syncedStock = stockCount !== null ? String(stockCount) : '';
+  if (stockInput !== syncedStock && document.activeElement?.id !== `stock-${product.id}`) {
+    setStockInput(syncedStock);
+  }
+
+  function commitStock() {
+    const val = stockInput.trim();
+    if (val === '') { onStockChange(null); return; }
+    const n = parseInt(val, 10);
+    if (!isNaN(n) && n >= 0) onStockChange(n);
+    else setStockInput(stockCount !== null ? String(stockCount) : '');
+  }
+
   return (
     <li
       className={`flex flex-col gap-3 rounded-chip border p-3 transition ${
@@ -333,6 +435,8 @@ function ProductCard({
           </p>
         </div>
       </div>
+
+      {/* Availability toggle row */}
       <div className="flex items-center justify-between gap-2">
         <AvailabilityToggle
           product={product}
@@ -360,6 +464,57 @@ function ProductCard({
           </div>
         )}
       </div>
+
+      {/* Stock count input (owners + baristas) */}
+      {canToggle && (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cup-muted">
+            Stock
+          </span>
+          <input
+            id={`stock-${product.id}`}
+            type="number"
+            min="0"
+            value={stockInput}
+            placeholder="∞ unlimited"
+            onChange={(e) => setStockInput(e.target.value)}
+            onBlur={commitStock}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+            className="w-28 rounded-chip border border-cup-stroke bg-cup-paper px-2 py-1 text-xs placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none focus:ring-1 focus:ring-cup-orange-600"
+          />
+          {stockCount !== null && (
+            <button
+              type="button"
+              onClick={() => { setStockInput(''); onStockChange(null); }}
+              title="Set to unlimited"
+              className="text-[11px] text-cup-muted underline hover:text-cup-brown-900"
+            >
+              ∞
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Review mode cycle button (owners only) */}
+      {canManageReviews && (() => {
+        const meta = REVIEW_MODE_META[reviewMode];
+        return (
+          <button
+            type="button"
+            onClick={onCycleReviewMode}
+            title={meta.next}
+            className={`flex w-full items-center justify-between rounded-chip border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 ${meta.style}`}
+          >
+            <span className="flex items-center gap-1.5">
+              {meta.icon}
+              {meta.label}
+            </span>
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.badge}`}>
+              {reviewMode === 'full' ? 'FULL' : reviewMode === 'write_only' ? 'WRITE' : 'OFF'}
+            </span>
+          </button>
+        );
+      })()}
     </li>
   );
 }
