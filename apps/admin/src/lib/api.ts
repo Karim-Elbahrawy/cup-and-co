@@ -291,10 +291,15 @@ export const adminApi = {
     }),
   deleteProduct: (id: string) =>
     api<void>(`/admin/menu/products/${id}`, { method: 'DELETE' }),
-  setProductReviewMode: (productId: string, review_mode: 'full' | 'view_only' | 'hidden') =>
-    api<{ id: string; review_mode: 'full' | 'view_only' | 'hidden' }>(
+  setProductReviewMode: (productId: string, review_mode: 'full' | 'write_only' | 'hidden') =>
+    api<{ id: string; review_mode: 'full' | 'write_only' | 'hidden' }>(
       `/admin/menu/products/${productId}/review-mode`,
       { method: 'PATCH', body: { review_mode } },
+    ),
+  setProductStock: (productId: string, stock_count: number | null) =>
+    api<{ id: string; stock_count: number | null }>(
+      `/admin/menu/products/${productId}/stock`,
+      { method: 'PATCH', body: { stock_count } },
     ),
   // Phase 5: Reviews
   listReviews: (signal?: AbortSignal) =>

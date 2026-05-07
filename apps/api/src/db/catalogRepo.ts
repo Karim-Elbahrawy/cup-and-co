@@ -107,6 +107,7 @@ function p(
     sort_order,
     rating_avg,
     rating_count,
+    stock_count: null,
   };
 }
 
@@ -165,6 +166,29 @@ export function getProductReviewMode(productId: string): ReviewMode {
   return productReviewMode.get(productId) ?? 'full';
 }
 
+// ─── Per-product stock overlay ───────────────────────────────────────────────
+// null = unlimited (default). Any non-negative integer = tracked stock count.
+// When count hits 0 the product is considered out of stock. Admin sets it;
+// order creation decrements it automatically.
+const productStockMap = new Map<string, number>();
+
+export function setProductStock(productId: string, count: number | null): void {
+  if (count === null) {
+    productStockMap.delete(productId);
+  } else {
+    productStockMap.set(productId, Math.max(0, count));
+  }
+}
+
+export function getProductStock(productId: string): number | null {
+  return productStockMap.has(productId) ? (productStockMap.get(productId) ?? null) : null;
+}
+
+function withStock(product: Product): Product {
+  const stock = getProductStock(product.id);
+  return stock === null ? product : { ...product, stock_count: stock };
+}
+
 function isSupabaseReady(): boolean {
   return !!(config.supabase.serviceRoleKey && config.supabase.url && !config.supabase.url.includes('127.0.0.1:54321'));
 }
@@ -208,6 +232,7 @@ export function addProduct(input: AddProductInput): Product {
     rating_avg: 0,
     rating_count: 0,
     is_available: true,
+    stock_count: null,
   };
   extraProducts.push(product);
   return product;
@@ -273,7 +298,7 @@ export async function getCatalog(): Promise<CatalogResponse> {
   if (!isSupabaseReady()) {
     return {
       ...FALLBACK,
-      products: [...FALLBACK.products, ...extraProducts],
+      products: [...FALLBACK.products, ...extraProducts].map(withStock),
     };
   }
   try {
@@ -289,19 +314,20 @@ export async function getCatalog(): Promise<CatalogResponse> {
     }
     return {
       categories: categoriesRes.data as Category[],
-      products: (productsRes.data ?? []) as Product[],
+      products: ((productsRes.data ?? []) as Product[]).map(withStock),
       offers: (offersRes.data ?? []) as Offer[],
       kiosk: (kioskRes.data ?? FALLBACK.kiosk) as KioskStatus,
     };
   } catch {
-    return FALLBACK;
+    return { ...FALLBACK, products: FALLBACK.products.map(withStock) };
   }
 }
 
 export async function getProductDetail(id: string, userId?: string): Promise<ProductDetailResponse | null> {
   const reviewMode = getProductReviewMode(id);
-  // Only fetch reviews from DB when the mode actually shows them.
-  const fetchReviews = reviewMode !== 'hidden';
+  // Only fetch the review list from DB in 'full' mode — 'write_only' shows
+  // the write form but not the existing list; 'hidden' shows nothing.
+  const fetchReviews = reviewMode === 'full';
 
   if (!isSupabaseReady()) {
     const product =
@@ -309,7 +335,7 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
       extraProducts.find((x) => x.id === id);
     if (!product) return null;
     return {
-      product,
+      product: withStock(product),
       options: fallbackOptionsFor(id),
       reviews: [],
       is_favorited: false,
@@ -328,7 +354,7 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
     ]);
     if (productRes.error || !productRes.data) return null;
     return {
-      product: productRes.data as Product,
+      product: withStock(productRes.data as Product),
       options: (optionsRes.data ?? []) as ProductOption[],
       reviews: (reviewsRes.data ?? []) as Review[],
       is_favorited: !!favRes.data,
@@ -337,6 +363,6 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
   } catch {
     const product = FALLBACK.products.find((x) => x.id === id);
     if (!product) return null;
-    return { product, options: fallbackOptionsFor(id), reviews: [], is_favorited: false, review_mode: reviewMode };
+    return { product: withStock(product), options: fallbackOptionsFor(id), reviews: [], is_favorited: false, review_mode: reviewMode };
   }
 }

@@ -29,6 +29,8 @@ import {
   deleteExtraProduct,
   isExtraProduct,
   setProductReviewMode,
+  setProductStock,
+  getProductStock,
 } from './db/catalogRepo.js';
 import { adminOffers } from './db/offersStore.js';
 
@@ -510,6 +512,14 @@ export function createApp(): express.Express {
           e.status = 409;
           throw e;
         }
+        // Stock check — null means unlimited, 0 means out of stock
+        const currentStock = getProductStock(item.productId);
+        if (currentStock !== null && currentStock < item.quantity) {
+          const available = currentStock <= 0 ? 'out of stock' : `only ${currentStock} left`;
+          const e = new Error(`${detail.product.name_en} is ${available}.`) as Error & { status?: number };
+          e.status = 409;
+          throw e;
+        }
         // Sum option price deltas
         let unitPrice = detail.product.base_price_egp;
         for (const [, optionName] of Object.entries(item.options)) {
@@ -549,6 +559,14 @@ export function createApp(): express.Express {
         { discountEgp: discount, pointsAwarded },
       );
       orders.set(order.id, order);
+
+      // Decrement tracked stock counts for each item ordered
+      for (const item of enriched) {
+        const stock = getProductStock(item.productId);
+        if (stock !== null) {
+          setProductStock(item.productId, Math.max(0, stock - item.quantity));
+        }
+      }
 
       // Decrement points when redeemed
       if (input.redeemPoints > 0) {
@@ -1160,15 +1178,27 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
-  // Set the review display mode for a product ('full' | 'view_only' | 'hidden').
+  // Set the review display mode for a product ('full' | 'write_only' | 'hidden').
   app.patch('/admin/menu/products/:id/review-mode', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reviews:manage');
       const input = z.object({
-        review_mode: z.enum(['full', 'view_only', 'hidden']),
+        review_mode: z.enum(['full', 'write_only', 'hidden']),
       }).parse(req.body);
       setProductReviewMode(req.params.id as string, input.review_mode);
       res.json({ id: req.params.id, review_mode: input.review_mode });
+    } catch (e) { next(e); }
+  });
+
+  // Set the stock count for a product. null = unlimited; 0 = out of stock.
+  app.patch('/admin/menu/products/:id/stock', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
+      const input = z.object({
+        stock_count: z.number().int().nonnegative().nullable(),
+      }).parse(req.body);
+      setProductStock(req.params.id as string, input.stock_count);
+      res.json({ id: req.params.id, stock_count: input.stock_count });
     } catch (e) { next(e); }
   });
 

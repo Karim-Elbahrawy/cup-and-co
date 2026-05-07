@@ -59,6 +59,8 @@ export interface Product {
   sort_order: number;
   rating_avg: number;
   rating_count: number;
+  /** null = unlimited stock; 0 = out of stock; >0 = units remaining */
+  stock_count: number | null;
 }
 
 export interface ProductOption {
@@ -231,7 +233,7 @@ export interface CatalogResponse {
  * - `view_only` – stars and the review list are shown; the write-review form is hidden.
  * - `hidden`    – nothing review-related is shown (no stars, no list, no form).
  */
-export type ReviewMode = 'full' | 'view_only' | 'hidden';
+export type ReviewMode = 'full' | 'write_only' | 'hidden';
 
 export interface ProductDetailResponse {
   product: Product;

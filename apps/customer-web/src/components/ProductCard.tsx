@@ -44,8 +44,17 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
             alt=""
             width={300}
             height={300}
-            className="h-full w-full rounded-2xl object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+            className={`h-full w-full rounded-2xl object-contain p-2 transition-transform duration-300 group-hover:scale-105 ${
+              product.stock_count !== null && product.stock_count <= 0 ? 'opacity-40' : ''
+            }`}
           />
+          {product.stock_count !== null && product.stock_count <= 0 && (
+            <div className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-rose-600/90 py-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-white">
+                Out of Stock
+              </span>
+            </div>
+          )}
         </div>
         <div className="mt-3 px-1">
           <p className="line-clamp-1 font-heading text-sm font-semibold text-[var(--cup-espresso)]">
