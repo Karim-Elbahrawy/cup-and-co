@@ -38,6 +38,13 @@ import {
 } from './services/accountLifecycle.js';
 import { catalogRouter } from './routes/catalog.js';
 import {
+  listCampuses,
+  getCampus,
+  listKiosksForCampus,
+  getDefaultCampusId,
+  isValidCampusId,
+} from './db/campusRepo.js';
+import {
   getProductDetail,
   addProduct,
   updateExtraProduct,
@@ -326,6 +333,57 @@ export function createApp(): express.Express {
 
   app.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'cup-and-co-api', time: new Date().toISOString() });
+  });
+
+  // -------- Campuses (Phase 2.2 of UPGRADE-PLAN.md) --------
+  // Public — used by the customer-web campus picker before sign-in.
+  app.get('/campuses', (_req, res) => {
+    const all = listCampuses();
+    res.json({ campuses: all });
+  });
+
+  app.get('/campuses/:id', (req, res, next) => {
+    try {
+      const campus = getCampus(req.params.id as string);
+      if (!campus) {
+        const err = new Error('Campus not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      const kiosks = listKiosksForCampus(campus.id);
+      res.json({ campus, kiosks });
+    } catch (e) { next(e); }
+  });
+
+  // The current user's campus.
+  app.get('/me/campus', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    const profile = userProfiles.get(u.id) ?? {};
+    const campusId = (profile.current_campus_id as string | undefined) ?? getDefaultCampusId();
+    const campus = getCampus(campusId);
+    if (!campus) {
+      // Fallback: profile pointed at a removed campus; reset to default.
+      const fallback = getCampus(getDefaultCampusId());
+      res.json({ campus: fallback });
+      return;
+    }
+    res.json({ campus });
+  });
+
+  app.patch('/me/campus', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const input = z.object({ campus_id: z.string().uuid() }).parse(req.body);
+      if (!isValidCampusId(input.campus_id)) {
+        const err = new Error('Unknown or inactive campus.') as Error & { status?: number };
+        err.status = 400;
+        throw err;
+      }
+      const profile = userProfiles.get(u.id) ?? {};
+      userProfiles.set(u.id, { ...profile, current_campus_id: input.campus_id });
+      const campus = getCampus(input.campus_id);
+      res.json({ campus });
+    } catch (e) { next(e); }
   });
 
   // Catalog (public)

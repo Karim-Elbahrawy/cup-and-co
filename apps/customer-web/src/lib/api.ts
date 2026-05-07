@@ -19,6 +19,7 @@ import type {
   ReviewInput,
   ReviewResponse,
 } from './types';
+import type { Campus, Kiosk } from '@cup-and-co/types';
 
 export const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'http://localhost:4000';
@@ -241,4 +242,18 @@ export const api = {
       error: string | null;
       downloadUrl?: string;
     }>(`/me/data/exports/${jobId}`),
+
+  // -- Phase 2.2 multi-campus --
+  listCampuses: () => apiFetch<{ campuses: Campus[] }>('/campuses'),
+
+  getCampus: (id: string) =>
+    apiFetch<{ campus: Campus; kiosks: Kiosk[] }>(`/campuses/${id}`),
+
+  myCampus: () => apiFetch<{ campus: Campus | null }>('/me/campus'),
+
+  setMyCampus: (campusId: string) =>
+    apiFetch<{ campus: Campus }>('/me/campus', {
+      method: 'PATCH',
+      body: { campus_id: campusId },
+    }),
 };
