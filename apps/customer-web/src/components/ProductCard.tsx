@@ -7,6 +7,7 @@ import { Heart, Star } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { Product } from '@/lib/types';
 import { useT, pickName, formatPrice } from '@/lib/i18n';
+import { cdnImage } from '@/lib/cdnImage';
 
 interface ProductCardProps {
   product: Product;
@@ -40,10 +41,10 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
       >
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-white">
           <Image
-            src={product.image_url}
+            src={cdnImage(product, 'card')}
             alt=""
-            width={300}
-            height={300}
+            width={400}
+            height={400}
             className={`h-full w-full rounded-2xl object-contain p-2 transition-transform duration-300 group-hover:scale-105 ${
               product.stock_count !== null && product.stock_count <= 0 ? 'opacity-40' : ''
             }`}

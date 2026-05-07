@@ -10,6 +10,7 @@ import { api, ApiError } from '@/lib/api';
 import { useCart } from '@/lib/cart';
 import { useT } from '@/lib/i18n';
 import { track } from '@/lib/analytics';
+import { cdnImage } from '@/lib/cdnImage';
 import type { Product, ProductOption, Review, ReviewInput, ReviewMode } from '@/lib/types';
 
 const GROUP_ORDER = ['shots', 'size', 'sugar', 'ice', 'milk', 'extras'] as const;
@@ -268,9 +269,9 @@ export default function ProductDetailPage({
           transition={{ type: 'spring', stiffness: 240, damping: 22 }}
           className="relative mx-auto h-[260px] w-[260px] overflow-hidden rounded-full bg-white shadow-elevated ring-1 ring-[rgba(28,25,23,0.04)]"
         >
-          {product.image_url ? (
+          {product.image_url || product.image_id ? (
             <Image
-              src={product.image_url}
+              src={cdnImage(product, 'hero')}
               alt={name}
               fill
               priority
