@@ -10,6 +10,8 @@
  */
 
 import { getSession } from './session';
+import { getStoredCampusId } from './campus';
+import type { Campus } from '@cup-and-co/types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -27,12 +29,20 @@ export class ApiError extends Error {
 function buildAuthHeaders(): Record<string, string> {
   const session = getSession();
   if (!session) return {};
-  return {
+  const headers: Record<string, string> = {
     'x-user-id': session.userId,
     'x-user-role': session.role,
     'x-user-phone': session.phone,
     'x-verification-status': 'approved',
   };
+  // Phase 2.3: forward the currently-selected admin campus to the API.
+  // The server-side filter is queued for after API state moves off
+  // in-memory Maps; sending the header now makes the wire format ready.
+  const campusId = getStoredCampusId();
+  if (campusId) {
+    headers['x-admin-campus-id'] = campusId;
+  }
+  return headers;
 }
 
 export interface ApiOptions {
@@ -336,4 +346,7 @@ export const adminApi = {
     api<{ topItems: AdminReportTopItem[] }>('/admin/reports/top-items', { signal }),
   getRoleBreakdown: (signal?: AbortSignal) =>
     api<AdminReportRoleBreakdown>('/admin/reports/role-breakdown', { signal }),
+  // Phase 2.3 — multi-campus
+  listCampuses: (signal?: AbortSignal) =>
+    api<{ campuses: Campus[] }>('/campuses', { signal, anonymous: true }),
 };

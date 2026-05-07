@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Logo } from './Logo';
+import { CampusSwitcher } from './CampusSwitcher';
 import type { AdminSession } from '@/lib/session';
 
 interface AdminShellProps {
@@ -56,7 +57,7 @@ export function AdminShell({ session, children }: AdminShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-cup-paper md:flex-row">
       {/* Mobile top bar — hidden on md+ */}
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-cup-stroke bg-cup-surface/95 px-4 backdrop-blur md:hidden">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-cup-stroke bg-cup-surface/95 px-4 backdrop-blur md:hidden">
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -68,7 +69,8 @@ export function AdminShell({ session, children }: AdminShellProps) {
           <Menu className="h-5 w-5" aria-hidden />
         </button>
         <Logo />
-        <span className="h-10 w-10" aria-hidden />
+        {/* Phase 2.3: campus switcher — replaces the legacy spacer */}
+        <CampusSwitcher variant="drawer" />
       </header>
 
       {/* Desktop sidebar (and tablet rail). Hidden on mobile. */}
@@ -116,6 +118,11 @@ export function AdminShell({ session, children }: AdminShellProps) {
 
       {/* Main content */}
       <main className="flex-1 overflow-x-hidden">
+        {/* Desktop-only top bar with the campus switcher (md+). On mobile the
+            switcher already lives in the sticky mobile header above. */}
+        <div className="hidden border-b border-cup-stroke bg-cup-surface/60 px-4 py-2 backdrop-blur md:flex md:items-center md:justify-end md:px-8">
+          <CampusSwitcher variant="rail" />
+        </div>
         <div className="mx-auto w-full max-w-[1400px] px-4 py-6 md:px-8 md:py-8">
           {children}
         </div>
