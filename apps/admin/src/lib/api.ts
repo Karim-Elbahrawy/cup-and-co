@@ -267,6 +267,24 @@ export const adminApi = {
         body: { available },
       },
     ),
+  // Phase 3.2 — stock toggle (separate from availability).
+  setProductStock: (
+    productId: string,
+    isOutOfStock: boolean,
+    outOfStockUntil?: string | null,
+  ) =>
+    api<{ id: string; is_out_of_stock: boolean; out_of_stock_until: string | null }>(
+      `/admin/menu/products/${productId}/stock`,
+      {
+        method: 'PATCH',
+        body: { is_out_of_stock: isOutOfStock, out_of_stock_until: outOfStockUntil ?? null },
+      },
+    ),
+  getProductStock: (productId: string, signal?: AbortSignal) =>
+    api<{ id: string; is_out_of_stock: boolean; out_of_stock_until: string | null }>(
+      `/admin/menu/products/${productId}/stock`,
+      { signal },
+    ),
   createProduct: (input: {
     category_id: string;
     name_en: string;

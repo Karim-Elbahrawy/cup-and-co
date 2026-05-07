@@ -27,16 +27,27 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
 
   const name = pickName(product, language);
   const price = formatPrice(product.base_price_egp, language);
+  // Phase 3.2: out-of-stock visual treatment. Either the staff toggle
+  // (`is_out_of_stock`) OR a depleted `stock_count` triggers it.
+  const outOfStock =
+    product.is_out_of_stock === true ||
+    (product.stock_count !== null && product.stock_count !== undefined && product.stock_count <= 0);
 
   return (
     <motion.div
-      whileTap={reduce ? undefined : { scale: 0.98 }}
+      whileTap={reduce || outOfStock ? undefined : { scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-      className="group relative overflow-hidden rounded-[20px] bg-white p-3 shadow-card transition-shadow hover:shadow-elevated"
+      className={[
+        'group relative overflow-hidden rounded-[20px] bg-white p-3 shadow-card transition-shadow',
+        outOfStock ? '' : 'hover:shadow-elevated',
+      ].join(' ')}
+      aria-disabled={outOfStock || undefined}
     >
       <Link
         href={`/products/${product.id}`}
-        aria-label={`${name}, ${price}`}
+        aria-label={
+          outOfStock ? `${name}, ${price} — out of stock` : `${name}, ${price}`
+        }
         className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cup-primary)] focus-visible:ring-offset-2 rounded-[16px]"
       >
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-white">
@@ -45,16 +56,18 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
             alt=""
             width={400}
             height={400}
-            className={`h-full w-full rounded-2xl object-contain p-2 transition-transform duration-300 group-hover:scale-105 ${
-              product.stock_count !== null && product.stock_count <= 0 ? 'opacity-40' : ''
-            }`}
+            className={[
+              'h-full w-full rounded-2xl object-contain p-2 transition-transform duration-300',
+              outOfStock ? 'grayscale opacity-50' : 'group-hover:scale-105',
+            ].join(' ')}
           />
-          {product.stock_count !== null && product.stock_count <= 0 && (
-            <div className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-rose-600/90 py-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-white">
-                Out of Stock
-              </span>
-            </div>
+          {outOfStock && (
+            <span
+              className="absolute bottom-2 start-2 inline-flex items-center rounded-pill bg-[var(--cup-error)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-card"
+              aria-hidden="true"
+            >
+              {language === 'ar' ? 'نفد' : 'Out of stock'}
+            </span>
           )}
         </div>
         <div className="mt-3 px-1">
