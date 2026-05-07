@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type {
   CatalogResponse,
   Category,
@@ -154,6 +155,9 @@ function fallbackOptionsFor(productId: string): ProductOption[] {
 // process restart — swap for a DB-backed store in production).
 // ---------------------------------------------------------------------------
 
+/** Admin-created products (stored in memory; reset on server restart in dev). */
+const adminProducts: Product[] = [];
+
 /** Per-product review-mode override set by admin. Defaults to 'full'. */
 const productReviewModes = new Map<string, ReviewMode>();
 
@@ -162,6 +166,57 @@ const productReviewModes = new Map<string, ReviewMode>();
  * `undefined` (absent) = unlimited; `0` = sold out; positive = units left.
  */
 const productStockMap = new Map<string, number>();
+
+/**
+ * Creates a new product. In dev (no Supabase) it is stored in the
+ * in-memory `adminProducts` array. With Supabase it inserts a row and
+ * keeps an in-memory copy so the fallback catch path also sees it.
+ */
+export async function createProduct(
+  input: Omit<Product, 'id' | 'rating_avg' | 'rating_count' | 'stock_count' | 'review_mode'>,
+): Promise<Product> {
+  const id = randomUUID();
+  const product: Product = {
+    id,
+    ...input,
+    rating_avg: 0,
+    rating_count: 0,
+    stock_count: null,
+    review_mode: 'full',
+  };
+
+  if (isSupabaseReady()) {
+    const sb = getServiceClient();
+    const { data, error } = await sb
+      .from('products')
+      .insert({
+        id,
+        category_id: input.category_id,
+        name_en: input.name_en,
+        name_ar: input.name_ar,
+        description_en: input.description_en,
+        description_ar: input.description_ar,
+        base_price_egp: input.base_price_egp,
+        image_url: input.image_url,
+        prep_minutes: input.prep_minutes,
+        is_available: input.is_available,
+        sort_order: input.sort_order,
+        rating_avg: 0,
+        rating_count: 0,
+        stock_count: null,
+        review_mode: 'full',
+      })
+      .select()
+      .single();
+    if (error || !data) throw new Error(error?.message ?? 'Failed to create product in database');
+    const created = data as Product;
+    adminProducts.push(created); // keep in-memory copy for fallback catch path
+    return created;
+  }
+
+  adminProducts.push(product);
+  return product;
+}
 
 export function setProductReviewMode(id: string, mode: ReviewMode): void {
   productReviewModes.set(id, mode);
@@ -213,7 +268,7 @@ export async function getCatalog(): Promise<CatalogResponse> {
   if (!isSupabaseReady()) {
     return {
       ...FALLBACK,
-      products: FALLBACK.products.map(withMeta),
+      products: [...FALLBACK.products, ...adminProducts].map(withMeta),
     };
   }
   try {
@@ -235,7 +290,7 @@ export async function getCatalog(): Promise<CatalogResponse> {
       kiosk: (kioskRes.data ?? FALLBACK.kiosk) as KioskStatus,
     };
   } catch {
-    return { ...FALLBACK, products: FALLBACK.products.map(withMeta) };
+    return { ...FALLBACK, products: [...FALLBACK.products, ...adminProducts].map(withMeta) };
   }
 }
 

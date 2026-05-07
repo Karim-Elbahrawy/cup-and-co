@@ -31,6 +31,8 @@ function num(name: string, fallback: number): number {
 export const config = {
   port: num('PORT', 4000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
+  devApiBaseUrl: process.env.API_BASE_URL ?? 'http://localhost:4000',
+  customerWebUrl: process.env.CUSTOMER_WEB_URL ?? 'http://localhost:3000',
 
   supabase: {
     url: required('SUPABASE_URL', 'http://127.0.0.1:54321'),

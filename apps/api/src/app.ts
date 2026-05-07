@@ -20,10 +20,12 @@ import {
 import { createPushService, statusNotificationCopy } from './services/push.js';
 import { catalogRouter } from './routes/catalog.js';
 import {
+  getCatalog,
   getProductDetail,
   setProductReviewMode,
   setProductStock,
   decrementStock,
+  createProduct,
 } from './db/catalogRepo.js';
 import { adminOffers } from './db/offersStore.js';
 
@@ -903,6 +905,27 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  // Creates a new product and adds it to the catalog
+  app.post('/admin/menu/products', requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const input = z.object({
+        category_id: z.string().min(1),
+        name_en: z.string().min(1).max(120),
+        name_ar: z.string().max(120).default(''),
+        description_en: z.string().max(500).default(''),
+        description_ar: z.string().max(500).default(''),
+        base_price_egp: z.number().positive(),
+        image_url: z.string().min(1).max(2000).default('/images/products/hot_coffee.png'),
+        prep_minutes: z.number().int().positive().max(120).default(5),
+        sort_order: z.number().int().nonnegative().default(0),
+        is_available: z.boolean().default(true),
+      }).parse(req.body);
+      const product = await createProduct(input);
+      res.status(201).json({ product });
+    } catch (e) { next(e); }
+  });
+
   // Sets the stock count for a product (null = unlimited; 0 = sold out)
   app.patch('/admin/menu/products/:id/stock', requireAuth, requireAdmin, (req, res, next) => {
     try {
@@ -1112,6 +1135,64 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  app.get('/admin/reports/reviews', requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+
+      // Flatten all reviews from the in-memory map
+      const allReviews: Array<{ productId: string; rating: number; hidden: boolean }> = [];
+      for (const [, list] of reviews) {
+        for (const r of list) allReviews.push(r);
+      }
+
+      // Product name lookup
+      const catalog = await getCatalog();
+      const productNameMap = new Map(catalog.products.map((p) => [p.id, p.name_en]));
+
+      const total = allReviews.length;
+      const hiddenCount = allReviews.filter((r) => r.hidden).length;
+      const avgRating = total > 0
+        ? Math.round((allReviews.reduce((s, r) => s + r.rating, 0) / total) * 10) / 10
+        : 0;
+
+      // Overall rating distribution
+      const ratingDistribution: Record<string, number> = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
+      for (const r of allReviews) {
+        ratingDistribution[String(r.rating)] = (ratingDistribution[String(r.rating)] ?? 0) + 1;
+      }
+
+      // Per-product stats
+      const productMap = new Map<string, {
+        reviewCount: number; totalRating: number; hiddenCount: number;
+        ratingDistribution: Record<string, number>;
+      }>();
+      for (const r of allReviews) {
+        const existing = productMap.get(r.productId) ?? {
+          reviewCount: 0, totalRating: 0, hiddenCount: 0,
+          ratingDistribution: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
+        };
+        existing.reviewCount += 1;
+        existing.totalRating += r.rating;
+        if (r.hidden) existing.hiddenCount += 1;
+        existing.ratingDistribution[String(r.rating)] = (existing.ratingDistribution[String(r.rating)] ?? 0) + 1;
+        productMap.set(r.productId, existing);
+      }
+
+      const byProduct = Array.from(productMap.entries())
+        .map(([productId, data]) => ({
+          productId,
+          name_en: productNameMap.get(productId) ?? productId,
+          reviewCount: data.reviewCount,
+          avgRating: Math.round((data.totalRating / data.reviewCount) * 10) / 10,
+          hiddenCount: data.hiddenCount,
+          ratingDistribution: data.ratingDistribution,
+        }))
+        .sort((a, b) => b.reviewCount - a.reviewCount);
+
+      res.json({ total, avgRating, hiddenCount, ratingDistribution, byProduct });
+    } catch (e) { next(e); }
+  });
+
   app.get('/admin/reports/role-breakdown', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reports:view_full');
@@ -1127,6 +1208,33 @@ export function createApp(): express.Express {
       res.json({ breakdown: Object.fromEntries(roleCounts) });
     } catch (e) { next(e); }
   });
+
+  // -------- Dev-only payment simulation --------
+  // When PAYMOB_API_KEY is absent, createIntention() returns a URL pointing here.
+  // This route marks the order paid and redirects back to the customer order page.
+  if (config.nodeEnv !== 'production') {
+    app.get('/dev/payment-sim', async (req, res, next) => {
+      try {
+        const { orderId } = z.object({ orderId: z.string().min(1) }).parse(req.query);
+        const order = orders.get(orderId);
+        if (!order) { res.status(404).send('Order not found in dev payment sim.'); return; }
+
+        if (order.paymentStatus !== 'paid') {
+          order.paymentStatus = 'paid';
+          const earned = calculateEarnedPoints({ amountEgp: order.totalEgp, source: 'online_paid' });
+          userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
+          recordLoyaltyEvent(order.userId, 'online_paid', earned, order.id);
+          if (order.status === 'received') {
+            applyStatusTransition(order, 'accepted', 'auto-accept on payment');
+            await notifyOrderStatus(order, 'accepted');
+          }
+          emitOrderUpdate(order);
+        }
+
+        res.redirect(`${config.customerWebUrl}/orders/${orderId}`);
+      } catch (e) { next(e); }
+    });
+  }
 
   app.use(errorHandler);
   return app;

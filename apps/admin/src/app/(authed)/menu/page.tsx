@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff, MessageSquare } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Eye, EyeOff, MessageSquare, X } from 'lucide-react';
 import { api, adminApi, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/useSession';
 import { can } from '@/lib/permissions';
@@ -10,7 +10,7 @@ import type { Product, Category, CatalogResponse, ReviewMode } from '@cup-and-co
 
 /**
  * Menu admin. Owners can manage everything; baristas can flip availability
- * and update stock. Review-mode cycling is owner-only (canManage gate).
+ * and update stock. Review-mode cycling and product creation are owner-only.
  */
 
 const REVIEW_MODE_CYCLE: ReviewMode[] = ['full', 'write_only', 'hidden'];
@@ -36,6 +36,25 @@ const REVIEW_MODE_META: Record<
   },
 };
 
+const PRESET_IMAGES = [
+  { url: '/images/products/hot_coffee.png', label: 'Hot' },
+  { url: '/images/products/cold_coffee.png', label: 'Cold' },
+  { url: '/images/products/dessert.png', label: 'Dessert' },
+  { url: '/images/products/breakfast.png', label: 'Breakfast' },
+];
+
+const INITIAL_ADD_FORM = {
+  category_id: '',
+  name_en: '',
+  name_ar: '',
+  description_en: '',
+  description_ar: '',
+  base_price_egp: '',
+  prep_minutes: '5',
+  image_url: '/images/products/hot_coffee.png',
+  is_available: true,
+};
+
 function nextReviewMode(current: ReviewMode): ReviewMode {
   const idx = REVIEW_MODE_CYCLE.indexOf(current);
   return REVIEW_MODE_CYCLE[(idx + 1) % REVIEW_MODE_CYCLE.length];
@@ -54,35 +73,40 @@ export default function MenuPage() {
   const [stockMap, setStockMap] = useState<Record<string, number | null>>({});
   const stockTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await api<CatalogResponse>('/catalog');
-        if (cancelled) return;
-        setProducts(data.products);
-        setCategories(data.categories);
-        const modes: Record<string, ReviewMode> = {};
-        const stocks: Record<string, number | null> = {};
-        for (const p of data.products) {
-          // Guard: DB column may be absent if migration 0004 hasn't run yet
-          modes[p.id] = (p.review_mode != null && p.review_mode in REVIEW_MODE_META)
-            ? p.review_mode
-            : 'full';
-          stocks[p.id] = p.stock_count;
-        }
-        setReviewModeMap(modes);
-        setStockMap(stocks);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : 'Could not load menu.');
-        }
+  // Add product modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState(INITIAL_ADD_FORM);
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  const loadCatalog = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const data = await api<CatalogResponse>('/catalog', { signal });
+      if (signal?.aborted) return;
+      setProducts(data.products);
+      setCategories(data.categories);
+      const modes: Record<string, ReviewMode> = {};
+      const stocks: Record<string, number | null> = {};
+      for (const p of data.products) {
+        modes[p.id] = (p.review_mode != null && p.review_mode in REVIEW_MODE_META)
+          ? p.review_mode
+          : 'full';
+        stocks[p.id] = p.stock_count;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+      setReviewModeMap(modes);
+      setStockMap(stocks);
+      setError(null);
+    } catch (err) {
+      if (signal?.aborted) return;
+      setError(err instanceof ApiError ? err.message : 'Could not load menu.');
+    }
   }, []);
+
+  useEffect(() => {
+    const ctl = new AbortController();
+    loadCatalog(ctl.signal);
+    return () => ctl.abort();
+  }, [loadCatalog]);
 
   const canToggle = can(session?.role, 'menu:update_availability');
   const canManage = can(session?.role, 'menu:manage');
@@ -138,6 +162,46 @@ export default function MenuPage() {
     }, 600);
   }
 
+  async function handleAddProduct(e: React.FormEvent) {
+    e.preventDefault();
+    const price = parseFloat(addForm.base_price_egp);
+    const prep = parseInt(addForm.prep_minutes, 10);
+    if (!addForm.category_id) { setAddError('Please select a category.'); return; }
+    if (!addForm.name_en.trim()) { setAddError('English name is required.'); return; }
+    if (isNaN(price) || price <= 0) { setAddError('Price must be greater than 0.'); return; }
+    if (isNaN(prep) || prep < 1) { setAddError('Prep time must be at least 1 minute.'); return; }
+
+    setAddSubmitting(true);
+    setAddError(null);
+    try {
+      await adminApi.createProduct({
+        category_id: addForm.category_id,
+        name_en: addForm.name_en.trim(),
+        name_ar: addForm.name_ar.trim() || addForm.name_en.trim(),
+        description_en: addForm.description_en.trim(),
+        description_ar: addForm.description_ar.trim(),
+        base_price_egp: price,
+        prep_minutes: prep,
+        image_url: addForm.image_url || '/images/products/hot_coffee.png',
+        is_available: addForm.is_available,
+        sort_order: 0,
+      });
+      setShowAddModal(false);
+      setAddForm(INITIAL_ADD_FORM);
+      await loadCatalog();
+    } catch (err) {
+      setAddError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Could not add product.',
+      );
+    } finally {
+      setAddSubmitting(false);
+    }
+  }
+
   const grouped = (products ?? []).reduce<Record<string, Product[]>>((acc, p) => {
     (acc[p.category_id] ??= []).push(p);
     return acc;
@@ -160,11 +224,10 @@ export default function MenuPage() {
         {canManage && (
           <button
             type="button"
-            disabled
-            title="Phase 2"
-            className="rounded-pill bg-cup-orange-600/40 px-4 py-2 text-sm font-semibold text-white shadow-subtle disabled:cursor-not-allowed"
+            onClick={() => { setAddError(null); setAddForm(INITIAL_ADD_FORM); setShowAddModal(true); }}
+            className="rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 active:scale-95"
           >
-            Add product · soon
+            + Add Product
           </button>
         )}
       </header>
@@ -182,7 +245,7 @@ export default function MenuPage() {
         <p className="text-sm text-cup-muted">Loading menu…</p>
       ) : products.length === 0 ? (
         <p className="rounded-chip bg-cup-cream-100 px-4 py-6 text-center text-sm text-cup-muted">
-          No products yet. Seed the catalog from the API.
+          No products yet. Add the first one!
         </p>
       ) : (
         <div className="space-y-6">
@@ -283,6 +346,219 @@ export default function MenuPage() {
                 </ul>
               </section>
             ))}
+        </div>
+      )}
+
+      {/* ── Add Product Modal ── */}
+      {showAddModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center sm:p-6"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAddModal(false); }}
+        >
+          <form
+            onSubmit={handleAddProduct}
+            className="relative w-full max-w-lg rounded-card bg-cup-paper shadow-2xl"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-cup-stroke px-6 py-4">
+              <h2 className="font-heading text-lg font-bold text-cup-brown-900">New Product</h2>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="grid h-8 w-8 place-items-center rounded-full text-cup-muted transition hover:bg-cup-cream-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">
+              {/* Category */}
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">
+                  Category
+                </label>
+                <select
+                  required
+                  value={addForm.category_id}
+                  onChange={(e) => setAddForm((f) => ({ ...f, category_id: e.target.value }))}
+                  className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2.5 text-sm text-cup-brown-900 focus:border-cup-orange-600 focus:outline-none"
+                >
+                  <option value="">Select category…</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name_en}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Names */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">
+                    Name (EN) *
+                  </label>
+                  <input
+                    required
+                    value={addForm.name_en}
+                    onChange={(e) => setAddForm((f) => ({ ...f, name_en: e.target.value }))}
+                    placeholder="e.g. Oat Latte"
+                    className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">
+                    Name (AR)
+                  </label>
+                  <input
+                    value={addForm.name_ar}
+                    onChange={(e) => setAddForm((f) => ({ ...f, name_ar: e.target.value }))}
+                    placeholder="لاتيه شوفان"
+                    dir="rtl"
+                    className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Descriptions */}
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">
+                  Description (EN)
+                </label>
+                <textarea
+                  value={addForm.description_en}
+                  onChange={(e) => setAddForm((f) => ({ ...f, description_en: e.target.value }))}
+                  placeholder="Short product description…"
+                  rows={2}
+                  maxLength={500}
+                  className="w-full resize-none rounded-lg border border-cup-stroke bg-white px-3 py-2 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">
+                  Description (AR)
+                </label>
+                <textarea
+                  value={addForm.description_ar}
+                  onChange={(e) => setAddForm((f) => ({ ...f, description_ar: e.target.value }))}
+                  placeholder="وصف قصير للمنتج…"
+                  dir="rtl"
+                  rows={2}
+                  maxLength={500}
+                  className="w-full resize-none rounded-lg border border-cup-stroke bg-white px-3 py-2 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+                />
+              </div>
+
+              {/* Price + Prep time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">
+                    Price (EGP) *
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    min={0.5}
+                    step={0.5}
+                    value={addForm.base_price_egp}
+                    onChange={(e) => setAddForm((f) => ({ ...f, base_price_egp: e.target.value }))}
+                    placeholder="65"
+                    className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">
+                    Prep Time (min) *
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    min={1}
+                    max={120}
+                    value={addForm.prep_minutes}
+                    onChange={(e) => setAddForm((f) => ({ ...f, prep_minutes: e.target.value }))}
+                    className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2.5 text-sm focus:border-cup-orange-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Image preset picker + custom URL */}
+              <div>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">
+                  Image
+                </label>
+                <div className="mb-2 grid grid-cols-4 gap-2">
+                  {PRESET_IMAGES.map((preset) => (
+                    <button
+                      key={preset.url}
+                      type="button"
+                      onClick={() => setAddForm((f) => ({ ...f, image_url: preset.url }))}
+                      className={`relative aspect-square overflow-hidden rounded-lg border-2 transition ${
+                        addForm.image_url === preset.url
+                          ? 'border-cup-orange-600 ring-2 ring-cup-orange-600/25'
+                          : 'border-cup-stroke hover:border-cup-brown-400'
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={preset.url} alt={preset.label} className="h-full w-full object-cover" />
+                      <span className="absolute inset-x-0 bottom-0 bg-black/50 py-0.5 text-center text-[9px] font-semibold text-white">
+                        {preset.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <input
+                  value={addForm.image_url}
+                  onChange={(e) => setAddForm((f) => ({ ...f, image_url: e.target.value }))}
+                  placeholder="Or paste a custom image URL…"
+                  className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+                />
+              </div>
+
+              {/* Available immediately toggle */}
+              <button
+                type="button"
+                onClick={() => setAddForm((f) => ({ ...f, is_available: !f.is_available }))}
+                className="flex w-full items-center justify-between rounded-lg border border-cup-stroke bg-white px-4 py-3 transition hover:bg-cup-paper"
+              >
+                <span className="text-sm font-semibold text-cup-brown-900">Available immediately</span>
+                <span
+                  className={`relative inline-block h-6 w-11 rounded-full transition ${
+                    addForm.is_available ? 'bg-cup-teal-700' : 'bg-cup-brown-400'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-[3px] inline-block h-[18px] w-[18px] rounded-full bg-white shadow transition-all ${
+                      addForm.is_available ? 'left-[23px]' : 'left-[3px]'
+                    }`}
+                  />
+                </span>
+              </button>
+
+              {addError && (
+                <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-cup-error">
+                  {addError}
+                </p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 border-t border-cup-stroke px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 rounded-pill border border-cup-stroke bg-white py-2.5 text-sm font-semibold text-cup-brown-700 transition hover:bg-cup-cream-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={addSubmitting}
+                className="flex-1 rounded-pill bg-cup-orange-600 py-2.5 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 disabled:opacity-70"
+              >
+                {addSubmitting ? 'Adding…' : 'Add Product'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

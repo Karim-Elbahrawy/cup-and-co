@@ -82,7 +82,7 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
 
 // Typed helpers — keep the call sites tidy.
 
-import type { OrderStatus } from '@cup-and-co/types';
+import type { OrderStatus, Product } from '@cup-and-co/types';
 
 export interface AdminOrderItem {
   productId: string;
@@ -216,6 +216,23 @@ export interface AdminReportRoleBreakdown {
   breakdown: Record<string, { orders: number; revenue: number }>;
 }
 
+export interface AdminReportReviewsByProduct {
+  productId: string;
+  name_en: string;
+  reviewCount: number;
+  avgRating: number;
+  hiddenCount: number;
+  ratingDistribution: Record<string, number>;
+}
+
+export interface AdminReportReviews {
+  total: number;
+  avgRating: number;
+  hiddenCount: number;
+  ratingDistribution: Record<string, number>;
+  byProduct: AdminReportReviewsByProduct[];
+}
+
 export const adminApi = {
   listOrders: (signal?: AbortSignal) =>
     api<{ orders: AdminOrder[] }>('/admin/orders', { signal }),
@@ -249,6 +266,18 @@ export const adminApi = {
       method: 'PATCH',
       body: patch,
     }),
+  createProduct: (body: {
+    category_id: string;
+    name_en: string;
+    name_ar: string;
+    description_en: string;
+    description_ar: string;
+    base_price_egp: number;
+    image_url: string;
+    prep_minutes: number;
+    sort_order: number;
+    is_available: boolean;
+  }) => api<{ product: Product }>('/admin/menu/products', { method: 'POST', body }),
   setProductAvailability: (productId: string, available: boolean) =>
     api<{ id: string; available: boolean }>(
       `/admin/menu/products/${productId}/availability`,
@@ -299,4 +328,6 @@ export const adminApi = {
     api<{ topItems: AdminReportTopItem[] }>('/admin/reports/top-items', { signal }),
   getRoleBreakdown: (signal?: AbortSignal) =>
     api<AdminReportRoleBreakdown>('/admin/reports/role-breakdown', { signal }),
+  getReviewsReport: (signal?: AbortSignal) =>
+    api<AdminReportReviews>('/admin/reports/reviews', { signal }),
 };

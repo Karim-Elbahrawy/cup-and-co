@@ -71,7 +71,11 @@ export function createPaymobService() {
         throw new Error('Payment amount must be greater than zero.');
       }
       const ref = `cc_${input.orderId}_${Date.now()}`;
-      const url = `${config.paymob.checkoutBaseUrl}?merchant_order_id=${encodeURIComponent(input.orderId)}&amount=${input.amountEgp}&method=${input.method}`;
+      // In dev (no Paymob API key), redirect to the local payment simulator instead.
+      const isDev = !config.paymob.apiKey;
+      const url = isDev
+        ? `${config.devApiBaseUrl}/dev/payment-sim?orderId=${encodeURIComponent(input.orderId)}&method=${input.method}`
+        : `${config.paymob.checkoutBaseUrl}?merchant_order_id=${encodeURIComponent(input.orderId)}&amount=${input.amountEgp}&method=${input.method}`;
       return {
         orderId: input.orderId,
         userId: input.userId,
