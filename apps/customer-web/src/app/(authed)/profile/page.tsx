@@ -22,9 +22,10 @@ import {
 import { PageTransition } from '@/components/PageTransition';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { UserAvatar } from '@/components/UserAvatar';
+import { TierBadge, TierProgress } from '@/components/TierBadge';
 import { useSession, type Language } from '@/lib/session';
 import { useT } from '@/lib/i18n';
-import { api } from '@/lib/api';
+import { api, type LoyaltyTier, type TierBenefits } from '@/lib/api';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -42,6 +43,14 @@ export default function ProfilePage() {
   const [notifRewards, setNotifRewards] = useState(true);
   const [twoFactor, setTwoFactor] = useState(false);
   const [passcode, setPasscode] = useState(false);
+  // Phase 6.3 — tier state
+  const [tier, setTier] = useState<{
+    tier: LoyaltyTier;
+    nextTier: LoyaltyTier | null;
+    pointsToNext: number | null;
+    trailing12mPoints: number;
+    benefits: TierBenefits;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +66,19 @@ export default function ProfilePage() {
             avatarUrl: user?.avatarUrl ?? data.user.avatarUrl ?? null,
             languagePref: language,
           });
+      })
+      .catch(() => {});
+    api
+      .myTier()
+      .then((res) => {
+        if (cancelled) return;
+        setTier({
+          tier: res.tier,
+          nextTier: res.nextTier,
+          pointsToNext: res.pointsToNext,
+          trailing12mPoints: res.trailing12mPoints,
+          benefits: res.benefits,
+        });
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -126,12 +148,50 @@ export default function ProfilePage() {
                 className="w-full bg-transparent font-heading text-lg font-bold text-[var(--cup-espresso)] placeholder:text-[var(--cup-muted)] outline-none focus:underline focus:decoration-[var(--cup-primary)] focus:underline-offset-4"
               />
               <p className="mt-0.5 text-sm text-[var(--cup-muted)]">{user.phone}</p>
-              <span className="mt-2 inline-flex items-center gap-1.5 rounded-pill bg-[var(--cup-cream)] px-2.5 py-1 text-xs font-semibold text-[var(--cup-primary)]">
-                <Sparkles size={12} aria-hidden="true" />
-                {t(`roles.${user.role === 'owner' || user.role === 'barista' ? 'student' : user.role}`)}
-              </span>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex items-center gap-1.5 rounded-pill bg-[var(--cup-cream)] px-2.5 py-1 text-xs font-semibold text-[var(--cup-primary)]">
+                  <Sparkles size={12} aria-hidden="true" />
+                  {t(`roles.${user.role === 'owner' || user.role === 'barista' ? 'student' : user.role}`)}
+                </span>
+                {tier && <TierBadge tier={tier.tier} size="sm" language={language} />}
+              </div>
             </div>
           </div>
+
+          {/* Phase 6.3 — tier progress */}
+          {tier && (
+            <div className="mt-4 rounded-2xl bg-[var(--cup-paper)] p-3">
+              <TierProgress
+                currentTier={tier.tier}
+                nextTier={tier.nextTier}
+                trailing12mPoints={tier.trailing12mPoints}
+                pointsToNext={tier.pointsToNext}
+                language={language}
+              />
+              {/* Benefits summary */}
+              <ul className="mt-3 space-y-1 text-[11px] text-[var(--cup-cocoa)]">
+                {tier.benefits.multiplier > 1 && (
+                  <li>
+                    {language === 'ar'
+                      ? `× ${tier.benefits.multiplier} نقاط`
+                      : `${tier.benefits.multiplier}× points multiplier`}
+                  </li>
+                )}
+                {tier.benefits.freeUpsizesPerMonth > 0 && (
+                  <li>
+                    {language === 'ar'
+                      ? `${tier.benefits.freeUpsizesPerMonth} ترقيات مجانية/شهر`
+                      : `${tier.benefits.freeUpsizesPerMonth} free upsize${tier.benefits.freeUpsizesPerMonth === 1 ? '' : 's'} / month`}
+                  </li>
+                )}
+                {tier.benefits.birthdayDrinkFree && (
+                  <li>
+                    {language === 'ar' ? 'مشروب عيد ميلاد مجاني' : 'Free birthday drink'}
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
 
           <div className="mt-4 flex items-center justify-between rounded-2xl bg-[var(--cup-paper)] p-3">
             <span className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--cup-muted)]">

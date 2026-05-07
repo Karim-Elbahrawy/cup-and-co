@@ -45,6 +45,15 @@ import {
   type TimeOfDay,
 } from './db/orderFavoritesRepo.js';
 import { getStreakState, recordOrderForStreak } from './db/streakRepo.js';
+import {
+  applyTierMultiplier,
+  recalculateOnEarn,
+  getTierState,
+  getTierHistory,
+  TIER_BENEFITS,
+  TIER_THRESHOLDS_OUT,
+  type LoyaltyTier,
+} from './services/tierEngine.js';
 import { catalogRouter } from './routes/catalog.js';
 import {
   listCampuses,
@@ -231,6 +240,23 @@ function recordLoyaltyEvent(userId: string, source: string, points: number, orde
       props: { discount_amount: Math.abs(points), points_spent: Math.abs(points), new_balance: balance },
     });
   }
+}
+
+/**
+ * Phase 6.3 — sum positive points entries from the last 365 days for
+ * tier calculation. Closes over `loyaltyHistory` (in-memory). Production
+ * reads from `loyalty_points` table directly.
+ */
+function getTrailing12mPoints(userId: string): number {
+  const cutoffMs = Date.now() - 365 * 86_400_000;
+  const history = loyaltyHistory.get(userId) ?? [];
+  let total = 0;
+  for (const entry of history) {
+    if (entry.points <= 0) continue;
+    if (new Date(entry.createdAt).getTime() < cutoffMs) continue;
+    total += entry.points;
+  }
+  return total;
 }
 
 function emitOrderUpdate(order: Order) {
@@ -475,6 +501,35 @@ export function createApp(): express.Express {
     res.json({
       user: { ...u, ...profile },
       points: userPoints.get(u.id) ?? 0,
+      tier: getTierState(u.id).currentTier,
+    });
+  });
+
+  // Phase 6.3 — tier read endpoint with progress to next tier.
+  app.get('/me/tier', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    const state = getTierState(u.id);
+    const trailing = getTrailing12mPoints(u.id);
+    const benefits = TIER_BENEFITS[state.currentTier];
+
+    let nextTier: LoyaltyTier | null = null;
+    let pointsToNext: number | null = null;
+    if (state.currentTier === 'bronze') {
+      nextTier = 'silver';
+      pointsToNext = TIER_THRESHOLDS_OUT.silver - trailing;
+    } else if (state.currentTier === 'silver') {
+      nextTier = 'gold';
+      pointsToNext = TIER_THRESHOLDS_OUT.gold - trailing;
+    }
+
+    res.json({
+      tier: state.currentTier,
+      tierCalculatedAt: state.tierCalculatedAt,
+      trailing12mPoints: trailing,
+      benefits,
+      nextTier,
+      pointsToNext: pointsToNext !== null ? Math.max(0, pointsToNext) : null,
+      history: getTierHistory(u.id).slice(0, 10),
     });
   });
 
@@ -1246,8 +1301,13 @@ export function createApp(): express.Express {
             amountEgp: order.totalEgp,
             source: 'online_paid',
           });
-          userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
-          recordLoyaltyEvent(order.userId, 'online_paid', earned, order.id);
+          // Phase 6.3 — apply tier multiplier (Bronze 1.0×, Silver 1.25×, Gold 1.5×)
+          const tieredEarned = applyTierMultiplier(order.userId, earned);
+          userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + tieredEarned);
+          recordLoyaltyEvent(order.userId, 'online_paid', tieredEarned, order.id);
+          // Recalculate tier after credit so a customer who just crossed
+          // the threshold sees the new tier on next refresh.
+          recalculateOnEarn(order.userId, getTrailing12mPoints);
           // Phase 6.2 — record the paid order against the user's streak.
           // Day-7 multiples grant a +50 pt bonus.
           {
@@ -1469,9 +1529,12 @@ export function createApp(): express.Express {
       // On cash 'completed', mark paid + award cash points
       if (status === 'completed' && order.paymentMethod === 'cash' && order.paymentStatus !== 'paid') {
         order.paymentStatus = 'paid';
-        const earned = calculateEarnedPoints({ amountEgp: order.totalEgp, source: 'cash_in_app' });
+        const baseEarned = calculateEarnedPoints({ amountEgp: order.totalEgp, source: 'cash_in_app' });
+        // Phase 6.3 — apply tier multiplier
+        const earned = applyTierMultiplier(order.userId, baseEarned);
         userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
         recordLoyaltyEvent(order.userId, 'cash_in_app', earned, order.id);
+        recalculateOnEarn(order.userId, getTrailing12mPoints);
         // Phase 6.2 — streak update on cash completion.
         const streakResult = recordOrderForStreak(order.userId);
         if (streakResult.bonusEarned) {

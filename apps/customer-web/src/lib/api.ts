@@ -296,6 +296,18 @@ export const api = {
 
   // -- Phase 6.2 streaks --
   myStreak: () => apiFetch<{ streak: StreakState }>('/me/streak'),
+
+  // -- Phase 6.3 tiered loyalty --
+  myTier: () =>
+    apiFetch<{
+      tier: LoyaltyTier;
+      tierCalculatedAt: string | null;
+      trailing12mPoints: number;
+      benefits: TierBenefits;
+      nextTier: LoyaltyTier | null;
+      pointsToNext: number | null;
+      history: TierHistoryEntry[];
+    }>('/me/tier'),
 };
 
 // Phase 6.1 types — kept inline so callers can import alongside `api`.
@@ -330,4 +342,25 @@ export interface StreakState {
   lastBonusStreak: number;
   createdAt: string;
   updatedAt: string;
+}
+
+// Phase 6.3 tiered loyalty types.
+export type LoyaltyTier = 'bronze' | 'silver' | 'gold';
+
+export interface TierBenefits {
+  tier: LoyaltyTier;
+  multiplier: number;
+  freeUpsizesPerMonth: number;
+  birthdayDrinkFree: boolean;
+  kdsPriority: boolean;
+}
+
+export interface TierHistoryEntry {
+  id: string;
+  userId: string;
+  fromTier: LoyaltyTier | null;
+  toTier: LoyaltyTier;
+  trailing12mPoints: number;
+  reason: string;
+  changedAt: string;
 }
