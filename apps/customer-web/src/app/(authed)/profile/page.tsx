@@ -26,6 +26,7 @@ import { TierBadge, TierProgress } from '@/components/TierBadge';
 import { useSession, type Language } from '@/lib/session';
 import { useT } from '@/lib/i18n';
 import { api, type LoyaltyTier, type TierBenefits } from '@/lib/api';
+import { useTheme, type ThemeChoice } from '@/components/ThemeProvider';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -51,6 +52,9 @@ export default function ProfilePage() {
     trailing12mPoints: number;
     benefits: TierBenefits;
   } | null>(null);
+
+  // Phase 8.2 — appearance
+  const { choice: themeChoice, setChoice: setThemeChoice } = useTheme();
 
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +277,41 @@ export default function ProfilePage() {
                     ].join(' ')}
                   >
                     {lang === 'en' ? 'English' : 'العربية'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Phase 8.2 — Appearance */}
+        <div>
+          <SectionLabel>{language === 'ar' ? 'المظهر' : 'Appearance'}</SectionLabel>
+          <div className="rounded-card bg-[var(--cup-surface)] shadow-card p-4">
+            <div role="radiogroup" aria-label={language === 'ar' ? 'المظهر' : 'Appearance'} className="flex gap-2">
+              {(['system', 'light', 'dark'] as const).map((mode) => {
+                const active = themeChoice === mode;
+                const label = (() => {
+                  const isAr = language === 'ar';
+                  if (mode === 'system') return isAr ? 'النظام' : 'System';
+                  if (mode === 'light') return isAr ? 'فاتح' : 'Light';
+                  return isAr ? 'داكن' : 'Dark';
+                })();
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setThemeChoice(mode as ThemeChoice)}
+                    className={[
+                      'flex-1 rounded-2xl py-2.5 text-sm font-bold transition-all',
+                      active
+                        ? 'bg-[var(--cup-primary)] text-white shadow-subtle'
+                        : 'bg-[var(--cup-paper)] text-[var(--cup-muted)] hover:text-[var(--cup-cocoa)]',
+                    ].join(' ')}
+                  >
+                    {label}
                   </button>
                 );
               })}
