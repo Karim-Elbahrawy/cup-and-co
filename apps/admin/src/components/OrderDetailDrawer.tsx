@@ -71,12 +71,6 @@ export function OrderDetailDrawer({
     if (isOpen) panelRef.current?.focus();
   }, [isOpen]);
 
-  // Prevent body scroll while open
-  useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [isOpen]);
-
   const palette = PALETTES[hashId(order?.userId ?? '') % PALETTES.length];
   const next = order ? nextStatus(order.status) : null;
   const prev = order ? previousStatus(order.status) : null;
@@ -88,7 +82,7 @@ export function OrderDetailDrawer({
       <div
         aria-hidden
         onClick={onClose}
-        className={`fixed inset-0 z-40 bg-cup-espresso/25 backdrop-blur-[2px] transition-opacity duration-200 ${
+        className={`fixed inset-0 z-40 bg-cup-brown-900/25 backdrop-blur-[2px] transition-opacity duration-200 ${
           isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
       />

@@ -139,7 +139,7 @@ export default function ProfilePage() {
           <div className="rounded-card bg-white shadow-card overflow-hidden">
             <NavRow icon={<User size={16} />} label={t('profile.personalInfo')} />
             <NavRow icon={<CreditCard size={16} />} label={t('profile.cardsAndPayments')} />
-            <NavRow icon={<History size={16} />} label={t('profile.transactionHistory')} />
+            <NavRow icon={<History size={16} />} label={t('profile.transactionHistory')} href="/orders" />
             <NavRow icon={<Shield size={16} />} label={t('profile.privacyAndData')} />
             <NavRow icon={<Tag size={16} />} label={t('profile.accountId')} last />
           </div>
@@ -255,27 +255,32 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function NavRow({
   icon,
   label,
+  href,
   last = false,
 }: {
   icon: React.ReactNode;
   label: string;
+  href?: string;
   last?: boolean;
 }) {
-  return (
-    <button
-      type="button"
-      className={[
-        'flex w-full items-center gap-3 px-4 py-3.5 text-start transition-colors hover:bg-[var(--cup-paper)] active:bg-[var(--cup-paper)]',
-        !last ? 'border-b border-[var(--cup-stroke)]' : '',
-      ].join(' ')}
-    >
+  const inner = (
+    <>
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--cup-cream)] text-[var(--cup-primary)]">
         {icon}
       </span>
       <span className="flex-1 text-sm font-semibold text-[var(--cup-espresso)]">{label}</span>
       <ChevronRight size={16} className="text-[var(--cup-muted)]" aria-hidden="true" />
-    </button>
+    </>
   );
+  const cls = [
+    'flex w-full items-center gap-3 px-4 py-3.5 text-start transition-colors hover:bg-[var(--cup-paper)] active:bg-[var(--cup-paper)]',
+    !last ? 'border-b border-[var(--cup-stroke)]' : '',
+  ].join(' ');
+
+  if (href) {
+    return <Link href={href} className={cls}>{inner}</Link>;
+  }
+  return <button type="button" className={cls}>{inner}</button>;
 }
 
 function ToggleRow({

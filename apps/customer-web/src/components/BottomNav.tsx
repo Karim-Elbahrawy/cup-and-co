@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, RotateCcw, ShoppingBag, Sparkles, User } from 'lucide-react';
+import { ClipboardList, Home, ShoppingBag, Sparkles, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 
@@ -15,7 +15,7 @@ interface NavItem {
 
 const ITEMS: NavItem[] = [
   { href: '/', labelKey: 'nav.home', icon: Home, exact: true },
-  { href: '/usual', labelKey: 'nav.usual', icon: RotateCcw },
+  { href: '/orders', labelKey: 'nav.orders', icon: ClipboardList },
   { href: '/cart', labelKey: 'nav.cart', icon: ShoppingBag },
   { href: '/rewards', labelKey: 'nav.rewards', icon: Sparkles },
   { href: '/profile', labelKey: 'nav.profile', icon: User },

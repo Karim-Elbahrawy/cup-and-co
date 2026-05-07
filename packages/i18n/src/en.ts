@@ -51,6 +51,7 @@ export const en: Translations = {
   nav: {
     home: 'Home',
     usual: 'Usual',
+    orders: 'Orders',
     cart: 'Cart',
     rewards: 'Rewards',
     profile: 'Profile',

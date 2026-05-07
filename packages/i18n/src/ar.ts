@@ -51,6 +51,7 @@ export const ar: Translations = {
   nav: {
     home: 'الرئيسية',
     usual: 'كالعادة',
+    orders: 'طلباتي',
     cart: 'السلة',
     rewards: 'المكافآت',
     profile: 'حسابي',

@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { BottomNav } from '@/components/BottomNav';
 import { PhoneFrame } from '@/components/PhoneFrame';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { ActiveOrderBanner } from '@/components/ActiveOrderBanner';
 import { useSession } from '@/lib/session';
 
 /**
@@ -41,7 +42,10 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
   return (
     <PhoneFrame>
       <OfflineIndicator />
-      <div className="flex min-h-screen flex-col pb-[88px]">{children}</div>
+      <div className="flex min-h-screen flex-col pb-[88px]">
+        <ActiveOrderBanner />
+        {children}
+      </div>
       <BottomNav />
     </PhoneFrame>
   );

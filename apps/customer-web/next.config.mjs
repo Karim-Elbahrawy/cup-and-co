@@ -10,6 +10,9 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '**' },
     ],
+    // Allow SVGs served from /public (individual product images use .svg)
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
   },
 };
 

@@ -15,9 +15,15 @@ interface ProductCardProps {
 }
 
 /**
- * Square-image product card. Heart icon top-right toggles a local favorite
- * state (server sync lands in Phase 2). The card scales to 0.98 on press
- * via Framer Motion, and the rating + price line keeps the brand's contrast.
+ * Product card for the customer-facing grid.
+ *
+ * Image rendering: the image container uses a padding-bottom trick
+ * (`pb-[100%]`) as the most reliable cross-browser aspect-ratio enforcer.
+ * A nested `absolute inset-0` div is the actual `position: relative`
+ * context for Next.js `<Image fill>` — separating sizing from clipping.
+ *
+ * Padding inside the image is done via inline `style` on the <Image> so
+ * it is never dropped by Tailwind's JIT purge pass.
  */
 export function ProductCard({ product, initiallyFavorited = false }: ProductCardProps) {
   const { language } = useT();
@@ -30,43 +36,64 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
 
   return (
     <motion.div
-      whileHover={reduce ? undefined : { y: -2 }}
+      whileHover={reduce ? undefined : { y: -3 }}
       whileTap={reduce ? undefined : { scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-      className="group relative overflow-hidden rounded-[20px] bg-white p-3 shadow-card transition-shadow hover:shadow-elevated"
+      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+      className="group relative overflow-visible rounded-[20px] bg-white shadow-card transition-shadow hover:shadow-elevated"
     >
       <Link
         href={`/products/${product.id}`}
         aria-label={`${name}, ${price}${isOutOfStock ? ', out of stock' : ''}`}
-        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cup-primary)] focus-visible:ring-offset-2 rounded-[16px]"
+        className="block overflow-hidden rounded-[20px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cup-primary)] focus-visible:ring-offset-2"
       >
-        <div className="relative aspect-square overflow-hidden rounded-2xl bg-cup-paper">
-          <Image
-            src={product.image_url}
-            alt=""
-            width={300}
-            height={300}
-            className={`h-full w-full rounded-2xl object-contain p-2 transition-all duration-300 group-hover:scale-[1.06] ${isOutOfStock ? 'opacity-35 grayscale' : ''}`}
-          />
-          {isOutOfStock && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/30">
-              <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-cup-muted shadow-subtle ring-1 ring-cup-stroke">
-                Sold out
-              </span>
-            </div>
-          )}
+        {/* ── Image zone ───────────────────────────────────────────────────
+            pb-[100%] makes the row 1:1 square regardless of the child.
+            The inner absolute-positioned div is the `relative` context that
+            Next.js `fill` needs — overflow-hidden clips the hover scale.    */}
+        <div className="relative w-full pb-[100%] rounded-t-[20px] overflow-hidden bg-[#F7F5F2]">
+          <div className="absolute inset-0">
+            <Image
+              src={product.image_url}
+              alt=""
+              fill
+              sizes="(min-width: 1280px) 16vw, (min-width: 1024px) 20vw, (min-width: 768px) 33vw, 50vw"
+              className={`object-contain transition-transform duration-300 group-hover:scale-[1.05]${isOutOfStock ? ' opacity-40 grayscale' : ''}`}
+              style={{ padding: '12%' }}
+              unoptimized={product.image_url.toLowerCase().endsWith('.svg')}
+              priority={false}
+            />
+            {isOutOfStock && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/40">
+                <span className="rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--cup-muted)] shadow-subtle ring-1 ring-[var(--cup-stroke)]">
+                  Sold out
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="mt-3 px-0.5">
-          <p className="line-clamp-1 font-heading text-sm font-semibold leading-snug text-[var(--cup-espresso)]">
+
+        {/* ── Info zone ──────────────────────────────────────────────────── */}
+        <div className="px-3 pb-3 pt-2.5">
+          <p className="line-clamp-1 font-heading text-[13px] font-semibold leading-snug text-[var(--cup-espresso)]">
             {name}
           </p>
           <div className="mt-1.5 flex items-center justify-between gap-1">
-            <span className={`text-sm font-bold tabular-nums ${isOutOfStock ? 'text-cup-muted line-through' : 'text-[var(--cup-primary)]'}`}>
+            <span
+              className={`text-sm font-bold tabular-nums leading-none ${
+                isOutOfStock
+                  ? 'text-[var(--cup-muted)] line-through'
+                  : 'text-[var(--cup-primary)]'
+              }`}
+            >
               {price}
             </span>
-            {product.review_mode === 'full' && product.rating_count > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-xs font-medium text-[var(--cup-cocoa)]">
-                <Star size={11} aria-hidden="true" className="fill-[var(--cup-star)] stroke-[var(--cup-star)]" />
+            {product.review_mode !== 'hidden' && product.rating_count > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[var(--cup-muted)]">
+                <Star
+                  size={10}
+                  aria-hidden="true"
+                  className="fill-[var(--cup-star)] stroke-[var(--cup-star)]"
+                />
                 {product.rating_avg.toFixed(1)}
               </span>
             )}
@@ -74,6 +101,7 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
         </div>
       </Link>
 
+      {/* ── Favorite button ──────────────────────────────────────────────── */}
       <button
         type="button"
         onClick={(e) => {
@@ -81,12 +109,14 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
           e.stopPropagation();
           setFavorited((v) => !v);
         }}
-        aria-label={favorited ? `Remove ${name} from favorites` : `Add ${name} to favorites`}
+        aria-label={
+          favorited ? `Remove ${name} from favorites` : `Add ${name} to favorites`
+        }
         aria-pressed={favorited}
-        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-subtle transition-transform active:scale-90 hover:bg-white"
+        className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-subtle backdrop-blur-sm transition-transform active:scale-90 hover:bg-white"
       >
         <Heart
-          size={16}
+          size={14}
           className={
             favorited
               ? 'fill-[var(--cup-primary)] stroke-[var(--cup-primary)]'

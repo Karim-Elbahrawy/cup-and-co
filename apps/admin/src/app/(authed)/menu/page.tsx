@@ -106,7 +106,7 @@ export default function MenuPage() {
 
   async function cycleReviewMode(product: Product) {
     if (!canManage) return;
-    const current = reviewModeMap[product.id] ?? product.review_mode;
+    const current: ReviewMode = (reviewModeMap[product.id] ?? product.review_mode) ?? 'full';
     const next = nextReviewMode(current);
     setReviewModeMap((m) => ({ ...m, [product.id]: next }));
     setReviewPendingId(product.id);
@@ -194,7 +194,7 @@ export default function MenuPage() {
                 </h2>
                 <ul className="mt-4 space-y-0 divide-y divide-cup-stroke" role="list">
                   {grouped[category.id]?.map((product) => {
-                    const reviewMode = reviewModeMap[product.id] ?? product.review_mode;
+                    const reviewMode: ReviewMode = (reviewModeMap[product.id] ?? product.review_mode) ?? 'full';
                     const stockVal = stockMap[product.id] ?? product.stock_count;
                     const isOutOfStock = stockVal !== null && stockVal <= 0;
 
@@ -250,17 +250,17 @@ export default function MenuPage() {
                             {canManage && (
                               <button
                                 type="button"
-                                title={REVIEW_MODE_META[reviewMode].tooltip}
+                                title={REVIEW_MODE_META[reviewMode]?.tooltip}
                                 disabled={reviewPendingId === product.id}
                                 onClick={() => cycleReviewMode(product)}
-                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 disabled:cursor-not-allowed disabled:opacity-50 ${REVIEW_MODE_META[reviewMode].cls}`}
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 disabled:cursor-not-allowed disabled:opacity-50 ${REVIEW_MODE_META[reviewMode]?.cls ?? ''}`}
                               >
                                 {reviewMode === 'full' && <Eye size={11} aria-hidden />}
                                 {reviewMode === 'write_only' && (
                                   <MessageSquare size={11} aria-hidden />
                                 )}
                                 {reviewMode === 'hidden' && <EyeOff size={11} aria-hidden />}
-                                {REVIEW_MODE_META[reviewMode].label}
+                                {REVIEW_MODE_META[reviewMode]?.label}
                               </button>
                             )}
 
