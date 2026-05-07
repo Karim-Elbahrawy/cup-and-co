@@ -10,6 +10,10 @@ import { api, ApiError, BASE_URL } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { useT } from '@/lib/i18n';
 import { useCart } from '@/lib/cart';
+import {
+  PostOrderReviewPrompt,
+  isOrderReviewed,
+} from '@/components/PostOrderReviewPrompt';
 import type { ApiOrder, PrepEta, TimelineStep } from '@/lib/types';
 
 const POLL_MS = 5000;
@@ -32,7 +36,19 @@ export default function OrderTrackingPage({
   const [showItems, setShowItems] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   const sseActive = useRef(false);
+
+  // When the order completes, decide whether to surface the review prompt.
+  // Skipped if the customer already submitted/dismissed for this order.
+  useEffect(() => {
+    if (!order) return;
+    if (order.status !== 'completed') {
+      setShowReviewPrompt(false);
+      return;
+    }
+    setShowReviewPrompt(!isOrderReviewed(order.id));
+  }, [order?.id, order?.status, order]);
 
   function reorder() {
     if (!order) return;
@@ -266,6 +282,17 @@ export default function OrderTrackingPage({
           </motion.section>
         )}
       </AnimatePresence>
+
+      {/* Review prompt — only on completed orders that haven't been reviewed yet. */}
+      {order && order.status === 'completed' && showReviewPrompt && (
+        <section className="mx-auto mt-4 max-w-3xl px-5">
+          <PostOrderReviewPrompt
+            order={order}
+            language={language}
+            onResolved={() => setShowReviewPrompt(false)}
+          />
+        </section>
+      )}
 
       {/* Reorder when completed */}
       {order && order.status === 'completed' && (
