@@ -82,7 +82,7 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
 
 // Typed helpers — keep the call sites tidy.
 
-import type { OrderStatus, Product } from '@cup-and-co/types';
+import type { OrderStatus, Product, ProductOption } from '@cup-and-co/types';
 
 export interface AdminOrderItem {
   productId: string;
@@ -136,6 +136,7 @@ export interface AdminSummary {
   activeOrders: number;
   fullReportsVisible: boolean;
   kioskOpen?: boolean;
+  lowStockCount?: number;
 }
 
 /**
@@ -233,6 +234,34 @@ export interface AdminReportReviews {
   byProduct: AdminReportReviewsByProduct[];
 }
 
+export interface AdminRevenueTrendEntry {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AdminPeakHourEntry {
+  hour: number;
+  count: number;
+}
+
+export interface AdminAuditEntry {
+  id: string;
+  adminId: string;
+  adminRole: string;
+  action: string;
+  target: string;
+  detail: string;
+  createdAt: string;
+}
+
+export interface AdminCategory {
+  id: string;
+  name_en: string;
+  name_ar: string;
+  sort_order: number;
+}
+
 export const adminApi = {
   listOrders: (signal?: AbortSignal) =>
     api<{ orders: AdminOrder[] }>('/admin/orders', { signal }),
@@ -322,12 +351,46 @@ export const adminApi = {
   updateOffer: (id: string, body: Partial<Omit<AdminOffer, 'id' | 'usage_count'>>) =>
     api<AdminOffer>(`/admin/offers/${id}`, { method: 'PATCH', body }),
   // Phase 5: Reports
-  getRevenueReport: (signal?: AbortSignal) =>
-    api<AdminReportRevenue>('/admin/reports/revenue', { signal }),
-  getTopItems: (signal?: AbortSignal) =>
-    api<{ topItems: AdminReportTopItem[] }>('/admin/reports/top-items', { signal }),
-  getRoleBreakdown: (signal?: AbortSignal) =>
-    api<AdminReportRoleBreakdown>('/admin/reports/role-breakdown', { signal }),
+  getRevenueReport: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminReportRevenue>(`/admin/reports/revenue${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getTopItems: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ topItems: AdminReportTopItem[] }>(`/admin/reports/top-items${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getRoleBreakdown: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminReportRoleBreakdown>(`/admin/reports/role-breakdown${qs ? `?${qs}` : ''}`, { signal });
+  },
   getReviewsReport: (signal?: AbortSignal) =>
     api<AdminReportReviews>('/admin/reports/reviews', { signal }),
+  getRevenueTrend: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ trend: AdminRevenueTrendEntry[] }>(`/admin/reports/revenue-trend${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getPeakHours: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ hours: AdminPeakHourEntry[] }>(`/admin/reports/peak-hours${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getAuditLog: (params?: { action?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])).toString() : '';
+    return api<{ entries: AdminAuditEntry[]; total: number }>(`/admin/audit-log${qs ? `?${qs}` : ''}`, { signal });
+  },
+  // Product options CRUD
+  listProductOptions: (productId: string, signal?: AbortSignal) =>
+    api<{ options: ProductOption[] }>(`/admin/menu/products/${productId}/options`, { signal }),
+  addProductOption: (productId: string, body: Omit<ProductOption, 'id'>) =>
+    api<{ option: ProductOption }>(`/admin/menu/products/${productId}/options`, { method: 'POST', body }),
+  updateProductOption: (productId: string, optionId: string, body: Partial<Omit<ProductOption, 'id'>>) =>
+    api<{ option: ProductOption }>(`/admin/menu/products/${productId}/options/${optionId}`, { method: 'PATCH', body }),
+  deleteProductOption: (productId: string, optionId: string) =>
+    api<{ ok: boolean }>(`/admin/menu/products/${productId}/options/${optionId}`, { method: 'DELETE' }),
+  // Category CRUD
+  createCategory: (body: { name_en: string; name_ar: string; sort_order?: number }) =>
+    api<{ category: AdminCategory }>('/admin/menu/categories', { method: 'POST', body }),
+  updateCategory: (id: string, body: { name_en?: string; name_ar?: string; sort_order?: number }) =>
+    api<{ category: AdminCategory }>(`/admin/menu/categories/${id}`, { method: 'PATCH', body }),
+  deleteCategory: (id: string) =>
+    api<{ ok: boolean }>(`/admin/menu/categories/${id}`, { method: 'DELETE' }),
 };

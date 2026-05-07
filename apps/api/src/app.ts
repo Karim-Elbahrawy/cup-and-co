@@ -26,6 +26,13 @@ import {
   setProductStock,
   decrementStock,
   createProduct,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getAdminOptions,
+  addProductOption,
+  updateProductOption,
+  deleteProductOption,
 } from './db/catalogRepo.js';
 import { adminOffers } from './db/offersStore.js';
 
@@ -43,6 +50,24 @@ const loyaltyHistory = new Map<string, Array<{ id: string; source: string; order
 
 // Phase 5: users registry for admin user management, and mutable offers store
 const usersRegistry = new Map<string, { id: string; phone: string; full_name: string | null; role: string; verification_status: string; blocked: boolean; created_at: string }>();
+
+// Audit log — owner-visible record of admin actions
+interface AuditEntry {
+  id: string;
+  adminId: string;
+  adminRole: string;
+  action: string;
+  target: string;
+  detail: string;
+  createdAt: string;
+}
+const auditLog: AuditEntry[] = [];
+
+// Per-order estimated prep time in minutes (max prep_minutes across items)
+const orderPrepMinutes = new Map<string, number>();
+
+// Low-stock threshold (warn when stock_count <= this value)
+const LOW_STOCK_THRESHOLD = 5;
 
 // Reverse-lookup: phone → userId (so returning users keep their data across verify calls)
 const phoneToUserId = new Map<string, string>();
@@ -137,6 +162,45 @@ const submitScoreSchema = z.object({
 });
 
 // -------------- Helpers --------------
+
+// ── Audit log helper ─────────────────────────────────────────────────────────
+
+function recordAudit(
+  req: import('express').Request,
+  action: string,
+  target: string,
+  detail: string,
+): void {
+  const user = req.user;
+  if (!user) return;
+  auditLog.unshift({
+    id: randomUUID(),
+    adminId: user.id,
+    adminRole: user.role,
+    action,
+    target,
+    detail,
+    createdAt: new Date().toISOString(),
+  });
+  if (auditLog.length > 1000) auditLog.splice(1000);
+}
+
+// ── Date-range filter helpers ─────────────────────────────────────────────────
+
+function parseRange(query: Record<string, unknown>): { from: string | null; to: string | null } {
+  const from = typeof query.from === 'string' && query.from ? query.from : null;
+  const to = typeof query.to === 'string' && query.to ? query.to : null;
+  return { from, to };
+}
+
+function inRange(isoString: string, from: string | null, to: string | null): boolean {
+  const day = isoString.slice(0, 10);
+  if (from && day < from) return false;
+  if (to && day > to) return false;
+  return true;
+}
+
+// ── Loyalty helper ─────────────────────────────────────────────────────────────
 
 function recordLoyaltyEvent(userId: string, source: string, points: number, orderId: string | null = null) {
   const balance = userPoints.get(userId) ?? 0;
@@ -419,6 +483,7 @@ export function createApp(): express.Express {
           quantity: item.quantity,
           options: item.options,
           unitPriceEgp: unitPrice,
+          prepMinutes: detail.product.prep_minutes,
         });
       }
 
@@ -445,6 +510,10 @@ export function createApp(): express.Express {
       );
       orders.set(order.id, order);
 
+      // Store estimated prep time (max single-item prep across all lines)
+      const prepEst = Math.max(...enriched.map((i) => (i.prepMinutes ?? 5) * i.quantity));
+      orderPrepMinutes.set(order.id, prepEst);
+
       // Decrement stock for each ordered item
       for (const item of enriched) {
         decrementStock(item.productId, item.quantity);
@@ -463,7 +532,11 @@ export function createApp(): express.Express {
       }
 
       emitOrderUpdate(order);
-      res.status(201).json({ order, timeline: trackingTimelineFor(order) });
+      res.status(201).json({
+        order,
+        timeline: trackingTimelineFor(order),
+        prepMinutesEst: orderPrepMinutes.get(order.id) ?? null,
+      });
     } catch (e) { next(e); }
   });
 
@@ -481,7 +554,11 @@ export function createApp(): express.Express {
         e.status = 404;
         throw e;
       }
-      res.json({ order, timeline: trackingTimelineFor(order) });
+      res.json({
+        order,
+        timeline: trackingTimelineFor(order),
+        prepMinutesEst: orderPrepMinutes.get(order.id) ?? null,
+      });
     } catch (e) { next(e); }
   });
 
@@ -818,6 +895,7 @@ export function createApp(): express.Express {
       if (['accepted', 'preparing', 'ready', 'out_for_delivery', 'completed', 'cancelled'].includes(status)) {
         await notifyOrderStatus(order, status as Parameters<typeof statusNotificationCopy>[0]['status']);
       }
+      recordAudit(req, 'order.status_changed', `order:${order.id}`, `→ ${status}${note ? ` (${note})` : ''}`);
       emitOrderUpdate(order);
       res.json({ order, timeline: trackingTimelineFor(order) });
     } catch (e) { next(e); }
@@ -835,17 +913,26 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
-  app.get('/admin/summary', requireAuth, requireAdmin, (req, res, next) => {
+  app.get('/admin/summary', requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const role = getAdminRole(req);
       assertAdminPermission(role, 'reports:view_today');
       const all = Array.from(orders.values());
-      const todayRevenue = all.reduce((s, o) => (o.paymentStatus === 'paid' ? s + o.totalEgp : s), 0);
+      const today = new Date().toISOString().slice(0, 10);
+      const todayRevenue = all
+        .filter((o) => o.paymentStatus === 'paid' && o.createdAt.startsWith(today))
+        .reduce((s, o) => s + o.totalEgp, 0);
+      // Count products with low / zero stock
+      const catalog = await getCatalog();
+      const lowStockCount = catalog.products.filter(
+        (p) => p.stock_count !== null && p.stock_count <= LOW_STOCK_THRESHOLD,
+      ).length;
       res.json({
         todayRevenueEgp: todayRevenue,
         activeOrders: all.filter((o) => !['completed', 'cancelled', 'refunded'].includes(o.status)).length,
         kioskOpen: kioskState.is_open,
         fullReportsVisible: role === 'owner',
+        lowStockCount,
       });
     } catch (e) { next(e); }
   });
@@ -985,6 +1072,7 @@ export function createApp(): express.Express {
         e.status = 404;
         throw e;
       }
+      recordAudit(req, 'review.visibility_changed', `review:${req.params.id}`, hidden ? 'hidden' : 'shown');
       res.json({ id: req.params.id, hidden });
     } catch (e) { next(e); }
   });
@@ -1013,6 +1101,7 @@ export function createApp(): express.Express {
         throw e;
       }
       user.verification_status = status;
+      recordAudit(req, 'user.verified', `user:${user.id}`, status);
       res.json({ id: user.id, verification_status: status });
     } catch (e) { next(e); }
   });
@@ -1028,6 +1117,7 @@ export function createApp(): express.Express {
         throw e;
       }
       user.blocked = blocked;
+      recordAudit(req, 'user.blocked', `user:${user.id}`, blocked ? 'blocked' : 'unblocked');
       res.json({ id: user.id, blocked });
     } catch (e) { next(e); }
   });
@@ -1105,8 +1195,9 @@ export function createApp(): express.Express {
   app.get('/admin/reports/revenue', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const { from, to } = parseRange(req.query as Record<string, unknown>);
       const all = Array.from(orders.values());
-      const paid = all.filter((o) => o.paymentStatus === 'paid');
+      const paid = all.filter((o) => o.paymentStatus === 'paid' && inRange(o.createdAt, from, to));
       const today = new Date().toISOString().slice(0, 10);
       const todayRevenue = paid
         .filter((o) => o.createdAt.startsWith(today))
@@ -1119,8 +1210,10 @@ export function createApp(): express.Express {
   app.get('/admin/reports/top-items', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const { from, to } = parseRange(req.query as Record<string, unknown>);
       const counts = new Map<string, { name_en: string; count: number; revenue: number }>();
       for (const order of orders.values()) {
+        if (!inRange(order.createdAt, from, to)) continue;
         for (const item of order.items) {
           const existing = counts.get(item.productId) ?? { name_en: item.productNameEn, count: 0, revenue: 0 };
           existing.count += item.quantity;
@@ -1130,7 +1223,7 @@ export function createApp(): express.Express {
       }
       const top = Array.from(counts.values())
         .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
+        .slice(0, 20);
       res.json({ topItems: top });
     } catch (e) { next(e); }
   });
@@ -1196,8 +1289,10 @@ export function createApp(): express.Express {
   app.get('/admin/reports/role-breakdown', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const { from, to } = parseRange(req.query as Record<string, unknown>);
       const roleCounts = new Map<string, { orders: number; revenue: number }>();
       for (const order of orders.values()) {
+        if (!inRange(order.createdAt, from, to)) continue;
         const profile = userProfiles.get(order.userId);
         const role = (profile?.role as string) ?? 'student';
         const existing = roleCounts.get(role) ?? { orders: 0, revenue: 0 };
@@ -1206,6 +1301,167 @@ export function createApp(): express.Express {
         roleCounts.set(role, existing);
       }
       res.json({ breakdown: Object.fromEntries(roleCounts) });
+    } catch (e) { next(e); }
+  });
+
+  // Revenue trend — daily revenue over a date window (default last 30 days)
+  app.get('/admin/reports/revenue-trend', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const { from, to } = parseRange(req.query as Record<string, unknown>);
+      const effectiveTo = to ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = from ?? (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 29);
+        return d.toISOString().slice(0, 10);
+      })();
+      // Build a map day → { revenue, orders }
+      const dayMap = new Map<string, { revenue: number; orders: number }>();
+      for (const order of orders.values()) {
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        const slot = dayMap.get(day) ?? { revenue: 0, orders: 0 };
+        slot.orders += 1;
+        if (order.paymentStatus === 'paid') slot.revenue += order.totalEgp;
+        dayMap.set(day, slot);
+      }
+      // Fill every day in range even if no orders
+      const days: { date: string; revenue: number; orders: number }[] = [];
+      const cur = new Date(effectiveFrom + 'T00:00:00Z');
+      const end = new Date(effectiveTo + 'T00:00:00Z');
+      while (cur <= end) {
+        const key = cur.toISOString().slice(0, 10);
+        const slot = dayMap.get(key) ?? { revenue: 0, orders: 0 };
+        days.push({ date: key, ...slot });
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+      res.json({ days });
+    } catch (e) { next(e); }
+  });
+
+  // Peak hours — order counts grouped by hour-of-day (0–23)
+  app.get('/admin/reports/peak-hours', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const { from, to } = parseRange(req.query as Record<string, unknown>);
+      const hourCounts = new Array<number>(24).fill(0);
+      for (const order of orders.values()) {
+        if (!inRange(order.createdAt, from, to)) continue;
+        const hour = new Date(order.createdAt).getHours();
+        hourCounts[hour] += 1;
+      }
+      const hours = hourCounts.map((count, hour) => ({ hour, count }));
+      res.json({ hours });
+    } catch (e) { next(e); }
+  });
+
+  // Audit log
+  app.get('/admin/audit-log', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const limit = Math.min(Number(req.query.limit) || 100, 500);
+      const offset = Number(req.query.offset) || 0;
+      const action = typeof req.query.action === 'string' ? req.query.action : null;
+      let entries = auditLog;
+      if (action) entries = entries.filter((e) => e.action.startsWith(action));
+      res.json({ entries: entries.slice(offset, offset + limit), total: entries.length });
+    } catch (e) { next(e); }
+  });
+
+  // Product options CRUD
+  app.get('/admin/menu/products/:id/options', requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const productId = req.params.id as string;
+      const detail = await getProductDetail(productId);
+      if (!detail) { res.status(404).json({ error: 'Product not found.' }); return; }
+      const overridden = getAdminOptions(productId);
+      res.json({ options: overridden ?? detail.options });
+    } catch (e) { next(e); }
+  });
+
+  app.post('/admin/menu/products/:id/options', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const productId = req.params.id as string;
+      const input = z.object({
+        group_name: z.enum(['size', 'sugar', 'ice', 'milk', 'extras', 'shots']),
+        name_en: z.string().min(1).max(80),
+        name_ar: z.string().max(80).default(''),
+        price_delta_egp: z.number().default(0),
+      }).parse(req.body);
+      const option = addProductOption(productId, input);
+      recordAudit(req, 'product.option_added', `product:${productId}`, `${input.group_name}: ${input.name_en}`);
+      res.status(201).json(option);
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/admin/menu/products/:id/options/:optionId', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const { id: productId, optionId } = req.params as { id: string; optionId: string };
+      const input = z.object({
+        group_name: z.enum(['size', 'sugar', 'ice', 'milk', 'extras', 'shots']).optional(),
+        name_en: z.string().min(1).max(80).optional(),
+        name_ar: z.string().max(80).optional(),
+        price_delta_egp: z.number().optional(),
+      }).parse(req.body);
+      const updated = updateProductOption(productId, optionId, input);
+      if (!updated) { res.status(404).json({ error: 'Option not found.' }); return; }
+      res.json(updated);
+    } catch (e) { next(e); }
+  });
+
+  app.delete('/admin/menu/products/:id/options/:optionId', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const { id: productId, optionId } = req.params as { id: string; optionId: string };
+      const deleted = deleteProductOption(productId, optionId);
+      if (!deleted) { res.status(404).json({ error: 'Option not found.' }); return; }
+      recordAudit(req, 'product.option_deleted', `product:${productId}`, optionId);
+      res.status(204).end();
+    } catch (e) { next(e); }
+  });
+
+  // Category CRUD
+  app.post('/admin/menu/categories', requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const input = z.object({
+        name_en: z.string().min(1).max(80),
+        name_ar: z.string().max(80).default(''),
+        slug: z.string().min(1).max(80).optional(),
+        sort_order: z.number().int().nonnegative().default(99),
+      }).parse(req.body);
+      const slug = input.slug ?? input.name_en.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      const category = await createCategory({ ...input, slug });
+      recordAudit(req, 'category.created', `category:${category.id}`, category.name_en);
+      res.status(201).json({ category });
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/admin/menu/categories/:id', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const input = z.object({
+        name_en: z.string().min(1).max(80).optional(),
+        name_ar: z.string().max(80).optional(),
+        sort_order: z.number().int().nonnegative().optional(),
+      }).parse(req.body);
+      const updated = updateCategory(req.params.id as string, input);
+      if (!updated) { res.status(404).json({ error: 'Category not found.' }); return; }
+      recordAudit(req, 'category.updated', `category:${updated.id}`, updated.name_en);
+      res.json({ category: updated });
+    } catch (e) { next(e); }
+  });
+
+  app.delete('/admin/menu/categories/:id', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const deleted = deleteCategory(req.params.id as string);
+      if (!deleted) { res.status(404).json({ error: 'Category not found.' }); return; }
+      recordAudit(req, 'category.deleted', `category:${req.params.id}`, '');
+      res.status(204).end();
     } catch (e) { next(e); }
   });
 

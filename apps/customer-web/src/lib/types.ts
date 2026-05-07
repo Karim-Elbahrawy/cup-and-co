@@ -75,6 +75,8 @@ export interface ApiOrderItem {
   options: Record<string, string>;
   unitPriceEgp: number;
   lineTotalEgp: number;
+  /** Prep time for this item in minutes (if returned by API). */
+  prepMinutes?: number;
 }
 
 export interface ApiStatusEvent {
@@ -115,6 +117,8 @@ export interface TimelineStep {
 export interface OrderResponse {
   order: ApiOrder;
   timeline: TimelineStep[];
+  /** Estimated total prep time in minutes, computed from order items. */
+  prepMinutesEst?: number | null;
 }
 
 export interface OrdersListResponse {

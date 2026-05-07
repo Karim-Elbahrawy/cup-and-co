@@ -7,6 +7,7 @@ import { Heart, Star } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { Product } from '@/lib/types';
 import { useT, pickName, formatPrice } from '@/lib/i18n';
+import { api } from '@/lib/api';
 
 interface ProductCardProps {
   product: Product;
@@ -29,6 +30,7 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
   const { language } = useT();
   const reduce = useReducedMotion();
   const [favorited, setFavorited] = useState(initiallyFavorited);
+  const [favPending, setFavPending] = useState(false);
 
   const name = pickName(product, language);
   const price = formatPrice(product.base_price_egp, language);
@@ -104,16 +106,32 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
       {/* ── Favorite button ──────────────────────────────────────────────── */}
       <button
         type="button"
-        onClick={(e) => {
+        disabled={favPending}
+        onClick={async (e) => {
           e.preventDefault();
           e.stopPropagation();
-          setFavorited((v) => !v);
+          if (favPending) return;
+          const next = !favorited;
+          setFavorited(next);
+          setFavPending(true);
+          try {
+            if (next) {
+              await api.addFavorite(product.id);
+            } else {
+              await api.removeFavorite(product.id);
+            }
+          } catch {
+            // Revert on error
+            setFavorited(!next);
+          } finally {
+            setFavPending(false);
+          }
         }}
         aria-label={
           favorited ? `Remove ${name} from favorites` : `Add ${name} to favorites`
         }
         aria-pressed={favorited}
-        className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-subtle backdrop-blur-sm transition-transform active:scale-90 hover:bg-white"
+        className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-subtle backdrop-blur-sm transition-transform active:scale-90 hover:bg-white disabled:cursor-not-allowed"
       >
         <Heart
           size={14}

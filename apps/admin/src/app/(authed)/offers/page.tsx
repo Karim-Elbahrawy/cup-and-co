@@ -274,6 +274,33 @@ export default function OffersPage() {
                     <p className="font-mono text-cup-orange-700">Code: {offer.code}</p>
                   )}
                 </div>
+
+                {/* Usage progress bar */}
+                <div className="mt-3">
+                  {offer.usage_limit != null ? (
+                    <>
+                      <div className="mb-1 flex items-center justify-between text-[10px] text-cup-muted">
+                        <span>Usage</span>
+                        <span className="font-semibold text-cup-brown-900">
+                          {offer.usage_count} / {offer.usage_limit}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-cup-cream-100">
+                        <div
+                          className="h-full rounded-full bg-cup-orange-600 transition-all duration-500"
+                          style={{ width: `${Math.min(100, Math.round((offer.usage_count / offer.usage_limit) * 100))}%` }}
+                        />
+                      </div>
+                      {offer.usage_count >= offer.usage_limit && (
+                        <p className="mt-1 text-[10px] font-semibold text-rose-600">Limit reached</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-[10px] text-cup-muted">
+                      Used <span className="font-semibold text-cup-brown-900">{offer.usage_count}</span> times · no limit
+                    </p>
+                  )}
+                </div>
               </div>
             );
           })}

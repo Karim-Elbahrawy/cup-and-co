@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Check, XCircle, MapPin } from 'lucide-react';
+import { ChevronLeft, Check, XCircle, MapPin, Clock } from 'lucide-react';
 import { api, ApiError, BASE_URL } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { useT } from '@/lib/i18n';
@@ -23,6 +23,7 @@ export default function OrderTrackingPage({
   const { t, language } = useT();
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [timeline, setTimeline] = useState<TimelineStep[]>([]);
+  const [prepMinutesEst, setPrepMinutesEst] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showItems, setShowItems] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -34,6 +35,7 @@ export default function OrderTrackingPage({
       const res = await api.getOrder(id);
       setOrder(res.order);
       setTimeline(res.timeline);
+      if (res.prepMinutesEst != null) setPrepMinutesEst(res.prepMinutesEst);
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load order');
@@ -220,6 +222,25 @@ export default function OrderTrackingPage({
           </div>
         )}
       </section>
+
+      {/* Prep time estimate — shown only while order is still in progress */}
+      {prepMinutesEst != null && !TERMINAL_STATUSES.includes(order.status) && (
+        <section className="mx-auto mt-4 max-w-3xl px-5">
+          <div className="flex items-center gap-3 rounded-2xl border border-cup-orange-500/30 bg-cup-orange-50 px-5 py-3.5">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-cup-orange-500/15">
+              <Clock className="h-5 w-5 text-cup-orange-600" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="font-heading text-sm font-bold text-cup-orange-700">
+                {language === 'ar' ? `جاهز خلال ~${prepMinutesEst} دقيقة` : `Ready in ~${prepMinutesEst} min`}
+              </p>
+              <p className="text-xs text-cup-orange-600/70">
+                {language === 'ar' ? 'وقت تحضير تقريبي' : 'Estimated prep time'}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Cancel order */}
       <AnimatePresence>

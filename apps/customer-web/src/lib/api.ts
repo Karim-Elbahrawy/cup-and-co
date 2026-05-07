@@ -150,6 +150,9 @@ export const api = {
   submitReview: (input: ReviewInput) =>
     apiFetch<ReviewResponse>('/reviews', { method: 'POST', body: input }),
 
+  getFavorites: () =>
+    apiFetch<{ productIds: string[] }>('/favorites'),
+
   addFavorite: (productId: string) =>
     apiFetch<{ ok: boolean }>(`/favorites/${productId}`, { method: 'POST' }),
 

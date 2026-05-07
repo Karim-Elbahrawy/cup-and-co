@@ -13,6 +13,7 @@ import {
   Users,
   Tag,
   BarChart3,
+  ScrollText,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 import { Logo } from './Logo';
@@ -64,6 +65,12 @@ const NAV: NavItem[] = [
     hint: (s) => (s.role === 'barista' ? 'Owner only' : null),
   },
   {
+    label: 'Audit Log',
+    href: '/audit',
+    icon: ScrollText,
+    hint: (s) => (s.role === 'barista' ? 'Owner only' : null),
+  },
+  {
     label: 'Settings',
     href: '/settings',
     icon: Settings,
@@ -102,7 +109,7 @@ export function Sidebar({ session }: SidebarProps) {
         <ul className="space-y-1">
           {NAV.filter((item) => {
             // Hide owner-only nav items from baristas
-            const ownerOnly = ['/reviews', '/users', '/offers', '/reports'];
+            const ownerOnly = ['/reviews', '/users', '/offers', '/reports', '/audit'];
             if (ownerOnly.includes(item.href) && session.role !== 'owner') return false;
             return true;
           }).map((item) => {

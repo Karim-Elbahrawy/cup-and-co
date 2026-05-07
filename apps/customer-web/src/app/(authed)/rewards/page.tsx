@@ -38,6 +38,7 @@ const SOURCE_CONFIG: Record<string, { label: string; icon: typeof Gift; color: s
   cash_in_app: { label: 'Cash Order', icon: Banknote, color: 'text-cup-brown-700' },
   qr_receipt: { label: 'QR Receipt', icon: ScanLine, color: 'text-cup-orange-600' },
   redeemed: { label: 'Redeemed', icon: ArrowDownLeft, color: 'text-cup-error' },
+  refund: { label: 'Refund', icon: ArrowDownLeft, color: 'text-cup-teal-600' },
   game_reward: { label: 'Game Reward', icon: Gamepad2, color: 'text-purple-600' },
 };
 

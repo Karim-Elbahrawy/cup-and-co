@@ -168,10 +168,100 @@ const productReviewModes = new Map<string, ReviewMode>();
 const productStockMap = new Map<string, number>();
 
 /**
+ * Per-product option overrides. When set, these replace the fallback options
+ * returned for that product. Admins can add/edit/delete choices here.
+ */
+const adminProductOptions = new Map<string, ProductOption[]>();
+
+/** Admin-created categories (added on top of FALLBACK.categories). */
+const adminCategories: Category[] = [];
+
+/**
  * Creates a new product. In dev (no Supabase) it is stored in the
  * in-memory `adminProducts` array. With Supabase it inserts a row and
  * keeps an in-memory copy so the fallback catch path also sees it.
  */
+// ── Category management ──────────────────────────────────────────────────────
+
+export async function createCategory(
+  input: Omit<Category, 'id'>,
+): Promise<Category> {
+  const id = randomUUID();
+  const category: Category = { id, ...input };
+  if (isSupabaseReady()) {
+    const sb = getServiceClient();
+    const { data, error } = await sb.from('categories').insert(category).select().single();
+    if (error || !data) throw new Error(error?.message ?? 'Failed to create category');
+    adminCategories.push(data as Category);
+    return data as Category;
+  }
+  adminCategories.push(category);
+  return category;
+}
+
+export function updateCategory(id: string, patch: Partial<Omit<Category, 'id'>>): Category | null {
+  // Try admin-created first
+  const idx = adminCategories.findIndex((c) => c.id === id);
+  if (idx !== -1) {
+    adminCategories[idx] = { ...adminCategories[idx], ...patch };
+    return adminCategories[idx];
+  }
+  // Fallback (mutate in-place for dev)
+  const fb = FALLBACK.categories.find((c) => c.id === id);
+  if (fb) {
+    Object.assign(fb, patch);
+    return fb;
+  }
+  return null;
+}
+
+export function deleteCategory(id: string): boolean {
+  const idx = adminCategories.findIndex((c) => c.id === id);
+  if (idx !== -1) { adminCategories.splice(idx, 1); return true; }
+  const fbIdx = FALLBACK.categories.findIndex((c) => c.id === id);
+  if (fbIdx !== -1) { FALLBACK.categories.splice(fbIdx, 1); return true; }
+  return false;
+}
+
+// ── Product options management ───────────────────────────────────────────────
+
+export function getAdminOptions(productId: string): ProductOption[] | null {
+  return adminProductOptions.has(productId) ? (adminProductOptions.get(productId) ?? []) : null;
+}
+
+export function addProductOption(
+  productId: string,
+  input: Omit<ProductOption, 'id' | 'product_id'>,
+): ProductOption {
+  const existing = adminProductOptions.get(productId) ?? fallbackOptionsFor(productId);
+  const option: ProductOption = { id: randomUUID(), product_id: productId, ...input };
+  existing.push(option);
+  adminProductOptions.set(productId, existing);
+  return option;
+}
+
+export function updateProductOption(
+  productId: string,
+  optionId: string,
+  patch: Partial<Omit<ProductOption, 'id' | 'product_id'>>,
+): ProductOption | null {
+  const list = adminProductOptions.get(productId) ?? fallbackOptionsFor(productId);
+  const idx = list.findIndex((o) => o.id === optionId);
+  if (idx === -1) return null;
+  list[idx] = { ...list[idx], ...patch };
+  adminProductOptions.set(productId, list);
+  return list[idx];
+}
+
+export function deleteProductOption(productId: string, optionId: string): boolean {
+  const list = adminProductOptions.get(productId) ?? fallbackOptionsFor(productId);
+  const idx = list.findIndex((o) => o.id === optionId);
+  if (idx === -1) return false;
+  list.splice(idx, 1);
+  adminProductOptions.set(productId, list);
+  return true;
+}
+
 export async function createProduct(
   input: Omit<Product, 'id' | 'rating_avg' | 'rating_count' | 'stock_count' | 'review_mode'>,
 ): Promise<Product> {
@@ -268,6 +358,7 @@ export async function getCatalog(): Promise<CatalogResponse> {
   if (!isSupabaseReady()) {
     return {
       ...FALLBACK,
+      categories: [...FALLBACK.categories, ...adminCategories].sort((a, b) => a.sort_order - b.sort_order),
       products: [...FALLBACK.products, ...adminProducts].map(withMeta),
     };
   }
@@ -283,24 +374,32 @@ export async function getCatalog(): Promise<CatalogResponse> {
       throw new Error('Catalog query failed');
     }
     const rawProducts = (productsRes.data ?? []) as Product[];
+    const dbCategories = (categoriesRes.data as Category[]);
     return {
-      categories: categoriesRes.data as Category[],
-      products: rawProducts.map(withMeta),
+      categories: [...dbCategories, ...adminCategories].sort((a, b) => a.sort_order - b.sort_order),
+      products: [...rawProducts, ...adminProducts].map(withMeta),
       offers: (offersRes.data ?? []) as Offer[],
       kiosk: (kioskRes.data ?? FALLBACK.kiosk) as KioskStatus,
     };
   } catch {
-    return { ...FALLBACK, products: [...FALLBACK.products, ...adminProducts].map(withMeta) };
+    return {
+      ...FALLBACK,
+      categories: [...FALLBACK.categories, ...adminCategories].sort((a, b) => a.sort_order - b.sort_order),
+      products: [...FALLBACK.products, ...adminProducts].map(withMeta),
+    };
   }
 }
 
 export async function getProductDetail(id: string, userId?: string): Promise<ProductDetailResponse | null> {
+  // Check both FALLBACK products and admin-created products
+  const allFallback = [...FALLBACK.products, ...adminProducts];
   if (!isSupabaseReady()) {
-    const product = FALLBACK.products.find((x) => x.id === id);
+    const product = allFallback.find((x) => x.id === id);
     if (!product) return null;
+    const overriddenOptions = adminProductOptions.get(id);
     return {
       product: withMeta(product),
-      options: fallbackOptionsFor(id),
+      options: overriddenOptions ?? fallbackOptionsFor(id),
       reviews: [],
       is_favorited: false,
     };
