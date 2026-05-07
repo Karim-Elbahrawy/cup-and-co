@@ -9,6 +9,7 @@ import { PageTransition } from '@/components/PageTransition';
 import { api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { useT } from '@/lib/i18n';
+import { track } from '@/lib/analytics';
 
 const EGYPT_DIAL_CODE = '+20';
 
@@ -40,6 +41,9 @@ export default function LoginPage() {
     if (!valid || submitting) return;
     setError(null);
     setSubmitting(true);
+    // Phase 1.2: signup_started — fire BEFORE network so failed sends still
+    // contribute to funnel volume (any drop-off after this is the API).
+    track({ name: 'signup_started', props: { platform: 'web' } });
     try {
       await api.sendOtp(fullPhone);
       const params = new URLSearchParams({ phone: fullPhone });

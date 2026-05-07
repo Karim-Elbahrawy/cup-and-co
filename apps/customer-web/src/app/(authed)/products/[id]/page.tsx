@@ -9,6 +9,7 @@ import { ChevronLeft, Heart, Minus, Plus, Star, Send, User } from 'lucide-react'
 import { api, ApiError } from '@/lib/api';
 import { useCart } from '@/lib/cart';
 import { useT } from '@/lib/i18n';
+import { track } from '@/lib/analytics';
 import type { Product, ProductOption, Review, ReviewInput, ReviewMode } from '@/lib/types';
 
 const GROUP_ORDER = ['shots', 'size', 'sugar', 'ice', 'milk', 'extras'] as const;
@@ -59,6 +60,16 @@ export default function ProductDetailPage({
           review_mode: detail.review_mode ?? 'full',
         });
         setFavorite(detail.is_favorited);
+        // Phase 1.2: product_viewed — fire once per detail-page open.
+        track({
+          name: 'product_viewed',
+          props: {
+            product_id: detail.product.id,
+            category: detail.product.category_id,
+            price: detail.product.base_price_egp,
+            position_in_list: null,
+          },
+        });
 
         // Pre-select sensible defaults per group:
         //   shots → Double, size → Medium, sugar/ice → Normal.
