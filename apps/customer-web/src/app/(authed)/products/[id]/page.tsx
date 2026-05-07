@@ -11,7 +11,7 @@ import { useCart } from '@/lib/cart';
 import { useT } from '@/lib/i18n';
 import type { Product, ProductOption, Review, ReviewInput } from '@/lib/types';
 
-const GROUP_ORDER = ['size', 'sugar', 'ice', 'milk', 'extras'] as const;
+const GROUP_ORDER = ['shots', 'size', 'sugar', 'ice', 'milk', 'extras'] as const;
 type Group = (typeof GROUP_ORDER)[number];
 
 export default function ProductDetailPage({
@@ -29,6 +29,7 @@ export default function ProductDetailPage({
     options: ProductOption[];
     reviews: Review[];
     is_favorited: boolean;
+    reviews_visible: boolean;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -53,19 +54,24 @@ export default function ProductDetailPage({
         setData({
           product: detail.product,
           options: detail.options,
-          reviews: (detail as unknown as { reviews?: Review[] }).reviews ?? [],
+          reviews: detail.reviews ?? [],
           is_favorited: detail.is_favorited,
+          reviews_visible: detail.reviews_visible ?? true,
         });
         setFavorite(detail.is_favorited);
 
-        // Pre-select medium size + normal sugar/ice if those groups exist.
+        // Pre-select sensible defaults per group:
+        //   shots → Double, size → Medium, sugar/ice → Normal.
         const initial: Record<string, string> = {};
         const groups = groupBy(detail.options);
         for (const g of GROUP_ORDER) {
           const opts = groups[g];
           if (!opts || opts.length === 0) continue;
-          const medium = opts.find((o) => o.name_en === 'Medium' || o.name_en === 'Normal');
-          initial[g] = (medium ?? opts[0]).name_en;
+          const preferred =
+            g === 'shots'
+              ? opts.find((o) => o.name_en === 'Double') ?? opts[0]
+              : opts.find((o) => o.name_en === 'Medium' || o.name_en === 'Normal') ?? opts[0];
+          initial[g] = preferred.name_en;
         }
         setSelected(initial);
       } catch (e) {
@@ -197,11 +203,12 @@ export default function ProductDetailPage({
   const name = language === 'ar' ? product.name_ar : product.name_en;
   const description = language === 'ar' ? product.description_ar : product.description_en;
   const groupLabel: Record<Group, string> = {
+    shots: language === 'ar' ? 'عدد الشوتات' : 'Shots',
     size: t('product.size'),
     sugar: t('product.sugar'),
     ice: t('product.ice'),
-    milk: 'Milk',
-    extras: 'Extras',
+    milk: language === 'ar' ? 'الحليب' : 'Milk',
+    extras: language === 'ar' ? 'إضافات' : 'Extras',
   };
 
   return (
@@ -269,13 +276,15 @@ export default function ProductDetailPage({
             <h1 className="font-heading text-[28px] font-bold leading-tight text-cup-brown-900">
               {name}
             </h1>
-            <div className="mt-1 flex items-center gap-1.5 text-sm">
-              <Star className="h-4 w-4 fill-cup-star text-cup-star" />
-              <span className="font-semibold text-cup-brown-900">
-                {product.rating_avg.toFixed(1)}
-              </span>
-              <span className="text-cup-muted">/5</span>
-            </div>
+            {data.reviews_visible && product.rating_count > 0 && (
+              <div className="mt-1 flex items-center gap-1.5 text-sm">
+                <Star className="h-4 w-4 fill-cup-star text-cup-star" />
+                <span className="font-semibold text-cup-brown-900">
+                  {product.rating_avg.toFixed(1)}
+                </span>
+                <span className="text-cup-muted">/5</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 rounded-pill bg-white p-1.5 shadow-subtle">
@@ -359,8 +368,8 @@ export default function ProductDetailPage({
         })}
       </section>
 
-      {/* Reviews section */}
-      <section className="mx-auto mt-8 max-w-[1080px] space-y-4 px-6">
+      {/* Reviews section — hidden when admin has disabled reviews for this product */}
+      {data.reviews_visible && <section className="mx-auto mt-8 max-w-[1080px] space-y-4 px-6">
         <h2 className="font-heading text-lg font-bold text-cup-brown-900">{t('product.reviews.header')}</h2>
 
         {/* Rating distribution */}
@@ -509,7 +518,7 @@ export default function ProductDetailPage({
             <p className="text-sm text-cup-muted">No reviews yet. Be the first!</p>
           </div>
         )}
-      </section>
+      </section>}
 
       {/* Sticky bottom add-to-cart */}
       <div

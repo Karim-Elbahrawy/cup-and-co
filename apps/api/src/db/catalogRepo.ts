@@ -109,6 +109,11 @@ function p(
   };
 }
 
+const SHOT_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
+  { group_name: 'shots', name_en: 'Single', name_ar: 'شوت واحد', price_delta_egp: 0 },
+  { group_name: 'shots', name_en: 'Double', name_ar: 'شوتين',    price_delta_egp: 10 },
+];
+
 const COFFEE_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
   { group_name: 'size',  name_en: 'Small',  name_ar: 'صغير',  price_delta_egp: -5 },
   { group_name: 'size',  name_en: 'Medium', name_ar: 'وسط',   price_delta_egp: 0 },
@@ -124,18 +129,40 @@ const ICE_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
   { group_name: 'ice', name_en: 'No',     name_ar: 'بدون', price_delta_egp: 0 },
 ];
 
+// Category IDs
+const HOT_COFFEE_CAT  = '11111111-1111-1111-1111-111111111101';
+const COLD_COFFEE_CAT = '11111111-1111-1111-1111-111111111102';
+const MILK_COFFEE_CAT = '11111111-1111-1111-1111-111111111103';
+
 function fallbackOptionsFor(productId: string): ProductOption[] {
   const product = FALLBACK.products.find((x) => x.id === productId);
   if (!product) return [];
-  const coffeeCategories = ['11111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111102', '11111111-1111-1111-1111-111111111103'];
-  if (coffeeCategories.includes(product.category_id)) {
-    const isCold = product.category_id === '11111111-1111-1111-1111-111111111102';
-    const all: Omit<ProductOption, 'product_id' | 'id'>[] = isCold
-      ? [...COFFEE_OPTIONS, ...ICE_OPTIONS]
-      : COFFEE_OPTIONS;
-    return all.map((o, i) => ({ ...o, id: `${productId}-opt-${i}`, product_id: productId }));
-  }
-  return [];
+  const { category_id: cat } = product;
+  const coffeeCategories = [HOT_COFFEE_CAT, COLD_COFFEE_CAT, MILK_COFFEE_CAT];
+  if (!coffeeCategories.includes(cat)) return [];
+
+  // Hot/milk espresso drinks get shot + size + sugar options.
+  // Cold coffee additionally gets ice.
+  const withShots = cat === HOT_COFFEE_CAT || cat === MILK_COFFEE_CAT;
+  const all: Omit<ProductOption, 'product_id' | 'id'>[] = [
+    ...(withShots ? SHOT_OPTIONS : []),
+    ...COFFEE_OPTIONS,
+    ...(cat === COLD_COFFEE_CAT ? ICE_OPTIONS : []),
+  ];
+  return all.map((o, i) => ({ ...o, id: `${productId}-opt-${i}`, product_id: productId }));
+}
+
+// ─── Per-product review-visibility overlay ────────────────────────────────────
+// Default is visible (true). The admin can flip this per-product at runtime.
+const productShowReviews = new Map<string, boolean>();
+
+export function setProductShowReviews(productId: string, visible: boolean): void {
+  productShowReviews.set(productId, visible);
+}
+
+export function getProductShowReviews(productId: string): boolean {
+  const override = productShowReviews.get(productId);
+  return override === undefined ? true : override;
 }
 
 function isSupabaseReady(): boolean {
@@ -272,6 +299,8 @@ export async function getCatalog(): Promise<CatalogResponse> {
 }
 
 export async function getProductDetail(id: string, userId?: string): Promise<ProductDetailResponse | null> {
+  const reviewsVisible = getProductShowReviews(id);
+
   if (!isSupabaseReady()) {
     const product =
       FALLBACK.products.find((x) => x.id === id) ??
@@ -282,6 +311,7 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
       options: fallbackOptionsFor(id),
       reviews: [],
       is_favorited: false,
+      reviews_visible: reviewsVisible,
     };
   }
   try {
@@ -289,7 +319,9 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
     const [productRes, optionsRes, reviewsRes, favRes] = await Promise.all([
       sb.from('products').select('*').eq('id', id).single(),
       sb.from('product_options').select('*').eq('product_id', id).order('sort_order'),
-      sb.from('reviews').select('*').eq('product_id', id).eq('hidden', false).order('created_at', { ascending: false }).limit(20),
+      reviewsVisible
+        ? sb.from('reviews').select('*').eq('product_id', id).eq('hidden', false).order('created_at', { ascending: false }).limit(20)
+        : Promise.resolve({ data: [] as Review[], error: null }),
       userId ? sb.from('favorites').select('id').eq('product_id', id).eq('user_id', userId).maybeSingle() : Promise.resolve({ data: null }),
     ]);
     if (productRes.error || !productRes.data) return null;
@@ -298,10 +330,11 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
       options: (optionsRes.data ?? []) as ProductOption[],
       reviews: (reviewsRes.data ?? []) as Review[],
       is_favorited: !!favRes.data,
+      reviews_visible: reviewsVisible,
     };
   } catch {
     const product = FALLBACK.products.find((x) => x.id === id);
     if (!product) return null;
-    return { product, options: fallbackOptionsFor(id), reviews: [], is_favorited: false };
+    return { product, options: fallbackOptionsFor(id), reviews: [], is_favorited: false, reviews_visible: reviewsVisible };
   }
 }

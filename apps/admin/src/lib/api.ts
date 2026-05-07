@@ -291,6 +291,11 @@ export const adminApi = {
     }),
   deleteProduct: (id: string) =>
     api<void>(`/admin/menu/products/${id}`, { method: 'DELETE' }),
+  setProductReviewsVisible: (productId: string, reviews_visible: boolean) =>
+    api<{ id: string; reviews_visible: boolean }>(
+      `/admin/menu/products/${productId}/reviews-visible`,
+      { method: 'PATCH', body: { reviews_visible } },
+    ),
   // Phase 5: Reviews
   listReviews: (signal?: AbortSignal) =>
     api<{ reviews: AdminReview[] }>('/admin/reviews', { signal }),

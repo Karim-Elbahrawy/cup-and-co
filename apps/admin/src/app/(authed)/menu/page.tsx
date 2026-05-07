@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CupSoda, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { CupSoda, Eye, EyeOff, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { adminApi, api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/useSession';
@@ -40,6 +40,9 @@ export default function MenuPage() {
 
   const canToggle = can(session?.role, 'menu:update_availability');
   const canManage = can(session?.role, 'menu:manage');
+  const canManageReviews = can(session?.role, 'reviews:manage');
+  // Per-product review visibility: true = show reviews to customers (default).
+  const [showReviewsMap, setShowReviewsMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +80,18 @@ export default function MenuPage() {
       toast('error', err instanceof ApiError ? err.message : 'Could not update availability.');
     } finally {
       setPendingId(null);
+    }
+  }
+
+  async function handleReviewsToggle(productId: string, currentVisible: boolean) {
+    const next = !currentVisible;
+    setShowReviewsMap((prev) => ({ ...prev, [productId]: next }));
+    try {
+      await adminApi.setProductReviewsVisible(productId, next);
+      toast('success', next ? 'Reviews visible to customers.' : 'Reviews hidden from customers.');
+    } catch (err) {
+      setShowReviewsMap((prev) => ({ ...prev, [productId]: currentVisible }));
+      toast('error', err instanceof ApiError ? err.message : 'Could not update review visibility.');
     }
   }
 
@@ -264,10 +279,13 @@ export default function MenuPage() {
                       isCustom={isCustom(product)}
                       canToggle={canToggle}
                       canManage={canManage}
+                      canManageReviews={canManageReviews}
                       pending={pendingId === product.id}
+                      showReviews={showReviewsMap[product.id] ?? true}
                       onToggle={() => toggleAvailability(product)}
                       onEdit={() => setEditing(product)}
                       onDelete={() => setDeleting(product)}
+                      onToggleReviews={() => handleReviewsToggle(product.id, showReviewsMap[product.id] ?? true)}
                     />
                   ))}
                 </ul>
@@ -286,19 +304,25 @@ function ProductCard({
   isCustom,
   canToggle,
   canManage,
+  canManageReviews,
   pending,
+  showReviews,
   onToggle,
   onEdit,
   onDelete,
+  onToggleReviews,
 }: {
   product: Product;
   isCustom: boolean;
   canToggle: boolean;
   canManage: boolean;
+  canManageReviews: boolean;
   pending: boolean;
+  showReviews: boolean;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onToggleReviews: () => void;
 }) {
   return (
     <li
@@ -333,6 +357,8 @@ function ProductCard({
           </p>
         </div>
       </div>
+
+      {/* Availability toggle row */}
       <div className="flex items-center justify-between gap-2">
         <AvailabilityToggle
           product={product}
@@ -360,6 +386,32 @@ function ProductCard({
           </div>
         )}
       </div>
+
+      {/* Review visibility toggle row (owners only) */}
+      {canManageReviews && (
+        <button
+          type="button"
+          onClick={onToggleReviews}
+          aria-pressed={showReviews}
+          className={`flex w-full items-center justify-between rounded-chip border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 ${
+            showReviews
+              ? 'border-cup-teal-200 bg-cup-teal-50 text-cup-teal-700 hover:bg-cup-teal-100'
+              : 'border-cup-stroke bg-cup-paper text-cup-muted hover:bg-cup-cream-100'
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            {showReviews ? (
+              <Eye className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <EyeOff className="h-3.5 w-3.5" aria-hidden />
+            )}
+            {showReviews ? 'Reviews shown to customers' : 'Reviews hidden from customers'}
+          </span>
+          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${showReviews ? 'bg-cup-teal-200 text-cup-teal-800' : 'bg-cup-stroke text-cup-muted'}`}>
+            {showReviews ? 'ON' : 'OFF'}
+          </span>
+        </button>
+      )}
     </li>
   );
 }

@@ -20,7 +20,7 @@ export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded
 
 export type LoyaltySource = 'online_paid' | 'cash_in_app' | 'qr_receipt' | 'game_reward';
 
-export type OptionGroup = 'size' | 'sugar' | 'ice' | 'milk' | 'extras';
+export type OptionGroup = 'shots' | 'size' | 'sugar' | 'ice' | 'milk' | 'extras';
 
 export interface User {
   id: string;
@@ -230,6 +230,8 @@ export interface ProductDetailResponse {
   options: ProductOption[];
   reviews: Review[];
   is_favorited: boolean;
+  /** When false, the admin has hidden all reviews for this product from customers. */
+  reviews_visible: boolean;
 }
 
 export interface LoyaltyResponse {

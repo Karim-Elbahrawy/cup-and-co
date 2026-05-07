@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import * as Sentry from '@sentry/node';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
@@ -27,6 +28,8 @@ import {
   updateExtraProduct,
   deleteExtraProduct,
   isExtraProduct,
+  setProductShowReviews,
+  getProductShowReviews,
 } from './db/catalogRepo.js';
 import { adminOffers } from './db/offersStore.js';
 
@@ -1158,6 +1161,17 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  // Toggle whether reviews section is visible to customers for a product.
+  app.patch('/admin/menu/products/:id/reviews-visible', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reviews:manage');
+      const input = z.object({ reviews_visible: z.boolean() }).parse(req.body);
+      setProductShowReviews(req.params.id as string, input.reviews_visible);
+      res.json({ id: req.params.id, reviews_visible: input.reviews_visible });
+    } catch (e) { next(e); }
+  });
+
+
   // -------- Phase 5: Admin Reviews --------
   app.get('/admin/reviews', requireAuth, requireAdmin, (req, res, next) => {
     try {
@@ -1370,6 +1384,12 @@ export function createApp(): express.Express {
       res.json({ breakdown: Object.fromEntries(roleCounts) });
     } catch (e) { next(e); }
   });
+
+  // Sentry's Express error handler must run BEFORE our own errorHandler so
+  // the exception is captured and tagged with the request scope. It only
+  // forwards 5xx errors by default; 4xx (validation) stay in our handler.
+  // See docs/UPGRADE-PLAN.md task 1.1.
+  Sentry.setupExpressErrorHandler(app);
 
   app.use(errorHandler);
   return app;
