@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ScrollText, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { adminApi, type AdminAuditEntry } from '@/lib/api';
@@ -165,11 +165,19 @@ export default function AuditPage() {
             </thead>
             <tbody className="divide-y divide-cup-stroke">
               {filtered.map((entry) => (
-                <>
+                <Fragment key={entry.id}>
                   <tr
-                    key={entry.id}
+                    tabIndex={0}
+                    role="button"
+                    aria-expanded={expanded === entry.id}
                     onClick={() => setExpanded((prev) => (prev === entry.id ? null : entry.id))}
-                    className="cursor-pointer transition hover:bg-cup-cream-100"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setExpanded((prev) => (prev === entry.id ? null : entry.id));
+                      }
+                    }}
+                    className="cursor-pointer transition hover:bg-cup-cream-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cup-orange-600"
                   >
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-cup-muted">
                       {formatDate(entry.createdAt)}
@@ -193,7 +201,7 @@ export default function AuditPage() {
                     </td>
                   </tr>
                   {expanded === entry.id && (
-                    <tr key={`${entry.id}-detail`} className="bg-cup-cream-100">
+                    <tr className="bg-cup-cream-100">
                       <td colSpan={5} className="px-6 py-3">
                         <p className="text-xs font-semibold uppercase tracking-wider text-cup-muted mb-1">Detail</p>
                         <p className="text-sm text-cup-brown-900 whitespace-pre-wrap">{entry.detail}</p>
@@ -201,7 +209,7 @@ export default function AuditPage() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

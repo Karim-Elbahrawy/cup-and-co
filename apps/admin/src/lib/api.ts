@@ -367,7 +367,7 @@ export const adminApi = {
     api<AdminReportReviews>('/admin/reports/reviews', { signal }),
   getRevenueTrend: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
     const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
-    return api<{ trend: AdminRevenueTrendEntry[] }>(`/admin/reports/revenue-trend${qs ? `?${qs}` : ''}`, { signal });
+    return api<{ days: AdminRevenueTrendEntry[] }>(`/admin/reports/revenue-trend${qs ? `?${qs}` : ''}`, { signal });
   },
   getPeakHours: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
     const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';

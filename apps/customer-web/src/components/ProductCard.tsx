@@ -13,6 +13,8 @@ interface ProductCardProps {
   product: Product;
   /** Optional override for the favorited state (defaults to local toggle). */
   initiallyFavorited?: boolean;
+  /** Called after a successful favorite toggle so the parent can sync its state. */
+  onFavoriteChange?: (productId: string, favorited: boolean) => void;
 }
 
 /**
@@ -26,7 +28,7 @@ interface ProductCardProps {
  * Padding inside the image is done via inline `style` on the <Image> so
  * it is never dropped by Tailwind's JIT purge pass.
  */
-export function ProductCard({ product, initiallyFavorited = false }: ProductCardProps) {
+export function ProductCard({ product, initiallyFavorited = false, onFavoriteChange }: ProductCardProps) {
   const { language } = useT();
   const reduce = useReducedMotion();
   const [favorited, setFavorited] = useState(initiallyFavorited);
@@ -120,6 +122,7 @@ export function ProductCard({ product, initiallyFavorited = false }: ProductCard
             } else {
               await api.removeFavorite(product.id);
             }
+            onFavoriteChange?.(product.id, next);
           } catch {
             // Revert on error
             setFavorited(!next);

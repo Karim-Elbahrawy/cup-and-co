@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useT } from '@/lib/i18n';
+import { useT, formatPrice } from '@/lib/i18n';
 import type { ApiOrder } from '@/lib/types';
 
 export default function OrderHistoryPage() {
-  const { t } = useT();
+  const { t, language } = useT();
   const [orders, setOrders] = useState<ApiOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,10 +52,19 @@ export default function OrderHistoryPage() {
           </div>
         )}
 
-        {orders === null && (
-          <div className="space-y-2">
+        {orders === null && !error && (
+          <div className="space-y-2" role="status" aria-label={t('common.loading')}>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-20 animate-pulse rounded-card bg-cup-stroke" />
+              <div key={i} className="animate-pulse rounded-card border border-cup-stroke bg-white p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-32 rounded bg-cup-stroke" />
+                    <div className="h-3 w-24 rounded bg-cup-stroke" />
+                    <div className="h-3 w-36 rounded bg-cup-stroke" />
+                  </div>
+                  <div className="h-5 w-16 rounded bg-cup-stroke" />
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -95,7 +104,7 @@ export default function OrderHistoryPage() {
                     </p>
                   </div>
                   <p className="font-heading text-base font-bold text-cup-orange-700">
-                    EGP {o.totalEgp}
+                    {formatPrice(o.totalEgp, language)}
                   </p>
                   <ChevronRight className="h-5 w-5 text-cup-muted" />
                 </Link>

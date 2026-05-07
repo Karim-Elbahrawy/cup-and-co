@@ -7,9 +7,10 @@ interface ErrorStateProps {
   title?: string;
   message: string;
   onRetry?: () => void;
+  retryLabel?: string;
 }
 
-export function ErrorState({ title, message, onRetry }: ErrorStateProps) {
+export function ErrorState({ title, message, onRetry, retryLabel }: ErrorStateProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -32,7 +33,7 @@ export function ErrorState({ title, message, onRetry }: ErrorStateProps) {
           className="mt-6 flex items-center gap-2 rounded-2xl border border-cup-stroke bg-white px-8 py-3.5 font-heading text-sm font-semibold text-cup-brown-900 shadow-subtle transition active:scale-[0.97]"
         >
           <RefreshCw className="h-4 w-4" />
-          Try Again
+          {retryLabel ?? 'Try Again'}
         </button>
       )}
     </motion.div>

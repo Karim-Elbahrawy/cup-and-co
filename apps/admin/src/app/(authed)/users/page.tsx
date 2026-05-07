@@ -21,14 +21,19 @@ export default function UsersPage() {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     const status = filter === 'all' ? undefined : filter;
     adminApi
       .listUsers(status)
       .then((res) => {
-        if (!cancelled) setUsers(res.users);
+        if (!cancelled) setUsers(res.users ?? []);
       })
-      .catch((err) => toast('error', err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!cancelled) toast('error', (err as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => { cancelled = true; };
   }, [filter, toast]);
 
@@ -60,8 +65,37 @@ export default function UsersPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[60vh] place-items-center text-cup-muted">
-        Loading users…
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="h-8 w-24 animate-pulse rounded bg-cup-stroke" />
+          <div className="flex gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-8 w-20 animate-pulse rounded-pill bg-cup-stroke" />
+            ))}
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-card border border-cup-stroke bg-white shadow-sm">
+          <div className="bg-cup-cream-100 px-4 py-3">
+            <div className="flex gap-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-3 w-16 rounded bg-cup-stroke" />
+              ))}
+            </div>
+          </div>
+          <div className="divide-y divide-cup-stroke">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3 animate-pulse">
+                <div className="h-4 w-24 rounded bg-cup-stroke" />
+                <div className="h-4 w-16 rounded bg-cup-stroke" />
+                <div className="h-5 w-16 rounded-pill bg-cup-stroke" />
+                <div className="h-4 w-4 rounded bg-cup-stroke" />
+                <div className="ml-auto flex gap-2">
+                  <div className="h-6 w-16 rounded-pill bg-cup-stroke" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -74,6 +108,7 @@ export default function UsersPage() {
           {filters.map((f) => (
             <button
               key={f}
+              type="button"
               onClick={() => setFilter(f)}
               className={`rounded-pill px-3 py-1.5 text-xs font-semibold capitalize transition ${
                 filter === f
@@ -96,11 +131,11 @@ export default function UsersPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-cup-cream-100 text-xs font-semibold uppercase text-cup-muted">
               <tr>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Blocked</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th scope="col" className="px-4 py-3">Phone</th>
+                <th scope="col" className="px-4 py-3">Role</th>
+                <th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="px-4 py-3">Blocked</th>
+                <th scope="col" className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-cup-stroke">
@@ -133,12 +168,14 @@ export default function UsersPage() {
                       {user.verification_status === 'pending' && (
                         <>
                           <button
+                            type="button"
                             onClick={() => verifyUser(user.id, 'approved')}
                             className="flex items-center gap-1 rounded-pill bg-green-600 px-2.5 py-1 text-[10px] font-semibold text-white transition hover:bg-green-700"
                           >
                             <CheckCircle className="h-3 w-3" /> Approve
                           </button>
                           <button
+                            type="button"
                             onClick={() => verifyUser(user.id, 'rejected')}
                             className="flex items-center gap-1 rounded-pill bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white transition hover:bg-red-700"
                           >
@@ -147,6 +184,7 @@ export default function UsersPage() {
                         </>
                       )}
                       <button
+                        type="button"
                         onClick={() => toggleBlock(user.id, !user.blocked)}
                         className={`rounded-pill px-2.5 py-1 text-[10px] font-semibold transition ${
                           user.blocked

@@ -47,10 +47,14 @@ export default function OffersPage() {
     adminApi
       .listOffers()
       .then((res) => {
-        if (!cancelled) setOffers(res.offers);
+        if (!cancelled) setOffers(res.offers ?? []);
       })
-      .catch((err) => toast('error', err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!cancelled) toast('error', err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => { cancelled = true; };
   }, [toast]);
 
@@ -90,8 +94,27 @@ export default function OffersPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[60vh] place-items-center text-cup-muted">
-        Loading offers…
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-8 w-32 animate-pulse rounded bg-cup-stroke" />
+          <div className="h-10 w-28 animate-pulse rounded-pill bg-cup-stroke" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="animate-pulse rounded-card border border-cup-stroke bg-white p-4">
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 rounded bg-cup-stroke" />
+                <div className="h-4 w-16 rounded-pill bg-cup-stroke" />
+              </div>
+              <div className="mt-3 h-4 w-24 rounded bg-cup-stroke" />
+              <div className="mt-2 space-y-1.5">
+                <div className="h-3 w-full rounded bg-cup-stroke" />
+                <div className="h-3 w-3/4 rounded bg-cup-stroke" />
+                <div className="h-3 w-1/2 rounded bg-cup-stroke" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -234,8 +257,11 @@ export default function OffersPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {offers.map((offer) => {
-            const isActive = new Date(offer.starts_at) <= new Date() && new Date(offer.ends_at) >= new Date();
-            const isUpcoming = new Date(offer.starts_at) > new Date();
+            const now = Date.now();
+            const startsAt = new Date(offer.starts_at).getTime();
+            const endsAt = new Date(offer.ends_at).getTime();
+            const isActive = startsAt <= now && endsAt >= now;
+            const isUpcoming = startsAt > now;
             return (
               <div
                 key={offer.id}
@@ -288,7 +314,7 @@ export default function OffersPage() {
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-cup-cream-100">
                         <div
                           className="h-full rounded-full bg-cup-orange-600 transition-all duration-500"
-                          style={{ width: `${Math.min(100, Math.round((offer.usage_count / offer.usage_limit) * 100))}%` }}
+                          style={{ width: `${offer.usage_limit > 0 ? Math.min(100, Math.round((offer.usage_count / offer.usage_limit) * 100)) : 100}%` }}
                         />
                       </div>
                       {offer.usage_count >= offer.usage_limit && (

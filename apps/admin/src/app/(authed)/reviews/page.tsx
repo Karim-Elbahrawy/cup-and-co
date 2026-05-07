@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Star, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/components/Toast';
@@ -18,16 +18,26 @@ export default function ReviewsPage() {
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const abortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     let cancelled = false;
+    abortRef.current?.abort();
+    const ctl = new AbortController();
+    abortRef.current = ctl;
     adminApi
       .listReviews()
       .then((res) => {
-        if (!cancelled) setReviews(res.reviews);
+        if (!cancelled) setReviews(res.reviews ?? []);
       })
-      .catch((err) => toast('error', err.message))
-      .finally(() => setLoading(false));
-    return () => { cancelled = true; };
+      .catch((err) => {
+        if ((err as Error).name === 'AbortError') return;
+        if (!cancelled) toast('error', err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; ctl.abort(); };
   }, [toast]);
 
   async function toggleHidden(id: string, current: boolean) {
@@ -44,8 +54,33 @@ export default function ReviewsPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[60vh] place-items-center text-cup-muted">
-        Loading reviews…
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-8 w-32 animate-pulse rounded bg-cup-stroke" />
+          <div className="h-7 w-20 animate-pulse rounded-pill bg-cup-stroke" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="animate-pulse rounded-card border border-cup-stroke bg-white p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 5 }).map((__, j) => (
+                        <div key={j} className="h-4 w-4 rounded bg-cup-stroke" />
+                      ))}
+                    </div>
+                    <div className="h-3 w-20 rounded bg-cup-stroke" />
+                  </div>
+                  <div className="h-4 w-28 rounded bg-cup-stroke" />
+                  <div className="h-3 w-full rounded bg-cup-stroke" />
+                  <div className="h-3 w-2/3 rounded bg-cup-stroke" />
+                </div>
+                <div className="h-8 w-16 rounded-pill bg-cup-stroke" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -103,6 +138,7 @@ export default function ReviewsPage() {
                   <p className="text-xs text-cup-muted">Product: {review.productId.slice(0, 8)}…</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => toggleHidden(review.id, review.hidden)}
                   className="flex shrink-0 items-center gap-1.5 rounded-pill border border-cup-stroke bg-white px-3 py-1.5 text-xs font-semibold text-cup-brown-700 transition hover:bg-cup-cream-100"
                 >

@@ -21,10 +21,9 @@ import {
 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/session';
-import { useT } from '@/lib/i18n';
+import { useT, formatPrice } from '@/lib/i18n';
 import type {
   LeaderboardCurrentResponse,
-  LeaderboardEntry,
   LeaderboardMeResponse,
   LoyaltyEntry,
   LoyaltyHistoryResponse,
@@ -47,7 +46,7 @@ function getSourceConfig(source: string) {
 }
 
 export default function RewardsPage() {
-  const { t } = useT();
+  const { t, language } = useT();
   const user = useSession((s) => s.user);
   const isStudent = user?.role === 'student';
 
@@ -108,6 +107,13 @@ export default function RewardsPage() {
           <div className="rounded-2xl border border-cup-error bg-white p-6 text-center text-cup-error">
             <p className="font-semibold">{t('common.error')}</p>
             <p className="mt-1 text-sm">{error}</p>
+            <button
+              type="button"
+              onClick={refresh}
+              className="mt-4 rounded-pill bg-cup-orange-600 px-5 py-2 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 active:scale-[0.97]"
+            >
+              {t('common.retry')}
+            </button>
           </div>
         </div>
       )}
@@ -152,7 +158,7 @@ export default function RewardsPage() {
               <p className="text-sm font-medium text-white/90">
                 {t('loyalty.discountAvailable')}:{' '}
                 <span className="font-heading font-bold text-white">
-                  EGP {data.discountAvailableEgp}
+                  {formatPrice(data.discountAvailableEgp, language)}
                 </span>
               </p>
             </div>
@@ -278,6 +284,7 @@ function HistoryItem({ entry }: { entry: LoyaltyEntry }) {
   const config = getSourceConfig(entry.source);
   const Icon = config.icon;
   const isPositive = entry.points > 0;
+  const date = new Date(entry.createdAt);
 
   return (
     <motion.li
@@ -296,13 +303,13 @@ function HistoryItem({ entry }: { entry: LoyaltyEntry }) {
           {config.label}
         </p>
         <p className="text-[11px] text-cup-muted">
-          {new Date(entry.createdAt).toLocaleDateString(undefined, {
+          {date.toLocaleDateString(undefined, {
             month: 'short',
             day: 'numeric',
             year: 'numeric',
           })}
           {' '}
-          {new Date(entry.createdAt).toLocaleTimeString([], {
+          {date.toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
           })}
@@ -372,7 +379,7 @@ function LeaderboardSection({
         ))}
       </div>
 
-        {top10.length === 0 ? (
+      {top10.length === 0 ? (
         <div className="mt-3 rounded-2xl border border-cup-stroke bg-white p-6 text-center shadow-subtle">
           <p className="text-sm text-cup-muted">{t('loyalty.noScores')}</p>
         </div>
@@ -486,9 +493,12 @@ function PrizeCard({ prize }: { prize: Prize }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
+    if (!navigator.clipboard) return;
     void navigator.clipboard.writeText(prize.code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Clipboard API not available (e.g. HTTP context) — silent fail
     });
   }
 

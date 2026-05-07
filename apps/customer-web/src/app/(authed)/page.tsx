@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PromoCard } from '@/components/PromoCard';
@@ -96,6 +96,15 @@ export default function HomePage() {
     // Sort by rating × count to surface the genuinely popular items at the top.
     return [...products].sort((a, b) => b.rating_avg * (b.rating_count + 1) - a.rating_avg * (a.rating_count + 1));
   }, [catalog, search, language, activeCategory, favoriteIds]);
+
+  const handleFavoriteChange = useCallback((productId: string, isFavorited: boolean) => {
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (isFavorited) next.add(productId);
+      else next.delete(productId);
+      return next;
+    });
+  }, []);
 
   return (
     <PageTransition>
@@ -252,7 +261,7 @@ export default function HomePage() {
                   }}
                   transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <ProductCard product={product} initiallyFavorited={favoriteIds.has(product.id)} />
+                  <ProductCard product={product} initiallyFavorited={favoriteIds.has(product.id)} onFavoriteChange={handleFavoriteChange} />
                 </motion.div>
               ))}
             </motion.div>

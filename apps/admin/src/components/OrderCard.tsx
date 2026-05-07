@@ -61,8 +61,20 @@ export function OrderCard({
 
   return (
     <article
+      tabIndex={onOpen ? 0 : undefined}
+      role={onOpen ? 'button' : undefined}
       onClick={onOpen}
-      className={`group relative rounded-card border border-cup-stroke bg-cup-surface p-4 shadow-subtle transition hover:shadow-card focus-within:ring-2 focus-within:ring-cup-orange-600 ${
+      onKeyDown={
+        onOpen
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpen();
+              }
+            }
+          : undefined
+      }
+      className={`group relative rounded-card border border-cup-stroke bg-cup-surface p-4 shadow-subtle transition hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 ${
         isBusy ? 'opacity-60' : ''
       } ${onOpen ? 'cursor-pointer' : ''}`}
       aria-busy={isBusy || undefined}

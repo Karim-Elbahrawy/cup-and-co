@@ -14,6 +14,8 @@ import type { Product, Category, CatalogResponse, ReviewMode, ProductOption } fr
  * and update stock. Review-mode cycling and product creation are owner-only.
  */
 
+const OPTION_GROUPS: ProductOption['group_name'][] = ['size', 'sugar', 'ice', 'milk', 'extras', 'shots'];
+
 const REVIEW_MODE_CYCLE: ReviewMode[] = ['full', 'write_only', 'hidden'];
 
 const REVIEW_MODE_META: Record<ReviewMode, { label: string; tooltip: string; cls: string }> = {
@@ -79,10 +81,10 @@ function OptionsEditor({ product, canManage }: OptionsEditorProps) {
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState({ name_en: '', name_ar: '', type: 'single' as 'single' | 'multi', choices: '' });
-  const [editForm, setEditForm] = useState({ name_en: '', name_ar: '', type: 'single' as 'single' | 'multi', choices: '' });
+  const [addForm, setAddForm] = useState({ name_en: '', name_ar: '', group_name: 'size' as ProductOption['group_name'], price_delta_egp: 0 });
+  const [editForm, setEditForm] = useState({ name_en: '', name_ar: '', group_name: 'size' as ProductOption['group_name'], price_delta_egp: 0 });
 
-  async function loadOptions() {
+  const loadOptions = useCallback(async () => {
     if (options !== null) return; // already loaded
     setLoading(true);
     try {
@@ -93,21 +95,27 @@ function OptionsEditor({ product, canManage }: OptionsEditorProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [options, product.id, toast]);
+
+  // Auto-load options when editor mounts
+  useEffect(() => {
+    loadOptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!addForm.name_en.trim()) return;
     try {
       const res = await adminApi.addProductOption(product.id, {
+        product_id: product.id,
         name_en: addForm.name_en.trim(),
         name_ar: addForm.name_ar.trim() || addForm.name_en.trim(),
-        type: addForm.type,
-        choices: addForm.choices.split(',').map(s => s.trim()).filter(Boolean),
-        required: false,
+        group_name: addForm.group_name,
+        price_delta_egp: addForm.price_delta_egp,
       });
       setOptions(prev => [...(prev ?? []), res.option]);
-      setAddForm({ name_en: '', name_ar: '', type: 'single', choices: '' });
+      setAddForm({ name_en: '', name_ar: '', group_name: 'size', price_delta_egp: 0 });
       setShowAddForm(false);
       toast('success', 'Option added');
     } catch (err) {
@@ -120,8 +128,8 @@ function OptionsEditor({ product, canManage }: OptionsEditorProps) {
     setEditForm({
       name_en: opt.name_en,
       name_ar: opt.name_ar,
-      type: opt.type,
-      choices: opt.choices.join(', '),
+      group_name: opt.group_name,
+      price_delta_egp: opt.price_delta_egp,
     });
   }
 
@@ -130,8 +138,8 @@ function OptionsEditor({ product, canManage }: OptionsEditorProps) {
       const res = await adminApi.updateProductOption(product.id, optId, {
         name_en: editForm.name_en.trim(),
         name_ar: editForm.name_ar.trim() || editForm.name_en.trim(),
-        type: editForm.type,
-        choices: editForm.choices.split(',').map(s => s.trim()).filter(Boolean),
+        group_name: editForm.group_name,
+        price_delta_egp: editForm.price_delta_egp,
       });
       setOptions(prev => prev?.map(o => o.id === optId ? res.option : o) ?? null);
       setEditingId(null);
@@ -142,6 +150,7 @@ function OptionsEditor({ product, canManage }: OptionsEditorProps) {
   }
 
   async function handleDelete(optId: string) {
+    if (!confirm('Delete this option group? This cannot be undone.')) return;
     try {
       await adminApi.deleteProductOption(product.id, optId);
       setOptions(prev => prev?.filter(o => o.id !== optId) ?? null);
@@ -161,7 +170,7 @@ function OptionsEditor({ product, canManage }: OptionsEditorProps) {
         </span>
         <button
           type="button"
-          onClick={() => { loadOptions(); setShowAddForm(v => !v); }}
+          onClick={() => setShowAddForm(v => !v)}
           className="flex items-center gap-1 rounded-full bg-cup-orange-600 px-2.5 py-1 text-[10px] font-semibold text-white transition hover:bg-cup-orange-700"
         >
           <Plus className="h-3 w-3" /> Add
@@ -193,20 +202,23 @@ function OptionsEditor({ product, canManage }: OptionsEditorProps) {
                   className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
                 />
               </div>
-              <select
-                value={editForm.type}
-                onChange={e => setEditForm(f => ({ ...f, type: e.target.value as 'single' | 'multi' }))}
-                className="w-full rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-              >
-                <option value="single">Single choice</option>
-                <option value="multi">Multi choice</option>
-              </select>
-              <input
-                value={editForm.choices}
-                onChange={e => setEditForm(f => ({ ...f, choices: e.target.value }))}
-                placeholder="Choices (comma-separated)"
-                className="w-full rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={editForm.group_name}
+                  onChange={e => setEditForm(f => ({ ...f, group_name: e.target.value as ProductOption['group_name'] }))}
+                  className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
+                >
+                  {OPTION_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={editForm.price_delta_egp}
+                  onChange={e => setEditForm(f => ({ ...f, price_delta_egp: Number(e.target.value) }))}
+                  placeholder="Price delta (EGP)"
+                  className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
+                />
+              </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => handleEditSave(opt.id)} className="rounded-pill bg-cup-orange-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-cup-orange-700">Save</button>
                 <button type="button" onClick={() => setEditingId(null)} className="rounded-pill border border-cup-stroke bg-white px-3 py-1 text-[11px] font-semibold text-cup-brown-700 hover:bg-cup-cream-100">Cancel</button>
@@ -217,7 +229,7 @@ function OptionsEditor({ product, canManage }: OptionsEditorProps) {
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-cup-brown-900">{opt.name_en}</p>
                 <p className="text-[10px] text-cup-muted">
-                  {opt.type} · {opt.choices.length ? opt.choices.join(', ') : 'no choices'}
+                  {opt.group_name}{opt.price_delta_egp ? ` · +${opt.price_delta_egp} EGP` : ''}
                 </p>
               </div>
               <div className="flex shrink-0 gap-1 ml-2">
@@ -251,20 +263,23 @@ function OptionsEditor({ product, canManage }: OptionsEditorProps) {
               className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
             />
           </div>
-          <select
-            value={addForm.type}
-            onChange={e => setAddForm(f => ({ ...f, type: e.target.value as 'single' | 'multi' }))}
-            className="w-full rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-          >
-            <option value="single">Single choice</option>
-            <option value="multi">Multi choice</option>
-          </select>
-          <input
-            value={addForm.choices}
-            onChange={e => setAddForm(f => ({ ...f, choices: e.target.value }))}
-            placeholder="Choices (comma-separated, e.g. Small, Medium, Large)"
-            className="w-full rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={addForm.group_name}
+              onChange={e => setAddForm(f => ({ ...f, group_name: e.target.value as ProductOption['group_name'] }))}
+              className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
+            >
+              {OPTION_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <input
+              type="number"
+              step="0.5"
+              value={addForm.price_delta_egp}
+              onChange={e => setAddForm(f => ({ ...f, price_delta_egp: Number(e.target.value) }))}
+              placeholder="Price delta (EGP)"
+              className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
+            />
+          </div>
           <div className="flex gap-2">
             <button type="submit" className="rounded-pill bg-cup-orange-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-cup-orange-700">Add Option</button>
             <button type="button" onClick={() => setShowAddForm(false)} className="rounded-pill border border-cup-stroke bg-white px-3 py-1 text-[11px] font-semibold text-cup-brown-700 hover:bg-cup-cream-100">Cancel</button>

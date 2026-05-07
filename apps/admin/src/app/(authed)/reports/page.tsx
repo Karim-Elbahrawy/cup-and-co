@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DollarSign, TrendingUp, Users, Star, EyeOff, MessageSquare,
@@ -59,7 +59,9 @@ type RatingSortKey  = 'avgRating' | 'reviewCount' | 'name_en';
 
 function downloadCsv(filename: string, rows: string[][]) {
   const content = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  // UTF-8 BOM so Excel handles Arabic and special characters correctly
+  const bom = '﻿';
+  const blob = new Blob([bom + content], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
@@ -101,32 +103,41 @@ export default function ReportsPage() {
 
   const topSort    = useSortState<TopItemSortKey>('count');
   const ratingSort = useSortState<RatingSortKey>('avgRating');
+  const abortRef   = useRef<AbortController | null>(null);
 
   const loadReports = useCallback(async () => {
+    abortRef.current?.abort();
+    const ctl = new AbortController();
+    abortRef.current = ctl;
     setLoading(true);
     try {
       const [rev, top, roles, revs, trendData, peakData] = await Promise.all([
-        adminApi.getRevenueReport(dateParams),
-        adminApi.getTopItems(dateParams),
-        adminApi.getRoleBreakdown(dateParams),
-        adminApi.getReviewsReport(),
-        adminApi.getRevenueTrend(dateParams),
-        adminApi.getPeakHours(dateParams),
+        adminApi.getRevenueReport(dateParams, ctl.signal),
+        adminApi.getTopItems(dateParams, ctl.signal),
+        adminApi.getRoleBreakdown(dateParams, ctl.signal),
+        adminApi.getReviewsReport(ctl.signal),
+        adminApi.getRevenueTrend(dateParams, ctl.signal),
+        adminApi.getPeakHours(dateParams, ctl.signal),
       ]);
+      if (ctl.signal.aborted) return;
       setRevenue(rev);
-      setTopItems(top.topItems);
+      setTopItems(top.topItems ?? []);
       setBreakdown(roles);
       setReviewsReport(revs);
-      setTrend(trendData.trend);
-      setPeakHours(peakData.hours);
+      setTrend(trendData.days ?? []);
+      setPeakHours(peakData.hours ?? []);
     } catch (err: unknown) {
+      if ((err as Error).name === 'AbortError') return;
       toast('error', (err as Error).message);
     } finally {
-      setLoading(false);
+      if (!ctl.signal.aborted) setLoading(false);
     }
   }, [dateParams, toast]);
 
-  useEffect(() => { loadReports(); }, [loadReports]);
+  useEffect(() => {
+    loadReports();
+    return () => abortRef.current?.abort();
+  }, [loadReports]);
 
   // Sorted data
   const sortedTopItems = useMemo(() => {
@@ -209,10 +220,41 @@ export default function ReportsPage() {
       </div>
 
       {loading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-32 animate-pulse rounded-card bg-cup-stroke" />
-          ))}
+        <div className="space-y-6 animate-pulse">
+          {/* KPI cards skeleton */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-card border border-cup-stroke bg-white p-5">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 rounded bg-cup-stroke" />
+                  <div className="h-3 w-20 rounded bg-cup-stroke" />
+                </div>
+                <div className="mt-3 h-7 w-28 rounded bg-cup-stroke" />
+              </div>
+            ))}
+          </div>
+          {/* Chart skeleton */}
+          <div className="rounded-card border border-cup-stroke bg-white p-5">
+            <div className="h-4 w-32 rounded bg-cup-stroke" />
+            <div className="mt-4 flex h-48 items-end gap-1">
+              {Array.from({ length: 14 }).map((_, i) => (
+                <div key={i} className="flex-1 rounded-t bg-cup-stroke" style={{ height: `${20 + Math.random() * 60}%` }} />
+              ))}
+            </div>
+          </div>
+          {/* Table skeleton */}
+          <div className="rounded-card border border-cup-stroke bg-white p-5">
+            <div className="h-4 w-40 rounded bg-cup-stroke" />
+            <div className="mt-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="h-4 flex-1 rounded bg-cup-stroke" />
+                  <div className="h-4 w-16 rounded bg-cup-stroke" />
+                  <div className="h-4 w-20 rounded bg-cup-stroke" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <>

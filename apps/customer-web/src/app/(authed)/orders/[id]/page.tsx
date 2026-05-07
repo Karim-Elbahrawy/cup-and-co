@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Check, XCircle, MapPin, Clock } from 'lucide-react';
 import { api, ApiError, BASE_URL } from '@/lib/api';
 import { getToken } from '@/lib/session';
-import { useT } from '@/lib/i18n';
+import { useT, formatPrice } from '@/lib/i18n';
 import type { ApiOrder, TimelineStep } from '@/lib/types';
 
 const POLL_MS = 5000;
@@ -29,6 +29,7 @@ export default function OrderTrackingPage({
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const sseActive = useRef(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -37,6 +38,11 @@ export default function OrderTrackingPage({
       setTimeline(res.timeline);
       if (res.prepMinutesEst != null) setPrepMinutesEst(res.prepMinutesEst);
       setError(null);
+      // Stop polling when terminal status reached
+      if (TERMINAL_STATUSES.includes(res.order.status) && pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load order');
     }
@@ -108,19 +114,21 @@ export default function OrderTrackingPage({
     }
 
     // Try SSE, fall back to polling
-    let pollInterval: ReturnType<typeof setInterval> | null = null;
     connectSSE().then((sseWorked) => {
       if (cancelled) return;
       if (!sseWorked) {
         // Fall back to polling
-        pollInterval = setInterval(refresh, POLL_MS);
+        pollRef.current = setInterval(refresh, POLL_MS);
       }
     });
 
     return () => {
       cancelled = true;
       controller.abort();
-      if (pollInterval) clearInterval(pollInterval);
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
     };
   }, [order?.id, id, refresh]);
 
@@ -157,10 +165,33 @@ export default function OrderTrackingPage({
   if (!order) {
     return (
       <main className="min-h-screen bg-cup-paper px-6 pt-6">
-        <div className="mx-auto max-w-3xl animate-pulse space-y-4">
-          <div className="h-12 rounded-card bg-cup-stroke" />
-          <div className="h-32 rounded-card bg-cup-stroke" />
-          <div className="h-64 rounded-card bg-cup-stroke" />
+        <div className="mx-auto max-w-3xl animate-pulse space-y-4" role="status" aria-label="Loading order">
+          {/* Header skeleton */}
+          <div className="flex items-center justify-between">
+            <div className="h-10 w-10 rounded-full bg-cup-stroke" />
+            <div className="h-5 w-32 rounded bg-cup-stroke" />
+            <div className="h-10 w-10" />
+          </div>
+          {/* Pickup code / delivery card skeleton */}
+          <div className="rounded-card border border-cup-stroke bg-white p-6">
+            <div className="h-3 w-24 rounded bg-cup-stroke" />
+            <div className="mt-3 h-14 w-28 rounded bg-cup-stroke" />
+            <div className="mt-3 h-3 w-48 rounded bg-cup-stroke" />
+          </div>
+          {/* Timeline skeleton */}
+          <div className="rounded-card border border-cup-stroke bg-white p-6 space-y-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="h-9 w-9 shrink-0 rounded-full bg-cup-stroke" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-4 w-24 rounded bg-cup-stroke" />
+                  <div className="h-3 w-16 rounded bg-cup-stroke" />
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Items button skeleton */}
+          <div className="h-14 rounded-card bg-cup-stroke" />
         </div>
       </main>
     );
@@ -354,7 +385,7 @@ export default function OrderTrackingPage({
                     )}
                   </div>
                   <p className="self-center text-sm font-semibold text-cup-orange-700">
-                    EGP {it.lineTotalEgp}
+                    {formatPrice(it.lineTotalEgp, language)}
                   </p>
                 </li>
               ))}
@@ -363,7 +394,7 @@ export default function OrderTrackingPage({
             <div className="flex justify-between text-sm">
               <span className="text-cup-muted">{t('cart.total')}</span>
               <span className="font-heading text-base font-bold text-cup-orange-700">
-                EGP {order.totalEgp}
+                {formatPrice(order.totalEgp, language)}
               </span>
             </div>
           </div>

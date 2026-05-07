@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Heart, Minus, Plus, Star, Send, User } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useCart } from '@/lib/cart';
-import { useT } from '@/lib/i18n';
+import { useT, formatPrice } from '@/lib/i18n';
 import type { Product, ProductOption, Review, ReviewInput } from '@/lib/types';
 
 const GROUP_ORDER = ['shots', 'size', 'sugar', 'ice', 'milk', 'extras'] as const;
@@ -568,7 +568,7 @@ export default function ProductDetailPage({
                 exit={{ y: -8, opacity: 0 }}
                 transition={{ duration: 0.15 }}
               >
-                EGP {total}
+                {formatPrice(total, language)}
               </motion.span>
             </AnimatePresence>
           </span>

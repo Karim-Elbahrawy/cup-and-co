@@ -1,7 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
-
 export function SkeletonCard() {
   return (
     <div className="animate-pulse space-y-3 rounded-2xl border border-cup-stroke bg-white p-3 shadow-subtle">
@@ -74,9 +72,17 @@ export function SkeletonOrderList({ count = 3 }: { count?: number }) {
   );
 }
 
+/** sm:grid-cols-2 sm:grid-cols-3 sm:grid-cols-4 — safelist for Tailwind JIT */
+const GRID_COLS: Record<number, string> = {
+  1: 'sm:grid-cols-1',
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-3',
+  4: 'sm:grid-cols-4',
+};
+
 export function SkeletonStatCards({ count = 3 }: { count?: number }) {
   return (
-    <div className={`grid gap-4 sm:grid-cols-${count}`}>
+    <div className={`grid gap-4 ${GRID_COLS[count] ?? 'sm:grid-cols-3'}`}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="animate-pulse rounded-card border border-cup-stroke bg-white p-5">
           <div className="flex items-center gap-2">
