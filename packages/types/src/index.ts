@@ -61,6 +61,12 @@ export interface Product {
   rating_count: number;
   /** null = unlimited stock; 0 = out of stock; >0 = units remaining */
   stock_count: number | null;
+  /**
+   * Phase 3.4 — Cloudflare Images ID. When set, customer-web builds the
+   * CDN URL via `cdnImage()` (with on-the-fly resize variants); when
+   * null, falls back to `image_url`.
+   */
+  image_id?: string | null;
 }
 
 export interface ProductOption {
