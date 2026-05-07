@@ -68,7 +68,7 @@ export default function ReviewsPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cup-muted">Moderation</p>
         <h1 className="font-heading text-3xl font-bold text-cup-brown-900">Reviews</h1>
         <p className="mt-1 text-sm text-cup-muted">
-          Hide or restore customer reviews. Hidden reviews still exist — customers just don't see them.
+          Hide or restore customer reviews. Hidden reviews still exist — customers just don&apos;t see them.
         </p>
       </header>
 
