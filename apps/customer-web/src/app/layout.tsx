@@ -16,13 +16,15 @@ export const metadata: Metadata = {
   title: 'Cup & Co — Your morning, handled',
   description: 'Order ahead, skip the line. Coffee, breakfast, and desserts on campus.',
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/brand/app-icon-180.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Cup & Co',
-  },
-  icons: {
-    apple: '/brand/app-icon-180.png',
   },
   openGraph: {
     type: 'website',

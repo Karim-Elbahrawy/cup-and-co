@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EmptyState } from '@/components/EmptyState';
 import { Skeleton } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
+import { AttributesEditor } from '@/components/AttributesEditor';
 import type { Product, Category, CatalogResponse } from '@cup-and-co/types';
 
 const SEED_PREFIX = '22222222';
@@ -515,6 +516,9 @@ function ProductCard({
           </button>
         );
       })()}
+
+      {/* Cup AI per-product attribute editor */}
+      {canManage && <AttributesEditor product={product} />}
     </li>
   );
 }

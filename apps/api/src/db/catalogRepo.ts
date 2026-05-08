@@ -108,7 +108,48 @@ function p(
     rating_avg,
     rating_count,
     stock_count: null,
+    review_mode: 'full',
   };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Cup AI Concierge — seed attributes for the rule-based matcher.
+// Keyed by product ID. Mutates FALLBACK.products in place at module-load.
+// When the real DB is wired up, these attribute columns are populated by
+// admins via the menu page; this seed only matters for local/dev/fallback.
+// ───────────────────────────────────────────────────────────────────────────
+const CONCIERGE_SEED: Record<string, Partial<Product>> = {
+  // ── Hot coffee (energising, hot) ──────────────────────────────────────
+  '22222222-0000-0000-0000-000000000001': { energy_level: 'high', sweetness: 1, temperature: 'hot',  caffeine_mg: 80,  tags_en: ['creamy', 'classic'],     tags_ar: ['كريمي', 'كلاسيكي'] },
+  '22222222-0000-0000-0000-000000000002': { energy_level: 'high', sweetness: 4, temperature: 'hot',  caffeine_mg: 80,  tags_en: ['creamy', 'sweet'],       tags_ar: ['كريمي', 'حلو'] },
+  '22222222-0000-0000-0000-000000000003': { energy_level: 'high', sweetness: 3, temperature: 'hot',  caffeine_mg: 80,  tags_en: ['creamy', 'natural'],     tags_ar: ['كريمي', 'طبيعي'] },
+  '22222222-0000-0000-0000-000000000005': { energy_level: 'high', sweetness: 0, temperature: 'hot',  caffeine_mg: 120, tags_en: ['bitter', 'classic'],     tags_ar: ['مر', 'كلاسيكي'] },
+  '22222222-0000-0000-0000-000000000007': { energy_level: 'high', sweetness: 4, temperature: 'hot',  caffeine_mg: 90,  tags_en: ['creamy', 'sweet', 'chocolate'], tags_ar: ['كريمي', 'حلو', 'شوكولاتة'] },
+  '22222222-0000-0000-0000-000000000008': { energy_level: 'high', sweetness: 3, temperature: 'hot',  caffeine_mg: 80,  tags_en: ['creamy', 'nutty'],       tags_ar: ['كريمي', 'بندق'] },
+  '22222222-0000-0000-0000-000000000009': { energy_level: 'high', sweetness: 4, temperature: 'hot',  caffeine_mg: 80,  tags_en: ['creamy', 'sweet'],       tags_ar: ['كريمي', 'حلو'] },
+  '22222222-0000-0000-0000-00000000000A': { energy_level: 'high', sweetness: 1, temperature: 'hot',  caffeine_mg: 100, tags_en: ['creamy', 'strong'],      tags_ar: ['كريمي', 'قوي'] },
+  // ── Cold coffee (energising, cold, refreshing) ────────────────────────
+  '22222222-0000-0000-0000-000000000004': { energy_level: 'high', sweetness: 2, temperature: 'cold', caffeine_mg: 100, tags_en: ['refreshing'],            tags_ar: ['منعش'] },
+  '22222222-0000-0000-0000-000000000006': { energy_level: 'high', sweetness: 0, temperature: 'cold', caffeine_mg: 100, tags_en: ['refreshing', 'bitter'],  tags_ar: ['منعش', 'مر'] },
+  // ── Desserts (low energy, sweet, no caffeine) ─────────────────────────
+  '22222222-0000-0000-0000-00000000000B': { energy_level: 'low',  sweetness: 5, temperature: 'cold', caffeine_mg: 20,  tags_en: ['sweet', 'creamy'],       tags_ar: ['حلو', 'كريمي'] },
+  '22222222-0000-0000-0000-00000000000C': { energy_level: 'low',  sweetness: 5, temperature: 'cold', caffeine_mg: 0,   tags_en: ['sweet', 'chocolate'],    tags_ar: ['حلو', 'شوكولاتة'] },
+  '22222222-0000-0000-0000-00000000000D': { energy_level: 'low',  sweetness: 4, temperature: 'cold', caffeine_mg: 0,   tags_en: ['nutty', 'buttery'],      tags_ar: ['بندق', 'لوز'] },
+  '22222222-0000-0000-0000-00000000000E': { energy_level: 'low',  sweetness: 5, temperature: 'cold', caffeine_mg: 0,   tags_en: ['sweet', 'creamy', 'fruity'], tags_ar: ['حلو', 'كريمي', 'فواكه'] },
+  '22222222-0000-0000-0000-00000000000F': { energy_level: 'low',  sweetness: 5, temperature: 'cold', caffeine_mg: 0,   tags_en: ['sweet', 'chocolate'],    tags_ar: ['حلو', 'شوكولاتة'] },
+  '22222222-0000-0000-0000-000000000010': { energy_level: 'low',  sweetness: 5, temperature: 'hot',  caffeine_mg: 0,   tags_en: ['sweet', 'warm'],         tags_ar: ['حلو', 'دافي'] },
+  // ── Breakfast (savoury / light, no caffeine) ──────────────────────────
+  '22222222-0000-0000-0000-000000000011': { energy_level: 'medium', sweetness: 0, temperature: 'cold', caffeine_mg: 0, tags_en: ['savoury', 'fresh'],      tags_ar: ['سادة', 'طازج'] },
+  '22222222-0000-0000-0000-000000000012': { energy_level: 'medium', sweetness: 0, temperature: 'hot',  caffeine_mg: 0, tags_en: ['savoury', 'hearty'],     tags_ar: ['سادة', 'مشبع'] },
+  '22222222-0000-0000-0000-000000000013': { energy_level: 'medium', sweetness: 0, temperature: 'hot',  caffeine_mg: 0, tags_en: ['savoury', 'hearty'],     tags_ar: ['سادة', 'مشبع'] },
+  '22222222-0000-0000-0000-000000000014': { energy_level: 'medium', sweetness: 3, temperature: 'cold', caffeine_mg: 0, tags_en: ['fresh', 'fruity'],       tags_ar: ['طازج', 'فواكه'] },
+  '22222222-0000-0000-0000-000000000015': { energy_level: 'medium', sweetness: 4, temperature: 'cold', caffeine_mg: 0, tags_en: ['refreshing', 'fruity'],  tags_ar: ['منعش', 'فواكه'] },
+  '22222222-0000-0000-0000-000000000016': { energy_level: 'medium', sweetness: 0, temperature: 'cold', caffeine_mg: 0, tags_en: ['savoury', 'fresh'],      tags_ar: ['سادة', 'طازج'] },
+};
+
+for (const product of FALLBACK.products) {
+  const seed = CONCIERGE_SEED[product.id];
+  if (seed) Object.assign(product, seed);
 }
 
 const SHOT_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
@@ -184,9 +225,81 @@ export function getProductStock(productId: string): number | null {
   return productStockMap.has(productId) ? (productStockMap.get(productId) ?? null) : null;
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Cup AI concierge attribute overrides — admins set these per product so the
+// matcher knows how to suggest the drink. Stored as a partial overlay so a
+// single null field doesn't wipe out the rest. Keyed by product ID.
+// ───────────────────────────────────────────────────────────────────────────
+
+export interface ConciergeAttrs {
+  energy_level: 'low' | 'medium' | 'high' | null;
+  sweetness: number | null;
+  temperature: 'hot' | 'cold' | 'both' | null;
+  caffeine_mg: number | null;
+  tags_en: string[];
+  tags_ar: string[];
+}
+
+const productAttrsMap = new Map<string, Partial<ConciergeAttrs>>();
+
+/** Reads the merged attributes — admin overlay over the product's seeded values. */
+export function getProductAttrs(product: Product): ConciergeAttrs {
+  const overlay = productAttrsMap.get(product.id) ?? {};
+  return {
+    energy_level: overlay.energy_level ?? product.energy_level ?? null,
+    sweetness:    overlay.sweetness    ?? product.sweetness    ?? null,
+    temperature:  overlay.temperature  ?? product.temperature  ?? null,
+    caffeine_mg:  overlay.caffeine_mg  ?? product.caffeine_mg  ?? null,
+    tags_en:      overlay.tags_en      ?? product.tags_en      ?? [],
+    tags_ar:      overlay.tags_ar      ?? product.tags_ar      ?? [],
+  };
+}
+
+/**
+ * Replaces (merges) the admin overlay for a product. Pass `null` for any
+ * individual field to clear it (and fall back to whatever the product itself
+ * has).
+ *
+ * When Supabase is configured, writes go straight to the products table so
+ * admin edits survive a server restart. In fallback/dev mode, writes land in
+ * the in-memory overlay (cleared on process restart). The two paths are
+ * isomorphic from the matcher's perspective: both end up reflected in the
+ * next `getCatalog()` read.
+ */
+export async function setProductAttrs(id: string, attrs: Partial<ConciergeAttrs>): Promise<void> {
+  if (isSupabaseReady()) {
+    // Build a partial update — Supabase only writes the columns we send.
+    const update: Record<string, unknown> = {};
+    if ('energy_level' in attrs) update.energy_level = attrs.energy_level;
+    if ('sweetness'    in attrs) update.sweetness    = attrs.sweetness;
+    if ('temperature'  in attrs) update.temperature  = attrs.temperature;
+    if ('caffeine_mg'  in attrs) update.caffeine_mg  = attrs.caffeine_mg;
+    if ('tags_en'      in attrs) update.tags_en      = attrs.tags_en;
+    if ('tags_ar'      in attrs) update.tags_ar      = attrs.tags_ar;
+    if (Object.keys(update).length === 0) return;
+    const sb = getServiceClient();
+    const { error } = await sb.from('products').update(update).eq('id', id);
+    if (error) throw new Error(`Failed to persist concierge attributes: ${error.message}`);
+    return;
+  }
+  productAttrsMap.set(id, { ...productAttrsMap.get(id), ...attrs });
+}
+
+/** Apply both stock + concierge-attribute overlays to a product. */
 function withStock(product: Product): Product {
   const stock = getProductStock(product.id);
-  return stock === null ? product : { ...product, stock_count: stock };
+  const attrs = productAttrsMap.get(product.id);
+  if (stock === null && !attrs) return product;
+  return {
+    ...product,
+    ...(stock !== null && { stock_count: stock }),
+    ...(attrs?.energy_level !== undefined && { energy_level: attrs.energy_level }),
+    ...(attrs?.sweetness    !== undefined && { sweetness: attrs.sweetness }),
+    ...(attrs?.temperature  !== undefined && { temperature: attrs.temperature }),
+    ...(attrs?.caffeine_mg  !== undefined && { caffeine_mg: attrs.caffeine_mg }),
+    ...(attrs?.tags_en      !== undefined && { tags_en: attrs.tags_en }),
+    ...(attrs?.tags_ar      !== undefined && { tags_ar: attrs.tags_ar }),
+  };
 }
 
 function isSupabaseReady(): boolean {
@@ -233,6 +346,7 @@ export function addProduct(input: AddProductInput): Product {
     rating_count: 0,
     is_available: true,
     stock_count: null,
+    review_mode: 'full',
   };
   extraProducts.push(product);
   return product;

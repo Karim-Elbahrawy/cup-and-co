@@ -1,10 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="7" fill="#C2410C"/>
-  <circle cx="16" cy="18" r="9" fill="#FEF3C7"/>
-  <circle cx="16" cy="18" r="6" fill="#1C1917"/>
-  <g stroke="#FEF3C7" stroke-width="1.4" stroke-linecap="round" fill="none">
-    <path d="M11 5 C 10 7, 12 9, 11 11"/>
-    <path d="M16 4 C 15 6, 17 8, 16 10"/>
-    <path d="M21 5 C 20 7, 22 9, 21 11"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 60" width="180" height="60">
+  <rect width="180" height="60" fill="white"/>
+  <text
+    x="90"
+    y="46"
+    font-family="'Times New Roman', Georgia, serif"
+    font-size="44"
+    font-weight="700"
+    text-anchor="middle"
+    letter-spacing="3"
+    fill="#0f0f0f"
+  >CUP&amp;CO</text>
 </svg>

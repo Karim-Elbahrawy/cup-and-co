@@ -26,9 +26,17 @@ function num(name: string, fallback: number): number {
   return n;
 }
 
+const PORT = num('PORT', 4000);
+
 export const config = {
-  port: num('PORT', 4000),
+  port: PORT,
   nodeEnv: process.env.NODE_ENV ?? 'development',
+  /**
+   * Base URL of the API itself. Used by services/payments.ts to build the
+   * dev payment-sim redirect URL (`${devApiBaseUrl}/dev/payment-sim?...`).
+   * Override via `DEV_API_BASE_URL` for non-default ports or staging hosts.
+   */
+  devApiBaseUrl: process.env.DEV_API_BASE_URL ?? `http://localhost:${PORT}`,
 
   supabase: {
     url: required('SUPABASE_URL', 'http://127.0.0.1:54321'),

@@ -92,7 +92,7 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
 
 // Typed helpers — keep the call sites tidy.
 
-import type { OrderStatus } from '@cup-and-co/types';
+import type { OrderStatus, Product, ProductOption } from '@cup-and-co/types';
 
 export interface AdminOrderItem {
   productId: string;
@@ -146,6 +146,7 @@ export interface AdminSummary {
   activeOrders: number;
   fullReportsVisible: boolean;
   kioskOpen?: boolean;
+  lowStockCount?: number;
 }
 
 /**
@@ -226,6 +227,51 @@ export interface AdminReportRoleBreakdown {
   breakdown: Record<string, { orders: number; revenue: number }>;
 }
 
+export interface AdminReportReviewsByProduct {
+  productId: string;
+  name_en: string;
+  reviewCount: number;
+  avgRating: number;
+  hiddenCount: number;
+  ratingDistribution: Record<string, number>;
+}
+
+export interface AdminReportReviews {
+  total: number;
+  avgRating: number;
+  hiddenCount: number;
+  ratingDistribution: Record<string, number>;
+  byProduct: AdminReportReviewsByProduct[];
+}
+
+export interface AdminRevenueTrendEntry {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AdminPeakHourEntry {
+  hour: number;
+  count: number;
+}
+
+export interface AdminAuditEntry {
+  id: string;
+  adminId: string;
+  adminRole: string;
+  action: string;
+  target: string;
+  detail: string;
+  createdAt: string;
+}
+
+export interface AdminCategory {
+  id: string;
+  name_en: string;
+  name_ar: string;
+  sort_order: number;
+}
+
 export const adminApi = {
   listOrders: (signal?: AbortSignal) =>
     api<{ orders: AdminOrder[] }>('/admin/orders', { signal }),
@@ -262,10 +308,7 @@ export const adminApi = {
   setProductAvailability: (productId: string, available: boolean) =>
     api<{ id: string; available: boolean }>(
       `/admin/menu/products/${productId}/availability`,
-      {
-        method: 'PATCH',
-        body: { available },
-      },
+      { method: 'PATCH', body: { available } },
     ),
   // Phase 3.2 — staff out-of-stock toggle (separate from availability and
   // from the numeric `setProductStock` count below). The two endpoints
@@ -360,13 +403,85 @@ export const adminApi = {
   updateOffer: (id: string, body: Partial<Omit<AdminOffer, 'id' | 'usage_count'>>) =>
     api<AdminOffer>(`/admin/offers/${id}`, { method: 'PATCH', body }),
   // Phase 5: Reports
-  getRevenueReport: (signal?: AbortSignal) =>
-    api<AdminReportRevenue>('/admin/reports/revenue', { signal }),
-  getTopItems: (signal?: AbortSignal) =>
-    api<{ topItems: AdminReportTopItem[] }>('/admin/reports/top-items', { signal }),
-  getRoleBreakdown: (signal?: AbortSignal) =>
-    api<AdminReportRoleBreakdown>('/admin/reports/role-breakdown', { signal }),
+  getRevenueReport: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminReportRevenue>(`/admin/reports/revenue${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getTopItems: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ topItems: AdminReportTopItem[] }>(`/admin/reports/top-items${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getRoleBreakdown: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminReportRoleBreakdown>(`/admin/reports/role-breakdown${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getReviewsReport: (signal?: AbortSignal) =>
+    api<AdminReportReviews>('/admin/reports/reviews', { signal }),
+  getRevenueTrend: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ days: AdminRevenueTrendEntry[] }>(`/admin/reports/revenue-trend${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getPeakHours: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ hours: AdminPeakHourEntry[] }>(`/admin/reports/peak-hours${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getAuditLog: (params?: { action?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])).toString() : '';
+    return api<{ entries: AdminAuditEntry[]; total: number }>(`/admin/audit-log${qs ? `?${qs}` : ''}`, { signal });
+  },
+  // Product options CRUD
+  listProductOptions: (productId: string, signal?: AbortSignal) =>
+    api<{ options: ProductOption[] }>(`/admin/menu/products/${productId}/options`, { signal }),
+  addProductOption: (productId: string, body: Omit<ProductOption, 'id'>) =>
+    api<{ option: ProductOption }>(`/admin/menu/products/${productId}/options`, { method: 'POST', body }),
+  updateProductOption: (productId: string, optionId: string, body: Partial<Omit<ProductOption, 'id'>>) =>
+    api<{ option: ProductOption }>(`/admin/menu/products/${productId}/options/${optionId}`, { method: 'PATCH', body }),
+  deleteProductOption: (productId: string, optionId: string) =>
+    api<{ ok: boolean }>(`/admin/menu/products/${productId}/options/${optionId}`, { method: 'DELETE' }),
+  // Category CRUD
+  createCategory: (body: { name_en: string; name_ar: string; sort_order?: number }) =>
+    api<{ category: AdminCategory }>('/admin/menu/categories', { method: 'POST', body }),
+  updateCategory: (id: string, body: { name_en?: string; name_ar?: string; sort_order?: number }) =>
+    api<{ category: AdminCategory }>(`/admin/menu/categories/${id}`, { method: 'PATCH', body }),
+  deleteCategory: (id: string) =>
+    api<{ ok: boolean }>(`/admin/menu/categories/${id}`, { method: 'DELETE' }),
+
   // Phase 2.3 — multi-campus
   listCampuses: (signal?: AbortSignal) =>
     api<{ campuses: Campus[] }>('/campuses', { signal, anonymous: true }),
+
+  // ── Cup AI: per-product concierge attributes ─────────────────────────────
+  getProductAttrs: (productId: string, signal?: AbortSignal) =>
+    api<{ id: string; attrs: ConciergeAttrs }>(`/admin/menu/products/${productId}/attrs`, { signal }),
+  setProductAttrs: (productId: string, body: Partial<ConciergeAttrs>) =>
+    api<{ id: string; attrs: Partial<ConciergeAttrs> }>(`/admin/menu/products/${productId}/attrs`, { method: 'PATCH', body }),
+  autoDetectAttrs: (productId: string) =>
+    api<{ id: string; inferred: ConciergeAttrs }>(`/admin/menu/products/${productId}/auto-detect-attrs`, { method: 'POST' }),
+
+  // Cup AI usage analytics
+  getCupAiStats: (days = 7, signal?: AbortSignal) =>
+    api<CupAiStatsResponse>(`/admin/reports/cup-ai?days=${days}`, { signal }),
 };
+
+export interface CupAiStatsResponse {
+  days: number;
+  windowMs: number;
+  totalQueries: number;
+  byLanguage: { en: number; ar: number };
+  byConfidence: { low: number; medium: number; high: number };
+  zeroMatchCount: number;
+  topQueries: Array<{ query: string; count: number }>;
+  topLowConfidenceQueries: Array<{ query: string; count: number }>;
+  topSuggestedProductIds: Array<{ productId: string; count: number }>;
+  topProducts: Array<{ productId: string; count: number; name_en: string; name_ar: string }>;
+}
+
+// ── Cup AI types (mirror api/services/concierge ConciergeAttrs) ────────────
+export interface ConciergeAttrs {
+  energy_level: 'low' | 'medium' | 'high' | null;
+  sweetness: number | null;
+  temperature: 'hot' | 'cold' | 'both' | null;
+  caffeine_mg: number | null;
+  tags_en: string[];
+  tags_ar: string[];
+}

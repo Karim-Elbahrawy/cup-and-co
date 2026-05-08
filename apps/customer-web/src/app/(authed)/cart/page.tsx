@@ -8,7 +8,7 @@ import { ChevronLeft, Minus, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCart, lineKey, cartSubtotal, type CartItem } from '@/lib/cart';
 import { api } from '@/lib/api';
-import { useT } from '@/lib/i18n';
+import { useT, formatPrice } from '@/lib/i18n';
 
 export default function CartPage() {
   const router = useRouter();
@@ -128,7 +128,7 @@ export default function CartPage() {
                     onChange={(q) => updateQuantity(lineKey(item), q)}
                   />
                   <p className="font-heading text-sm font-semibold text-cup-orange-700">
-                    EGP {item.unitPriceEgp * item.quantity}
+                    {formatPrice(item.unitPriceEgp * item.quantity, language)}
                   </p>
                 </div>
               </div>
@@ -204,7 +204,7 @@ export default function CartPage() {
           className="mx-auto flex w-full max-w-3xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98]"
         >
           <span>{t('common.checkout')}</span>
-          <span>EGP {total}</span>
+          <span>{formatPrice(total, language)}</span>
         </button>
       </div>
     </main>

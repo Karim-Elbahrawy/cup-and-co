@@ -22,6 +22,14 @@ export type LoyaltySource = 'online_paid' | 'cash_in_app' | 'qr_receipt' | 'game
 
 export type OptionGroup = 'shots' | 'size' | 'sugar' | 'ice' | 'milk' | 'extras';
 
+/**
+ * Controls what customers see in the Reviews section on the product detail page.
+ * - `full`       — stars (rating avg), review list, and write-review form are all visible.
+ * - `write_only` — only the write-review form is shown; no stars, no existing review list.
+ * - `hidden`     — the entire reviews section is hidden; no stars, no form, no list.
+ */
+export type ReviewMode = 'full' | 'write_only' | 'hidden';
+
 export interface User {
   id: string;
   phone: string;
@@ -61,6 +69,8 @@ export interface Product {
   rating_count: number;
   /** null = unlimited stock; 0 = out of stock; >0 = units remaining */
   stock_count: number | null;
+  /** Admin-set display mode for the reviews section on the product detail page. */
+  review_mode: ReviewMode;
   /**
    * Phase 3.4 — Cloudflare Images ID. When set, customer-web builds the
    * CDN URL via `cdnImage()` (with on-the-fly resize variants); when
@@ -75,6 +85,19 @@ export interface Product {
    */
   is_out_of_stock?: boolean;
   out_of_stock_until?: string | null;
+  // ── Cup AI concierge attributes (all optional; populated by admin) ────────
+  /** Stimulation level — drives matches like "energising" vs "calming". */
+  energy_level?: 'low' | 'medium' | 'high' | null;
+  /** 0 (bitter / savoury) … 5 (very sweet). */
+  sweetness?: number | null;
+  /** Whether this drink is served hot, cold, or either. */
+  temperature?: 'hot' | 'cold' | 'both' | null;
+  /** Rough caffeine in mg — used for "no caffeine" / "strong" matching. */
+  caffeine_mg?: number | null;
+  /** Free-form English descriptors (e.g. ['refreshing', 'creamy', 'nutty']). */
+  tags_en?: string[];
+  /** Free-form Arabic descriptors (e.g. ['منعش', 'كريمي']). */
+  tags_ar?: string[];
 }
 
 export interface ProductOption {
@@ -251,14 +274,6 @@ export interface CatalogResponse {
   offers: Offer[];
   kiosk: KioskStatus;
 }
-
-/**
- * Controls what the customer sees on the product detail page.
- * - `full`      – stars, review list, and write-review form are all shown (default).
- * - `view_only` – stars and the review list are shown; the write-review form is hidden.
- * - `hidden`    – nothing review-related is shown (no stars, no list, no form).
- */
-export type ReviewMode = 'full' | 'write_only' | 'hidden';
 
 export interface ProductDetailResponse {
   product: Product;

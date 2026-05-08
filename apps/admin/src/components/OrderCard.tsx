@@ -33,6 +33,8 @@ interface OrderCardProps {
   /** Called with the new status on advance/back. The parent applies optimism + revert. */
   onAdvance?: (next: OrderStatus) => void;
   onBack?: (prev: OrderStatus) => void;
+  /** Open the detail drawer for this order. */
+  onOpen?: () => void;
   /** When true, the status pill in the corner is hidden (kanban columns already say it). */
   hideStatusPill?: boolean;
   /** Suppress the per-card busy spinner — used during optimistic batches. */
@@ -44,6 +46,7 @@ export function OrderCard({
   order,
   onAdvance,
   onBack,
+  onOpen,
   hideStatusPill = false,
   isBusy = false,
   compact = false,
@@ -58,9 +61,22 @@ export function OrderCard({
 
   return (
     <article
-      className={`group relative rounded-card border border-cup-stroke bg-cup-surface p-4 shadow-subtle transition hover:shadow-card focus-within:ring-2 focus-within:ring-cup-orange-600 ${
+      tabIndex={onOpen ? 0 : undefined}
+      role={onOpen ? 'button' : undefined}
+      onClick={onOpen}
+      onKeyDown={
+        onOpen
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpen();
+              }
+            }
+          : undefined
+      }
+      className={`group relative rounded-card border border-cup-stroke bg-cup-surface p-4 shadow-subtle transition hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 ${
         isBusy ? 'opacity-60' : ''
-      }`}
+      } ${onOpen ? 'cursor-pointer' : ''}`}
       aria-busy={isBusy || undefined}
     >
       <header className="flex items-start justify-between gap-2">
@@ -92,7 +108,7 @@ export function OrderCard({
         {onBack && prev && (
           <button
             type="button"
-            onClick={() => onBack(prev)}
+            onClick={(e) => { e.stopPropagation(); onBack(prev); }}
             disabled={isBusy}
             className="rounded-pill border border-cup-stroke bg-white px-3 py-1 text-xs font-semibold text-cup-brown-700 transition hover:bg-cup-cream-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={`Move back to ${prev}`}
@@ -103,7 +119,7 @@ export function OrderCard({
         {onAdvance && next && (
           <button
             type="button"
-            onClick={() => onAdvance(next)}
+            onClick={(e) => { e.stopPropagation(); onAdvance(next); }}
             disabled={isBusy}
             className="ml-auto rounded-pill bg-cup-orange-600 px-3 py-1 text-xs font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-cup-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={`Advance to ${next}`}

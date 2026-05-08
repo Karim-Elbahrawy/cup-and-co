@@ -9,6 +9,7 @@ export default defineConfig({
       ALLOW_HEADER_AUTH_BYPASS: '1',
       DEV_OTP_OVERRIDE: '000000',
       JWT_SECRET: 'test-only-secret-must-be-at-least-32-characters-long',
+      PAYMOB_API_KEY: 'test-only-paymob-api-key',
       PAYMOB_HMAC_SECRET: 'test-only-paymob-hmac-secret-32chars-min',
       // Force FALLBACK fixture for catalog/products. Without these overrides
       // tests would silently hit whatever Supabase project the dev's .env

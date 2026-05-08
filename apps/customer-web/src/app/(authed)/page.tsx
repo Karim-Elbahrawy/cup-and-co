@@ -16,6 +16,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { UserAvatar } from '@/components/UserAvatar';
 import { WelcomeBackBanner } from '@/components/WelcomeBackBanner';
 import { ActiveOrderBanner } from '@/components/ActiveOrderBanner';
+import { DrinkConcierge } from '@/components/DrinkConcierge';
 import { api } from '@/lib/api';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { useActiveOrder } from '@/lib/useActiveOrder';
@@ -51,14 +52,17 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api
-      .catalog()
-      .then((data) => {
-        if (!cancelled) setCatalog(data);
+    Promise.all([api.catalog(), api.getFavorites().catch(() => ({ productIds: [] as string[] }))])
+      .then(([catalogData, favData]) => {
+        if (!cancelled) {
+          setCatalog(catalogData);
+          setFavoriteIds(new Set(favData.productIds));
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : t('common.error'));
@@ -102,7 +106,9 @@ export default function HomePage() {
     if (!catalog) return [];
     const query = search.trim().toLowerCase();
     let products = catalog.products.filter((p) => p.is_available);
-    if (activeCategory !== 'all') {
+    if (activeCategory === 'favourites') {
+      products = products.filter((p) => favoriteIds.has(p.id));
+    } else if (activeCategory !== 'all') {
       products = products.filter((p) => p.category_id === activeCategory);
     }
     if (query) {
@@ -112,7 +118,7 @@ export default function HomePage() {
     }
     // Sort by rating × count to surface the genuinely popular items at the top.
     return [...products].sort((a, b) => b.rating_avg * (b.rating_count + 1) - a.rating_avg * (a.rating_count + 1));
-  }, [catalog, search, language, activeCategory]);
+  }, [catalog, search, language, activeCategory, favoriteIds]);
 
   return (
     <PageTransition>
@@ -190,6 +196,13 @@ export default function HomePage() {
             selected={activeCategory === 'all'}
             onSelect={() => setActiveCategory('all')}
           />
+          {favoriteIds.size > 0 && (
+            <CategoryChip
+              label={language === 'ar' ? `المفضلة (${favoriteIds.size})` : `Favourites (${favoriteIds.size})`}
+              selected={activeCategory === 'favourites'}
+              onSelect={() => setActiveCategory('favourites')}
+            />
+          )}
           {catalog?.categories
             .slice()
             .sort((a, b) => a.sort_order - b.sort_order)
@@ -256,13 +269,15 @@ export default function HomePage() {
                   }}
                   transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <ProductCard product={product} />
+                  <ProductCard product={product} initiallyFavorited={favoriteIds.has(product.id)} />
                 </motion.div>
               ))}
             </motion.div>
           )}
         </section>
       </main>
+      {/* Cup AI — floating concierge button + panel */}
+      <DrinkConcierge />
     </PageTransition>
   );
 }
