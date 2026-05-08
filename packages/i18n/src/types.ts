@@ -53,6 +53,8 @@ export interface Translations {
     todayOnly: string;
     superDiscount: string;
     offPercent: string;
+    recentOrders: string;
+    orderAgain: string;
     categories: {
       all: string;
       coffee: string;

@@ -62,6 +62,8 @@ export const en: Translations = {
     todayOnly: 'Today Only',
     superDiscount: 'Super Discount',
     offPercent: '% OFF',
+    recentOrders: 'Recent Orders',
+    orderAgain: 'Order Again',
     categories: {
       all: 'All',
       coffee: 'Coffee',

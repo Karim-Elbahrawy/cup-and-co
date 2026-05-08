@@ -226,3 +226,18 @@
 "qr.camera_required" = "مطلوب إذن الكاميرا";
 "qr.camera_subtitle" = "افتح الإعدادات للسماح بالكاميرا لمسح الإيصالات.";
 "qr.open_settings" = "فتح الإعدادات";
+
+/* Recent Orders strip on Home */
+"home.recent_orders" = "الطلبات الأخيرة";
+"home.order_again" = "اطلب مجدداً";
+
+/* Order status labels */
+"orders.received" = "تم الاستلام";
+"orders.accepted" = "مقبول";
+"orders.preparing" = "قيد التحضير";
+"orders.ready" = "جاهز";
+"orders.out_for_delivery" = "في الطريق";
+"orders.completed" = "مكتمل";
+"orders.cancelled" = "ملغي";
+"orders.refunded" = "مسترد";
+"orders.reorder" = "اطلب مجدداً";

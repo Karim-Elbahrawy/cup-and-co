@@ -16,6 +16,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { UserAvatar } from '@/components/UserAvatar';
 import { WelcomeBackBanner } from '@/components/WelcomeBackBanner';
 import { ActiveOrderBanner } from '@/components/ActiveOrderBanner';
+import { RecentOrdersStrip } from '@/components/RecentOrdersStrip';
 import { DrinkConcierge } from '@/components/DrinkConcierge';
 import { api } from '@/lib/api';
 import { useFeatureFlag } from '@/lib/featureFlags';
@@ -129,6 +130,10 @@ export default function HomePage() {
         {activeOrder && (
           <ActiveOrderBanner order={activeOrder} language={language} />
         )}
+
+        {/* Recent orders — horizontal strip of 3 most-recent terminal orders.
+            Hidden when the user has no past orders (no flash for new users). */}
+        <RecentOrdersStrip />
 
         {/* Welcome-back pill — gated by `welcome_banner` flag (50/50 demo) */}
         {welcomeBannerVariant === 'variant_a' && (
