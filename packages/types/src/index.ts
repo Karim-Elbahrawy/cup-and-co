@@ -71,6 +71,19 @@ export interface Product {
   stock_count: number | null;
   /** Admin-set display mode for the reviews section on the product detail page. */
   review_mode: ReviewMode;
+  // ── Cup AI concierge attributes (all optional; populated by admin) ────────
+  /** Stimulation level — drives matches like "energising" vs "calming". */
+  energy_level?: 'low' | 'medium' | 'high' | null;
+  /** 0 (bitter / savoury) … 5 (very sweet). */
+  sweetness?: number | null;
+  /** Whether this drink is served hot, cold, or either. */
+  temperature?: 'hot' | 'cold' | 'both' | null;
+  /** Rough caffeine in mg — used for "no caffeine" / "strong" matching. */
+  caffeine_mg?: number | null;
+  /** Free-form English descriptors (e.g. ['refreshing', 'creamy', 'nutty']). */
+  tags_en?: string[];
+  /** Free-form Arabic descriptors (e.g. ['منعش', 'كريمي']). */
+  tags_ar?: string[];
 }
 
 export interface ProductOption {

@@ -113,6 +113,46 @@ function p(
   };
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Cup AI Concierge — seed attributes for the rule-based matcher.
+// Keyed by product ID. Mutates FALLBACK.products in place at module-load.
+// When the real DB is wired up, these attribute columns are populated by
+// admins via the menu page; this seed only matters for local/dev/fallback.
+// ───────────────────────────────────────────────────────────────────────────
+const CONCIERGE_SEED: Record<string, Partial<Product>> = {
+  // ── Hot coffee (energising, hot) ──────────────────────────────────────
+  '22222222-0000-0000-0000-000000000001': { energy_level: 'high', sweetness: 1, temperature: 'hot',  caffeine_mg: 80,  tags_en: ['creamy', 'classic'],     tags_ar: ['كريمي', 'كلاسيكي'] },
+  '22222222-0000-0000-0000-000000000002': { energy_level: 'high', sweetness: 4, temperature: 'hot',  caffeine_mg: 80,  tags_en: ['creamy', 'sweet'],       tags_ar: ['كريمي', 'حلو'] },
+  '22222222-0000-0000-0000-000000000003': { energy_level: 'high', sweetness: 3, temperature: 'hot',  caffeine_mg: 80,  tags_en: ['creamy', 'natural'],     tags_ar: ['كريمي', 'طبيعي'] },
+  '22222222-0000-0000-0000-000000000005': { energy_level: 'high', sweetness: 0, temperature: 'hot',  caffeine_mg: 120, tags_en: ['bitter', 'classic'],     tags_ar: ['مر', 'كلاسيكي'] },
+  '22222222-0000-0000-0000-000000000007': { energy_level: 'high', sweetness: 4, temperature: 'hot',  caffeine_mg: 90,  tags_en: ['creamy', 'sweet', 'chocolate'], tags_ar: ['كريمي', 'حلو', 'شوكولاتة'] },
+  '22222222-0000-0000-0000-000000000008': { energy_level: 'high', sweetness: 3, temperature: 'hot',  caffeine_mg: 80,  tags_en: ['creamy', 'nutty'],       tags_ar: ['كريمي', 'بندق'] },
+  '22222222-0000-0000-0000-000000000009': { energy_level: 'high', sweetness: 4, temperature: 'hot',  caffeine_mg: 80,  tags_en: ['creamy', 'sweet'],       tags_ar: ['كريمي', 'حلو'] },
+  '22222222-0000-0000-0000-00000000000A': { energy_level: 'high', sweetness: 1, temperature: 'hot',  caffeine_mg: 100, tags_en: ['creamy', 'strong'],      tags_ar: ['كريمي', 'قوي'] },
+  // ── Cold coffee (energising, cold, refreshing) ────────────────────────
+  '22222222-0000-0000-0000-000000000004': { energy_level: 'high', sweetness: 2, temperature: 'cold', caffeine_mg: 100, tags_en: ['refreshing'],            tags_ar: ['منعش'] },
+  '22222222-0000-0000-0000-000000000006': { energy_level: 'high', sweetness: 0, temperature: 'cold', caffeine_mg: 100, tags_en: ['refreshing', 'bitter'],  tags_ar: ['منعش', 'مر'] },
+  // ── Desserts (low energy, sweet, no caffeine) ─────────────────────────
+  '22222222-0000-0000-0000-00000000000B': { energy_level: 'low',  sweetness: 5, temperature: 'cold', caffeine_mg: 20,  tags_en: ['sweet', 'creamy'],       tags_ar: ['حلو', 'كريمي'] },
+  '22222222-0000-0000-0000-00000000000C': { energy_level: 'low',  sweetness: 5, temperature: 'cold', caffeine_mg: 0,   tags_en: ['sweet', 'chocolate'],    tags_ar: ['حلو', 'شوكولاتة'] },
+  '22222222-0000-0000-0000-00000000000D': { energy_level: 'low',  sweetness: 4, temperature: 'cold', caffeine_mg: 0,   tags_en: ['nutty', 'buttery'],      tags_ar: ['بندق', 'لوز'] },
+  '22222222-0000-0000-0000-00000000000E': { energy_level: 'low',  sweetness: 5, temperature: 'cold', caffeine_mg: 0,   tags_en: ['sweet', 'creamy', 'fruity'], tags_ar: ['حلو', 'كريمي', 'فواكه'] },
+  '22222222-0000-0000-0000-00000000000F': { energy_level: 'low',  sweetness: 5, temperature: 'cold', caffeine_mg: 0,   tags_en: ['sweet', 'chocolate'],    tags_ar: ['حلو', 'شوكولاتة'] },
+  '22222222-0000-0000-0000-000000000010': { energy_level: 'low',  sweetness: 5, temperature: 'hot',  caffeine_mg: 0,   tags_en: ['sweet', 'warm'],         tags_ar: ['حلو', 'دافي'] },
+  // ── Breakfast (savoury / light, no caffeine) ──────────────────────────
+  '22222222-0000-0000-0000-000000000011': { energy_level: 'medium', sweetness: 0, temperature: 'cold', caffeine_mg: 0, tags_en: ['savoury', 'fresh'],      tags_ar: ['سادة', 'طازج'] },
+  '22222222-0000-0000-0000-000000000012': { energy_level: 'medium', sweetness: 0, temperature: 'hot',  caffeine_mg: 0, tags_en: ['savoury', 'hearty'],     tags_ar: ['سادة', 'مشبع'] },
+  '22222222-0000-0000-0000-000000000013': { energy_level: 'medium', sweetness: 0, temperature: 'hot',  caffeine_mg: 0, tags_en: ['savoury', 'hearty'],     tags_ar: ['سادة', 'مشبع'] },
+  '22222222-0000-0000-0000-000000000014': { energy_level: 'medium', sweetness: 3, temperature: 'cold', caffeine_mg: 0, tags_en: ['fresh', 'fruity'],       tags_ar: ['طازج', 'فواكه'] },
+  '22222222-0000-0000-0000-000000000015': { energy_level: 'medium', sweetness: 4, temperature: 'cold', caffeine_mg: 0, tags_en: ['refreshing', 'fruity'],  tags_ar: ['منعش', 'فواكه'] },
+  '22222222-0000-0000-0000-000000000016': { energy_level: 'medium', sweetness: 0, temperature: 'cold', caffeine_mg: 0, tags_en: ['savoury', 'fresh'],      tags_ar: ['سادة', 'طازج'] },
+};
+
+for (const product of FALLBACK.products) {
+  const seed = CONCIERGE_SEED[product.id];
+  if (seed) Object.assign(product, seed);
+}
+
 /** Coffee categories that get shot + size + sugar options. */
 const COFFEE_CATEGORY_IDS = [
   '11111111-1111-1111-1111-111111111101', // hot_coffee

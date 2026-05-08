@@ -12,6 +12,7 @@ import { PageTransition } from '@/components/PageTransition';
 import { SkeletonProductGrid } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
 import { UserAvatar } from '@/components/UserAvatar';
+import { DrinkConcierge } from '@/components/DrinkConcierge';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { useT } from '@/lib/i18n';
@@ -268,6 +269,8 @@ export default function HomePage() {
           )}
         </section>
       </main>
+      {/* Cup AI — floating concierge button + panel */}
+      <DrinkConcierge />
     </PageTransition>
   );
 }
