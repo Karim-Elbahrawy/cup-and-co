@@ -16,6 +16,7 @@ import { useLastOrder } from '@/lib/useLastOrder';
 import { useIdleReset } from '@/lib/useIdleReset';
 import { useLang } from '@/lib/useLang';
 import { useIdentified } from '@/lib/useIdentified';
+import { useOfflineQueue } from '@/lib/useOfflineQueue';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { StillThereModal } from '@/components/StillThereModal';
 import { api, ApiError } from '@/lib/api';
@@ -77,27 +78,64 @@ export default function CheckoutPage() {
     if (submitting) return;
     setSubmitting(true);
     setError(null);
+    // K5.1 — build the order body once. We send it through the network
+    // first; if the network fails (TypeError = no connection, or 5xx),
+    // we enqueue the SAME body to IndexedDB and return a synthetic
+    // response so the customer still gets a pickup code immediately.
+    const body = api.buildOrderBody({
+      lines,
+      paymentMethod: 'cash',
+      // server stamps placement_source via x-kiosk-id header
+    });
     try {
-      const response = await api.placeOrder({
-        lines,
-        paymentMethod: 'cash',
-        // K4.4 — pass identified JWT if the customer chose to identify
-        // themselves; otherwise the kiosk-bearer auth handles it.
-        userJwt: identified?.jwt,
-      });
-      setLastOrder(response);
-      // Empty the cart only AFTER the response is stashed — if we
-      // cleared first and somehow the store write lost, the customer
-      // would land on /confirmation with no order to render.
+      const response = await api.postOrder(body, identified?.jwt);
+      setLastOrder({ ...response, queued: false });
       clearCart();
       router.replace('/confirmation');
+      return;
     } catch (e: unknown) {
-      setError(
-        e instanceof ApiError
-          ? e.message
-          : 'Could not place your order. Try again.',
-      );
-      setSubmitting(false);
+      // 4xx is a real validation failure — let the customer fix the
+      // issue (e.g. product went out of stock mid-checkout). Do NOT
+      // queue 4xx orders, they will keep failing the same way.
+      const isClientError =
+        e instanceof ApiError && e.status >= 400 && e.status < 500;
+      if (isClientError) {
+        setError(e.message);
+        setSubmitting(false);
+        return;
+      }
+      // Network failure or 5xx — enqueue and tell the customer their
+      // order is in the queue with a temporary pickup code.
+      try {
+        const queued = await useOfflineQueue.getState().enqueue({
+          body,
+          userJwt: identified?.jwt,
+        });
+        setLastOrder({
+          order: {
+            id: `temp:${queued.tempId}`,
+            pickupCode: queued.tempPickupCode,
+            totalEgp: total,
+            paymentMethod: 'cash',
+            placementSource: 'kiosk',
+            kioskId: null,
+            createdAt: new Date().toISOString(),
+          },
+          prepEta: { minutes: 0, basis: 'queued' },
+          queued: true,
+        });
+        clearCart();
+        router.replace('/confirmation');
+      } catch {
+        // Even IDB failed (private mode? full disk?). Tell the customer
+        // to retry — we have nowhere to stash the order safely.
+        setError(
+          lang === 'ar'
+            ? 'تعذر إرسال الطلب. حاول تاني.'
+            : 'Could not place your order. Try again.',
+        );
+        setSubmitting(false);
+      }
     }
   }
 

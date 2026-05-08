@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Wallet, RotateCw } from 'lucide-react';
+import { Wallet, RotateCw, CloudOff } from 'lucide-react';
 import { BigButton } from '@/components/BigButton';
 import { useLastOrder } from '@/lib/useLastOrder';
 import { useLang } from '@/lib/useLang';
@@ -87,8 +87,15 @@ export default function ConfirmationPage() {
       <BeanConfetti />
 
       <div className="relative z-10 mx-auto max-w-3xl px-12 text-center">
-        <p className="text-sm font-bold uppercase tracking-[0.4em] text-[var(--cup-success)]">
-          {lang === 'ar' ? 'تم الطلب' : 'Order placed'}
+        <p
+          className={[
+            'text-sm font-bold uppercase tracking-[0.4em]',
+            order.queued ? 'text-[var(--cup-warning)]' : 'text-[var(--cup-success)]',
+          ].join(' ')}
+        >
+          {order.queued
+            ? lang === 'ar' ? 'في الانتظار' : 'Order queued'
+            : lang === 'ar' ? 'تم الطلب' : 'Order placed'}
         </p>
         <h1 className="mt-3 font-heading text-k-card font-bold text-[var(--cup-cocoa)]">
           {lang === 'ar' ? 'رقم الاستلام' : 'Your pickup code'}
@@ -112,7 +119,18 @@ export default function ConfirmationPage() {
             : 'Show this at the counter & pay cash'}
         </p>
 
-        {minutes > 0 ? (
+        {/* K5.1 — extra context when the order is sitting in the offline
+            queue. The cashier still recognizes the temp pickup code, and
+            the kitchen will see the order pop up automatically when the
+            iPad reconnects. */}
+        {order.queued ? (
+          <p className="mt-4 inline-flex items-center gap-2 rounded-pill bg-[var(--cup-warning)]/15 px-4 py-2 font-body text-base font-semibold text-[var(--cup-warning)]">
+            <CloudOff className="h-5 w-5" aria-hidden="true" />
+            {lang === 'ar'
+              ? 'مفيش نت — هيتزامن لما يرجع'
+              : "Offline — we'll sync when the network's back"}
+          </p>
+        ) : minutes > 0 ? (
           <p className="mt-6 font-body text-k-body text-[var(--cup-cocoa)]">
             {lang === 'ar'
               ? `جاهز خلال حوالي ${minutes} دقيقة`
