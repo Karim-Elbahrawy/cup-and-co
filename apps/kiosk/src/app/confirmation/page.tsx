@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Wallet, RotateCw } from 'lucide-react';
 import { BigButton } from '@/components/BigButton';
 import { useLastOrder } from '@/lib/useLastOrder';
-import type { KioskLang } from '@/lib/lang';
+import { useLang } from '@/lib/useLang';
 
 /**
  * /confirmation — K1.8 confirmation screen + auto-reset.
@@ -36,7 +36,8 @@ export default function ConfirmationPage() {
   const clearLastOrder = useLastOrder((s) => s.clear);
   const [, forceRender] = useState(0);
   const startedAt = useRef<number>(Date.now());
-  const lang = 'en' as KioskLang;
+  const lang = useLang((s) => s.lang);
+  const resetLang = useLang((s) => s.reset);
 
   // Cold-load guard.
   useEffect(() => {
@@ -51,13 +52,14 @@ export default function ConfirmationPage() {
     const tick = window.setInterval(() => forceRender((n) => n + 1), 100);
     const reset = window.setTimeout(() => {
       clearLastOrder();
+      resetLang();
       router.replace('/');
     }, AUTO_RESET_MS);
     return () => {
       window.clearInterval(tick);
       window.clearTimeout(reset);
     };
-  }, [order, clearLastOrder, router]);
+  }, [order, clearLastOrder, resetLang, router]);
 
   if (!order) return null;
 
@@ -70,6 +72,7 @@ export default function ConfirmationPage() {
 
   function handleRestart() {
     clearLastOrder();
+    resetLang();
     router.replace('/');
   }
 
