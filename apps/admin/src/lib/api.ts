@@ -131,6 +131,13 @@ export interface AdminOrder {
   /** Phase 2: API now returns full line items on every order list response. */
   items: AdminOrderItem[];
   statusHistory: AdminStatusEvent[];
+  /** Phase K1.11 — channel that placed the order. The kiosk surface
+   *  badges these so baristas know an in-cafe self-served order is
+   *  ready for cash-at-counter pickup. Older rows from before the
+   *  migration default to 'customer_app'. */
+  placementSource?: 'customer_app' | 'kiosk' | 'admin_phone';
+  /** Phase K1.11 — kiosk that placed the order (null for non-kiosk channels). */
+  kioskId?: string | null;
 }
 
 export interface AdminTimelineStep {
@@ -381,6 +388,15 @@ export const adminApi = {
   // Cup AI usage analytics
   getCupAiStats: (days = 7, signal?: AbortSignal) =>
     api<CupAiStatsResponse>(`/admin/reports/cup-ai?days=${days}`, { signal }),
+
+  // Phase K6.1 / K6.3 — kiosk registry + heartbeat-driven health.
+  listKiosks: (signal?: AbortSignal) =>
+    api<{ kiosks: AdminKiosk[] }>('/admin/kiosks', { signal }),
+  updateKiosk: (id: string, patch: { name?: string; active?: boolean }) =>
+    api<{ kiosk: AdminKiosk }>(`/admin/kiosks/${id}`, {
+      method: 'PATCH',
+      body: patch,
+    }),
 };
 
 // ── Cup AI types ───────────────────────────────────────────────────────────
@@ -404,4 +420,23 @@ export interface CupAiStatsResponse {
   topLowConfidenceQueries: Array<{ query: string; count: number }>;
   topSuggestedProductIds: Array<{ productId: string; count: number }>;
   topProducts: Array<{ productId: string; count: number; name_en: string; name_ar: string }>;
+}
+
+/** Phase K6 — admin view of a registered kiosk. */
+export interface AdminKiosk {
+  id: string;
+  name: string;
+  active: boolean;
+  /** ms since epoch. 0 means the row exists but has never heartbeat. */
+  lastSeenAt: number;
+  lastState:
+    | 'attract'
+    | 'browsing'
+    | 'customizing'
+    | 'checkout'
+    | 'confirmation'
+    | 'cleaning'
+    | 'unknown';
+  version: string | null;
+  createdAt: number;
 }

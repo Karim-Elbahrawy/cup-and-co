@@ -102,6 +102,12 @@ import {
 import { adminOffers } from './db/offersStore.js';
 import { setFeatured as setFeaturedProduct } from './db/featuredProductsStore.js';
 import { setPairs as setProductPairs } from './db/productPairsStore.js';
+import {
+  recordHeartbeat as recordKioskHeartbeat,
+  listKiosks,
+  updateKiosk,
+  type KioskState,
+} from './db/kiosksStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
 // if configured, fixture otherwise).
@@ -1960,6 +1966,72 @@ export function createApp(): express.Express {
       }).parse(req.body);
       setProductPairs(req.params.id as string, input.pairs);
       res.json({ id: req.params.id, pairs: input.pairs });
+    } catch (e) { next(e); }
+  });
+
+  // ── Phase K6.1 / K6.3 — kiosks registry + health ─────────────────────
+  // Kiosks heartbeat their identity + current state every 60s. We
+  // auto-create the registry row on first contact (no pre-provisioning
+  // step), so a brand new iPad just needs its KIOSK_ID env var set and
+  // it'll show up in /admin/kiosks within a minute.
+
+  /** Kiosk-bearer authed; uses the x-kiosk-id header from kiosk-auth. */
+  app.post('/kiosks/heartbeat', requireAuth, (req, res, next) => {
+    try {
+      const kioskId = req.kioskId ?? req.header('x-kiosk-id');
+      if (!kioskId) {
+        const e = new Error('x-kiosk-id required for heartbeat.') as Error & { status?: number };
+        e.status = 400;
+        throw e;
+      }
+      const input = z.object({
+        state: z.enum([
+          'attract',
+          'browsing',
+          'customizing',
+          'checkout',
+          'confirmation',
+          'cleaning',
+          'unknown',
+        ]),
+        version: z.string().max(40).nullable().optional(),
+      }).parse(req.body);
+      const kiosk = recordKioskHeartbeat({
+        kioskId,
+        state: input.state as KioskState,
+        version: input.version ?? null,
+      });
+      res.json({ kiosk });
+    } catch (e) { next(e); }
+  });
+
+  /** Admin lists all known kiosks, freshest heartbeat first. */
+  app.get('/admin/kiosks', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'orders:update_status');
+      res.json({ kiosks: listKiosks() });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Admin updates a kiosk's mutable fields (name + active flag). The
+   * id and lastSeen* fields are owned by the kiosk's own heartbeat —
+   * admin can't fake a heartbeat from here.
+   */
+  app.patch('/admin/kiosks/:id', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'orders:update_status');
+      const input = z.object({
+        name: z.string().min(1).max(80).optional(),
+        active: z.boolean().optional(),
+      }).parse(req.body);
+      const kiosk = updateKiosk(req.params.id as string, input);
+      if (!kiosk) {
+        const e = new Error('Kiosk not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
+      res.json({ kiosk });
     } catch (e) { next(e); }
   });
 
