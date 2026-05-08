@@ -77,7 +77,7 @@
 "home.open_profile" = "Open profile";
 
 /* Tabs */
-"tab.home" = "Home";
+"tab.home" = "Orders";
 "tab.search" = "Search";
 "tab.cart" = "Cart";
 "tab.rewards" = "Rewards";
