@@ -51,14 +51,35 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
  */
 const KIOSK_BEARER = process.env.NEXT_PUBLIC_KIOSK_BEARER ?? '';
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+/** Per-device kiosk identity. Provisioned per iPad in K6's admin flow. */
+const KIOSK_ID = process.env.NEXT_PUBLIC_KIOSK_ID ?? '';
+
+/**
+ * Fetch helper. By default sends the kiosk-bearer auth + x-kiosk-id.
+ * Pass `userJwt` to override with an identified customer's JWT — used
+ * by post-OTP-verify endpoints where the order should be attributed to
+ * the real user, not the synthetic kiosk:<uuid>. The x-kiosk-id header
+ * is preserved either way so the API still tags placement_source='kiosk'.
+ */
+async function fetchJson<T>(
+  path: string,
+  init?: RequestInit & { userJwt?: string },
+): Promise<T> {
+  const { userJwt, ...rest } = init ?? {};
+  const authHeader = userJwt
+    ? `Bearer ${userJwt}`
+    : KIOSK_BEARER
+      ? `Bearer ${KIOSK_BEARER}`
+      : undefined;
+
   const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
+    ...rest,
     headers: {
       'Content-Type': 'application/json',
-      ...(KIOSK_BEARER ? { Authorization: `Bearer ${KIOSK_BEARER}` } : {}),
+      ...(authHeader ? { Authorization: authHeader } : {}),
       'x-placement-source': 'kiosk',
-      ...(init?.headers ?? {}),
+      ...(KIOSK_ID ? { 'x-kiosk-id': KIOSK_ID } : {}),
+      ...(rest.headers ?? {}),
     },
     // No credentials — the kiosk has no cookies. Avoids leaking session
     // cookies if the kiosk ever shares a domain with the customer site.
@@ -114,10 +135,23 @@ export const api = {
    * Sending it from the body anyway is belt-and-braces for environments
    * without KIOSK_BEARER_TOKEN configured (e.g. local dev).
    */
+  /**
+   * POST /orders — places a kiosk order.
+   *
+   * If `userJwt` is provided (post-OTP-verify), the order is attributed
+   * to the identified user — points credit, streak ticks, and order
+   * history all light up. If omitted, the kiosk-bearer auth is used and
+   * the order goes against the synthetic kiosk:<uuid>.
+   *
+   * Either way the API stamps placement_source='kiosk' because we send
+   * x-kiosk-id (handled in fetchJson).
+   */
   placeOrder(args: {
     lines: CartLine[];
     paymentMethod: 'cash';
     notes?: string;
+    userJwt?: string;
+    redeemPoints?: number;
   }): Promise<PlaceOrderResponse> {
     const items = args.lines.map((line) => ({
       productId: line.product.id,
@@ -130,15 +164,54 @@ export const api = {
       body: JSON.stringify({
         fulfillmentType: 'pickup',
         paymentMethod: args.paymentMethod,
-        redeemPoints: 0,
+        redeemPoints: args.redeemPoints ?? 0,
         items,
         notes: args.notes,
-        placementSource: 'kiosk',
       }),
-      headers: KIOSK_ID ? { 'x-kiosk-id': KIOSK_ID } : {},
+      userJwt: args.userJwt,
     });
   },
-};
 
-/** Per-device kiosk identity. Provisioned per iPad in K6's admin flow. */
-const KIOSK_ID = process.env.NEXT_PUBLIC_KIOSK_ID ?? '';
+  /**
+   * POST /auth/otp/send — request an OTP for a phone (K4.4).
+   * Reuses the customer-app endpoint as-is.
+   */
+  sendOtp(phone: string): Promise<{ ok: true; devCode?: string }> {
+    return fetchJson<{ ok: true; devCode?: string }>('/auth/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    });
+  },
+
+  /**
+   * POST /auth/otp/verify — verify an OTP and receive a session JWT (K4.4).
+   *
+   * Returns the session token + the freshly resolved user record. The
+   * kiosk stashes the token in useIdentified and follows up with getMe()
+   * to populate name + tier + points for the welcome banner.
+   */
+  verifyOtp(
+    phone: string,
+    code: string,
+  ): Promise<{
+    token: string;
+    user: { id: string; phone: string; role: string };
+  }> {
+    return fetchJson('/auth/otp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ phone, code }),
+    });
+  },
+
+  /**
+   * GET /me — fetch the identified customer's profile snapshot. Powers
+   * the welcome banner: name + tier + points balance.
+   */
+  getMe(userJwt: string): Promise<{
+    user: { id: string; full_name?: string | null };
+    points: number;
+    tier: 'bronze' | 'silver' | 'gold';
+  }> {
+    return fetchJson('/me', { userJwt });
+  },
+};

@@ -15,6 +15,7 @@ import { useIdleReset } from '@/lib/useIdleReset';
 import { useCart } from '@/lib/cart';
 import { useCartDrawer } from '@/lib/useCartDrawer';
 import { useLang } from '@/lib/useLang';
+import { useIdentified } from '@/lib/useIdentified';
 import { api, ApiError } from '@/lib/api';
 
 /**
@@ -45,12 +46,15 @@ export default function CatalogPage() {
   const clearCart = useCart((s) => s.clear);
   const showDrawer = useCartDrawer((s) => s.show);
   const hideDrawer = useCartDrawer((s) => s.hide);
+  const identified = useIdentified((s) => s.customer);
+  const clearIdentified = useIdentified((s) => s.clear);
   const [showStillThere, setShowStillThere] = useState(false);
 
   function fullReset() {
     clearCart();
     hideDrawer();
     resetLang();
+    clearIdentified();
     setShowStillThere(false);
     router.replace('/');
   }
@@ -128,6 +132,28 @@ export default function CatalogPage() {
           </div>
         </div>
       </header>
+
+      {/* K4.5 — welcome banner for identified members */}
+      {identified ? (
+        <div className="mb-6 rounded-card bg-gradient-to-r from-cup-primary to-[#F4A261] px-8 py-5 text-white shadow-card">
+          <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/80">
+            {lang === 'ar' ? 'أهلاً بيك تاني' : 'Welcome back'}
+          </p>
+          <p className="mt-1 font-heading text-k-card font-bold">
+            {identified.name
+              ? lang === 'ar' ? `يا ${identified.name} 👋` : `${identified.name} 👋`
+              : '👋'}
+            {identified.tier ? (
+              <span className="ms-3 inline-flex items-center gap-1.5 rounded-pill bg-white/20 px-3 py-1 text-base">
+                ✦ {identified.tier === 'gold' ? (lang === 'ar' ? 'ذهبي' : 'Gold') : identified.tier === 'silver' ? (lang === 'ar' ? 'فضي' : 'Silver') : (lang === 'ar' ? 'برونزي' : 'Bronze')}
+              </span>
+            ) : null}
+            <span className="ms-3 text-base font-medium text-white/90">
+              {identified.pointsBalance} {lang === 'ar' ? 'نقطة' : 'pts'}
+            </span>
+          </p>
+        </div>
+      ) : null}
 
       {error ? (
         <ErrorState message={error} onRetry={() => setRetryNonce((n) => n + 1)} />

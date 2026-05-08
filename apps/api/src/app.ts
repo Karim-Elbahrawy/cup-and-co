@@ -100,6 +100,7 @@ import {
   setProductStock,
 } from './db/productStockRepo.js';
 import { adminOffers } from './db/offersStore.js';
+import { setFeatured as setFeaturedProduct } from './db/featuredProductsStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
 // if configured, fixture otherwise).
@@ -1202,15 +1203,22 @@ export function createApp(): express.Express {
           ? calculateEarnedPoints({ amountEgp: total, source: 'cash_in_app' })
           : calculateEarnedPoints({ amountEgp: total, source: 'online_paid' });
 
-      // Phase K1.11 — derive placement_source. Trust the kiosk-auth
-      // middleware (when present) over a body field, so a misconfigured or
-      // malicious customer-web client can't tag itself as a kiosk order.
-      const isKioskAuth = req.user?.id.startsWith('kiosk:');
-      const placementSource = isKioskAuth
+      // Phase K1.11 / K4 — derive placement_source.
+      //
+      // The kiosk-auth path (K1.12) attaches req.kioskId from the
+      // x-kiosk-id header. An IDENTIFIED kiosk customer (K4.4 phone+OTP)
+      // sends a real JWT instead of the kiosk-bearer, but still ships the
+      // x-kiosk-id header — we keep that order tagged as 'kiosk' regardless
+      // of which auth path resolved the user. Trust the middleware over
+      // any body field so a misconfigured customer-web client can't
+      // impersonate a kiosk by self-tagging.
+      const headerKioskId = req.header('x-kiosk-id') ?? null;
+      const isKioskOrigin = Boolean(req.kioskId || headerKioskId);
+      const placementSource = isKioskOrigin
         ? 'kiosk'
         : input.placementSource ?? 'customer_app';
-      const kioskId = isKioskAuth
-        ? (req.kioskId ?? null)
+      const kioskId = isKioskOrigin
+        ? req.kioskId ?? headerKioskId
         : input.kioskId ?? null;
 
       const order = buildOrder(
@@ -1843,6 +1851,18 @@ export function createApp(): express.Express {
       const input = z.object({ available: z.boolean() }).parse(req.body);
       productAvailability.set(req.params.id as string, input.available);
       res.json({ id: req.params.id, available: input.available });
+    } catch (e) { next(e); }
+  });
+
+  // Phase K4.7 — admin-toggleable "feature today" flag. The kiosk renders
+  // the first featured product as a 2-column hero card at the top of the
+  // catalog "All" tab.
+  app.patch('/admin/menu/products/:id/featured-today', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
+      const input = z.object({ featured: z.boolean() }).parse(req.body);
+      setFeaturedProduct(req.params.id as string, input.featured);
+      res.json({ id: req.params.id, featured: input.featured });
     } catch (e) { next(e); }
   });
 

@@ -98,6 +98,13 @@ export interface Product {
   tags_en?: string[];
   /** Free-form Arabic descriptors (e.g. ['منعش', 'كريمي']). */
   tags_ar?: string[];
+  /**
+   * Phase K4.7 — admin-toggleable "feature today" flag. The kiosk renders
+   * the first featured product as a 2-column hero card at the top of the
+   * catalog "All" tab. Customer-web ignores this for now (we may surface
+   * it as a homepage banner later).
+   */
+  is_featured_today?: boolean;
 }
 
 export interface ProductOption {
