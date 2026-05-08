@@ -2349,6 +2349,93 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  /**
+   * Phase K6.4 — by-kiosk daily report.
+   *
+   * For every kiosk in the registry (plus an aggregate row for orders
+   * tagged kiosk that haven't heartbeat yet — shouldn't happen in
+   * practice but defends against edge cases), returns today's:
+   *   - orderCount
+   *   - revenueEgp (paid orders only)
+   *   - top 3 products by quantity
+   *
+   * The kiosk registry is the join target rather than a distinct
+   * placement_source filter — this means kiosks with zero orders today
+   * still show up in the dashboard (as 'no orders yet'), so an admin can
+   * tell apart 'this kiosk made $0' from 'this kiosk doesn't exist'.
+   */
+  app.get('/admin/reports/by-kiosk', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const today = new Date().toISOString().slice(0, 10);
+      const kiosks = listKiosks();
+
+      // Pre-bucket today's kiosk orders by kioskId so each kiosk row
+      // costs O(its orders) not O(all orders).
+      interface KioskBucket {
+        orderCount: number;
+        revenueEgp: number;
+        products: Map<string, { name_en: string; name_ar: string; count: number }>;
+      }
+      const byKiosk = new Map<string, KioskBucket>();
+
+      function bucketFor(kioskId: string): KioskBucket {
+        let bucket = byKiosk.get(kioskId);
+        if (!bucket) {
+          bucket = { orderCount: 0, revenueEgp: 0, products: new Map() };
+          byKiosk.set(kioskId, bucket);
+        }
+        return bucket;
+      }
+
+      for (const order of orders.values()) {
+        if (order.placementSource !== 'kiosk') continue;
+        if (!order.kioskId) continue;
+        if (!order.createdAt.startsWith(today)) continue;
+        const b = bucketFor(order.kioskId);
+        b.orderCount += 1;
+        if (order.paymentStatus === 'paid') b.revenueEgp += order.totalEgp;
+        for (const item of order.items) {
+          const existing = b.products.get(item.productId) ?? {
+            name_en: item.productNameEn,
+            name_ar: item.productNameAr,
+            count: 0,
+          };
+          existing.count += item.quantity;
+          b.products.set(item.productId, existing);
+        }
+      }
+
+      const rows = kiosks.map((k) => {
+        const b = byKiosk.get(k.id) ?? {
+          orderCount: 0,
+          revenueEgp: 0,
+          products: new Map(),
+        };
+        const topItems = Array.from(b.products.values())
+          .sort((a, b2) => b2.count - a.count)
+          .slice(0, 3)
+          .map((p) => ({ name_en: p.name_en, name_ar: p.name_ar, count: p.count }));
+        return {
+          kiosk: {
+            id: k.id,
+            name: k.name,
+            active: k.active,
+            lastSeenAt: k.lastSeenAt,
+            lastState: k.lastState,
+          },
+          today: {
+            orderCount: b.orderCount,
+            revenueEgp: b.revenueEgp,
+            topItems,
+          },
+        };
+      });
+
+      res.json({ rows, dateIso: today });
+    } catch (e) { next(e); }
+  });
+
   // Sentry's Express error handler must run BEFORE our own errorHandler so
   // the exception is captured and tagged with the request scope. It only
   // forwards 5xx errors by default; 4xx (validation) stay in our handler.
