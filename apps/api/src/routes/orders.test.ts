@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app.js';
 
@@ -326,5 +326,124 @@ describe('PATCH /admin/menu/products/:id/availability', () => {
       .patch('/admin/menu/products/22222222-0000-0000-0000-000000000003/availability')
       .set(baristaHeaders)
       .send({ available: true });
+  });
+});
+
+// ── Phase K1.11 / K1.12 — placement_source + kiosk auth ───────────────────
+
+describe('Phase K1.11 — placement_source on POST /orders', () => {
+  it('defaults to customer_app when no field is sent', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .post('/orders')
+      .set(customerHeaders('plc-default-1'))
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [cappuccinoMedium],
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.order.placementSource).toBe('customer_app');
+    expect(res.body.order.kioskId).toBeNull();
+  });
+
+  it('accepts an explicit placementSource from a body field', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .post('/orders')
+      .set(customerHeaders('plc-admin-1'))
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [cappuccinoMedium],
+        placementSource: 'admin_phone',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.order.placementSource).toBe('admin_phone');
+  });
+});
+
+describe('Phase K1.12 — kiosk bearer auth on POST /orders', () => {
+  // Set the env var for these tests; clear it after so other tests don't
+  // accidentally pick up the kiosk path.
+  const KIOSK_TOKEN = 'kiosk-test-bearer-secret';
+  const KIOSK_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+  const prev = process.env.KIOSK_BEARER_TOKEN;
+  beforeAll(() => {
+    process.env.KIOSK_BEARER_TOKEN = KIOSK_TOKEN;
+  });
+  afterAll(() => {
+    if (prev === undefined) delete process.env.KIOSK_BEARER_TOKEN;
+    else process.env.KIOSK_BEARER_TOKEN = prev;
+  });
+
+  it('accepts kiosk bearer + x-kiosk-id and tags the order placement_source=kiosk', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .post('/orders')
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [cappuccinoMedium],
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.order.placementSource).toBe('kiosk');
+    expect(res.body.order.kioskId).toBe(KIOSK_ID);
+    expect(res.body.order.userId).toBe(`kiosk:${KIOSK_ID}`);
+  });
+
+  it('rejects kiosk bearer with no x-kiosk-id', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .post('/orders')
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [cappuccinoMedium],
+      });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/x-kiosk-id/i);
+  });
+
+  it('ignores body placementSource when kiosk-authed (server is the source of truth)', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .post('/orders')
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [cappuccinoMedium],
+        // Client tries to claim it's a customer-app order — must be ignored.
+        placementSource: 'customer_app',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.order.placementSource).toBe('kiosk');
+  });
+
+  it('falls back to JWT/header auth when no kiosk bearer matches', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .post('/orders')
+      .set('Authorization', 'Bearer wrong-token-not-kiosk')
+      .set(customerHeaders('plc-fallback-1'))
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [cappuccinoMedium],
+      });
+    // The wrong Bearer makes JWT verification throw, so we 401 — but the
+    // important contract is: no silent kiosk-impersonation fallback.
+    expect(res.status).toBe(401);
   });
 });
