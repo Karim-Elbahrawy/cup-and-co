@@ -169,6 +169,31 @@ describe('match — inference fallback for products with NULL concierge attrs', 
     expect(['u1', 'u4']).toContain(r.matches[0].product.id);
   });
 
+  it('substring on product name boosts the right product', () => {
+    // Query the product BY NAME. Should pick that exact product even though
+    // tags etc. are not particularly informative.
+    const r = match({ text: 'mint lemonade', language: 'en' }, { products: UNTAGGED });
+    expect(r.matches[0].product.id).toBe('u4'); // Mint Lemonade
+  });
+
+  it('substring on description matches when name does not', () => {
+    const products = [
+      p({ id: 'a', name_en: 'Drink A', description_en: 'A frothy mocha latte with whipped cream' }),
+      p({ id: 'b', name_en: 'Drink B', description_en: 'Just a fizzy soda' }),
+    ].map((prod) => ({ ...prod, energy_level: undefined, sweetness: undefined, temperature: undefined, caffeine_mg: undefined, tags_en: undefined, tags_ar: undefined }));
+    const r = match({ text: 'mocha', language: 'en' }, { products });
+    expect(r.matches[0].product.id).toBe('a');
+  });
+
+  it('substring boost ignores stop-words like "something"', () => {
+    // "something" is a stop word, so it should NOT match products that happen
+    // to contain it. The actual differentiation comes from "cold".
+    const r = match({ text: 'something cold', language: 'en' }, { products: UNTAGGED });
+    // Top match should be a cold drink (americano or lemonade), not something
+    // randomly named.
+    expect(['u1', 'u4']).toContain(r.matches[0].product.id);
+  });
+
   it('explicit attrs always win over inferred ones', () => {
     // Take the brownie (caffeine-free dessert) and FORCE temperature='hot'.
     // For a "hot drink" query, this dessert should now beat hot drinks

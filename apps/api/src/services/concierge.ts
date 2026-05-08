@@ -194,8 +194,59 @@ export function extractSignals(query: string): ExtractedSignals {
 // Negative penalties for hard mismatches (e.g. wants cold but only hot exists).
 // ─────────────────────────────────────────────────────────────────────────────
 
-function scoreProduct(p: Product, s: ExtractedSignals, normalisedTags: { en: string[]; ar: string[] }): number {
+/**
+ * Per-token score boost for matches against the product's name + description.
+ * This is what catches things like "iced lemonade" → product whose name
+ * contains "lemonade" without needing a tag for it. Crucially: stop-words
+ * ("a", "the", "something", "حاجة", etc.) and pure intent keywords already
+ * captured by the signal extractor ("cold", "hot", "بارد") are excluded so
+ * we don't double-count them.
+ */
+const STOP_WORDS = new Set([
+  // EN function/intent words + common connectives
+  'a','an','the','i','want','need','please','some','something','give','me','get',
+  'my','for','to','too','that','this','have','can','would','like','do','not',
+  'and','but','or','with','of','on','in','it','is','am','at','by','as','also',
+  'just','really','kind','kinda','sort','any','more','most','very','quite',
+  // EN signal words handled by extractSignals — already scored, don't double count
+  'cold','iced','chilled','frozen','hot','warm','steaming','sweet','sweetness',
+  'sugar','sugary','indulgent','dessert','no','without','less','low','high',
+  'strong','energising','energizing','energy','wake','pick','kick','caffeine',
+  'caffeinated','decaf','milky','creamy','refreshing','fresh','crisp',
+  // AR connectives + signal words
+  'في','على','من','مع','او','أو','بدون','عايز','عاوز','ابغى','أبغى','ودي','محتاج',
+  'حاجة','شيء','شي','بارد','مثلج','ساخن','سخن','حلو','حلوة','بدون','سكر',
+  'منعش','كريمي','قوي','بدون','كافيين','بالحليب',
+]);
+
+function tokenise(text: string): string[] {
+  // Split on non-letter chars; works for both Latin and Arabic.
+  return normalise(text)
+    .split(/[^\p{L}]+/u)
+    .filter((t) => t.length >= 3 && !STOP_WORDS.has(t));
+}
+
+function scoreProduct(
+  p: Product,
+  s: ExtractedSignals,
+  normalisedTags: { en: string[]; ar: string[] },
+  queryTokens: string[] = [],
+): number {
   let score = 0;
+
+  // Substring boost — for every meaningful token from the query that appears
+  // in the product's name or description, add a strong bonus. This is what
+  // catches "iced americano" → Iced Americano, "lemonade" → Mint Lemonade,
+  // "matcha" → any matcha product, even when the matcher's signal extraction
+  // doesn't recognise the word as an intent keyword.
+  if (queryTokens.length > 0) {
+    const productText = normalise(`${p.name_en ?? ''} ${p.name_ar ?? ''} ${p.description_en ?? ''} ${p.description_ar ?? ''}`);
+    const productNameOnly = normalise(`${p.name_en ?? ''} ${p.name_ar ?? ''}`);
+    for (const token of queryTokens) {
+      if (productNameOnly.includes(token)) score += 40; // strong hit on the name
+      else if (productText.includes(token)) score += 18; // weaker hit on description
+    }
+  }
 
   // Temperature
   if (s.temperature && p.temperature) {
@@ -402,6 +453,7 @@ function fillAttributesFromText(p: Product): Product {
 
 export function match(query: ConciergeQuery, opts: MatchOptions): ConciergeResult {
   const signals = extractSignals(query.text);
+  const queryTokens = tokenise(query.text);
   const categoryMap = opts.categorySlugById ?? {};
   const limit = opts.limit ?? 3;
 
@@ -417,7 +469,7 @@ export function match(query: ConciergeQuery, opts: MatchOptions): ConciergeResul
       // name/description so the matcher works on un-tagged products too.
       // Admin-set values always win; this is a soft fallback.
       const enriched = fillAttributesFromText(p);
-      const score = scoreProduct(enriched, signals, normalisedTags);
+      const score = scoreProduct(enriched, signals, normalisedTags, queryTokens);
       const { reason, reasonEn } = buildReason(enriched, signals, query.language);
       return { product: p, score, reason, reasonEn } satisfies ConciergeMatch;
     })
