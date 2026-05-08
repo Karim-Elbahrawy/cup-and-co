@@ -11,12 +11,37 @@ import { CartDrawer } from '@/components/CartDrawer';
 import { ToastHost, type ToastApi } from '@/components/Toast';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { StillThereModal } from '@/components/StillThereModal';
+import {
+  PersonalHero,
+  buildCartOptionsFromUsual,
+} from '@/components/PersonalHero';
 import { useIdleReset } from '@/lib/useIdleReset';
 import { useCart } from '@/lib/cart';
 import { useCartDrawer } from '@/lib/useCartDrawer';
 import { useLang } from '@/lib/useLang';
 import { useIdentified } from '@/lib/useIdentified';
 import { api, ApiError } from '@/lib/api';
+
+type PersonalCard =
+  | {
+      kind: 'usual';
+      productId: string;
+      productNameEn: string;
+      productNameAr: string;
+      imageUrl: string;
+      basePriceEgp: number;
+      orderCount: number;
+      preferredOptions: Record<string, string>;
+    }
+  | {
+      kind: 'suggestion';
+      productId: string;
+      productNameEn: string;
+      productNameAr: string;
+      imageUrl: string;
+      basePriceEgp: number;
+      reason: 'history' | 'season' | 'bestseller';
+    };
 
 /**
  * /catalog — the customer's first interactive screen after the attract
@@ -48,7 +73,9 @@ export default function CatalogPage() {
   const hideDrawer = useCartDrawer((s) => s.hide);
   const identified = useIdentified((s) => s.customer);
   const clearIdentified = useIdentified((s) => s.clear);
+  const addLine = useCart((s) => s.addLine);
   const [showStillThere, setShowStillThere] = useState(false);
+  const [personal, setPersonal] = useState<PersonalCard | null>(null);
 
   function fullReset() {
     clearCart();
@@ -89,6 +116,74 @@ export default function CatalogPage() {
       cancelled = true;
     };
   }, [retryNonce]);
+
+  // K4.8 / K4.10 — fetch personal hero data when identified. Try /me/usual
+  // first; if no clear "usual" yet, fall back to /me/suggestion. Soft-
+  // failures: any error here just hides the personal card, doesn't
+  // disrupt the catalog.
+  useEffect(() => {
+    if (!identified?.jwt) {
+      setPersonal(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .getMyUsual(identified.jwt)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.usual) {
+          setPersonal({ kind: 'usual', ...res.usual });
+          return;
+        }
+        return api.getMySuggestion(identified.jwt).then((sug) => {
+          if (cancelled || !sug.suggestion) return;
+          setPersonal({ kind: 'suggestion', ...sug.suggestion });
+        });
+      })
+      .catch(() => {
+        // Silent — the catalog remains usable without a personal card.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [identified?.jwt]);
+
+  /**
+   * K4.10 one-tap reorder. Refetches the product detail to resolve the
+   * customer's preferred option NAMES into real ProductOption records
+   * (the cart line needs id + price_delta), then drops the line.
+   */
+  async function handleReorderUsual(usual: Extract<PersonalCard, { kind: 'usual' }>) {
+    try {
+      const detail = await api.getProductDetail(usual.productId);
+      const opts = buildCartOptionsFromUsual(usual.preferredOptions, detail.options);
+      if (!opts) {
+        // Catalog moved underneath us — ask the customer to customize.
+        router.push(`/products/${encodeURIComponent(usual.productId)}`);
+        return;
+      }
+      addLine({
+        product: {
+          id: detail.product.id,
+          name_en: detail.product.name_en,
+          name_ar: detail.product.name_ar,
+          image_url: detail.product.image_url,
+          base_price_egp: detail.product.base_price_egp,
+          prep_minutes: detail.product.prep_minutes,
+        },
+        quantity: 1,
+        options: opts,
+      });
+      toastRef.current?.show(
+        lang === 'ar'
+          ? `تمت إضافة ${usual.productNameAr} للطلب`
+          : `Added your usual to the order`,
+      );
+    } catch {
+      // Fallback to detail screen on any failure.
+      router.push(`/products/${encodeURIComponent(usual.productId)}`);
+    }
+  }
 
   function bindToast(api: ToastApi) {
     toastRef.current = api;
@@ -152,6 +247,40 @@ export default function CatalogPage() {
               {identified.pointsBalance} {lang === 'ar' ? 'نقطة' : 'pts'}
             </span>
           </p>
+        </div>
+      ) : null}
+
+      {/* K4.8 / K4.10 — personal hero (identified-only). Stacks UNDER
+          the FeaturedHero (which lives inside ProductGrid) but ABOVE
+          the regular product tiles, so the row reads:
+          [global featured] → [your usual / try this] → grid. */}
+      {identified && personal ? (
+        <div className="mb-5">
+          {personal.kind === 'usual' ? (
+            <PersonalHero
+              variant="usual"
+              lang={lang}
+              imageUrl={personal.imageUrl}
+              productNameEn={personal.productNameEn}
+              productNameAr={personal.productNameAr}
+              basePriceEgp={personal.basePriceEgp}
+              orderCount={personal.orderCount}
+              onReorder={() => handleReorderUsual(personal)}
+            />
+          ) : (
+            <PersonalHero
+              variant="suggestion"
+              lang={lang}
+              imageUrl={personal.imageUrl}
+              productNameEn={personal.productNameEn}
+              productNameAr={personal.productNameAr}
+              basePriceEgp={personal.basePriceEgp}
+              reason={personal.reason}
+              onTap={() =>
+                router.push(`/products/${encodeURIComponent(personal.productId)}`)
+              }
+            />
+          )}
         </div>
       ) : null}
 
