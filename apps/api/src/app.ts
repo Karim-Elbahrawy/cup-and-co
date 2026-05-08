@@ -177,6 +177,12 @@ const createOrderSchema = z.object({
   redeemPoints: z.number().int().nonnegative().default(0),
   notes: z.string().max(500).optional(),
   items: z.array(orderItemSchema).min(1).max(20),
+  // Phase K1.11 — channel that placed the order. Optional from clients;
+  // POST /orders defaults missing values to 'customer_app' to keep the
+  // existing customer-web/iOS clients backward-compatible without a
+  // coordinated release.
+  placementSource: z.enum(['customer_app', 'kiosk', 'admin_phone']).optional(),
+  kioskId: z.string().uuid().nullable().optional(),
 });
 
 const updateOrderStatusSchema = z.object({
@@ -1191,6 +1197,17 @@ export function createApp(): express.Express {
           ? calculateEarnedPoints({ amountEgp: total, source: 'cash_in_app' })
           : calculateEarnedPoints({ amountEgp: total, source: 'online_paid' });
 
+      // Phase K1.11 — derive placement_source. Trust the kiosk-auth
+      // middleware (when present) over a body field, so a misconfigured or
+      // malicious customer-web client can't tag itself as a kiosk order.
+      const isKioskAuth = req.user?.id.startsWith('kiosk:');
+      const placementSource = isKioskAuth
+        ? 'kiosk'
+        : input.placementSource ?? 'customer_app';
+      const kioskId = isKioskAuth
+        ? (req.kioskId ?? null)
+        : input.kioskId ?? null;
+
       const order = buildOrder(
         {
           userId: user.id,
@@ -1200,6 +1217,8 @@ export function createApp(): express.Express {
           notes: input.notes ?? null,
           redeemPoints: input.redeemPoints,
           items: enriched,
+          placementSource,
+          kioskId,
         },
         { discountEgp: discount, pointsAwarded },
       );

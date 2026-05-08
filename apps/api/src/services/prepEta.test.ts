@@ -34,6 +34,8 @@ function order(over: Partial<Order> = {}): Order {
     statusHistory: [{ status: 'received', at: now }],
     createdAt: now,
     pickedUpAt: null,
+    placementSource: 'customer_app',
+    kioskId: null,
     ...over,
   };
 }
