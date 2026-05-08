@@ -1,4 +1,10 @@
-import type { OrderStatus, FulfillmentType, PaymentMethod, PaymentStatus } from '@cup-and-co/types';
+import type {
+  OrderStatus,
+  FulfillmentType,
+  PaymentMethod,
+  PaymentStatus,
+  PlacementSource,
+} from '@cup-and-co/types';
 import { randomUUID } from 'node:crypto';
 
 export interface OrderItem {
@@ -37,6 +43,10 @@ export interface Order {
   statusHistory: StatusEvent[];
   createdAt: string;
   pickedUpAt: string | null;
+  /** Phase K1.11 — channel that placed the order. */
+  placementSource: PlacementSource;
+  /** Phase K1.11 — kiosk that placed the order; null for non-kiosk channels. */
+  kioskId: string | null;
 }
 
 export interface CreateOrderInput {
@@ -55,6 +65,10 @@ export interface CreateOrderInput {
     options: Record<string, string>;
     unitPriceEgp: number;
   }>;
+  /** Phase K1.11 — defaults to 'customer_app' if omitted. */
+  placementSource?: PlacementSource;
+  /** Phase K1.11 — required when placementSource === 'kiosk', else null. */
+  kioskId?: string | null;
 }
 
 const ORDER_STATUS_GRAPH: Record<OrderStatus, OrderStatus[]> = {
@@ -118,6 +132,8 @@ export function buildOrder(input: CreateOrderInput, opts: {
     statusHistory: [{ status: 'received', at: now }],
     createdAt: now,
     pickedUpAt: null,
+    placementSource: input.placementSource ?? 'customer_app',
+    kioskId: input.kioskId ?? null,
   };
 }
 

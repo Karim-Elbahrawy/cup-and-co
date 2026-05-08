@@ -86,6 +86,13 @@ export interface ProductOption {
   price_delta_egp: number;
 }
 
+/**
+ * Phase K1.11 — surface that placed the order. Backed by a Postgres enum
+ * (see supabase/migrations/0012_placement_source.sql) and defaults to
+ * 'customer_app' for backward compatibility with rows pre-migration.
+ */
+export type PlacementSource = 'customer_app' | 'kiosk' | 'admin_phone';
+
 export interface Order {
   id: string;
   user_id: string;
@@ -102,6 +109,10 @@ export interface Order {
   created_at: string;
   picked_up_at: string | null;
   notes: string | null;
+  /** Phase K1.11 — placement_source, defaulted to 'customer_app' for legacy rows. */
+  placement_source: PlacementSource;
+  /** Phase K1.11 — kiosk that placed this order; null for non-kiosk orders. */
+  kiosk_id: string | null;
 }
 
 export interface OrderItem {

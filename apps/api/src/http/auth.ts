@@ -17,6 +17,13 @@ declare global {
   namespace Express {
     interface Request {
       user?: AuthUser;
+      /**
+       * Phase K1.12 — kiosk that authenticated this request, populated only
+       * for kiosk-bearer auth. Reading req.user.id alone is enough to know
+       * it was a kiosk (the synthetic id starts with 'kiosk:'), but having
+       * the bare uuid handy avoids reparsing throughout the codebase.
+       */
+      kioskId?: string;
     }
   }
 }
@@ -33,6 +40,39 @@ export function signSession(user: AuthUser): string {
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   try {
     const auth = req.header('authorization');
+
+    // Phase K1.12 — kiosk-bearer auth. A single shared KIOSK_BEARER_TOKEN
+    // env var authorises the entire kiosk fleet; per-device identity is
+    // provided by the x-kiosk-id header. We resolve to a synthetic
+    // AuthUser with id 'kiosk:<uuid>' and role 'student' so the rest of
+    // the user-scoped query layer keeps working without case branches.
+    const kioskBearer = process.env.KIOSK_BEARER_TOKEN;
+    if (
+      kioskBearer &&
+      auth?.startsWith('Bearer ') &&
+      auth.slice(7) === kioskBearer
+    ) {
+      const kioskId = req.header('x-kiosk-id');
+      if (!kioskId) {
+        res.status(401).json({ error: 'x-kiosk-id required for kiosk auth.' });
+        return;
+      }
+      const syntheticId = `kiosk:${kioskId}`;
+      req.kioskId = kioskId;
+      req.user = {
+        id: syntheticId,
+        phone: 'kiosk',
+        role: 'student',
+        verificationStatus: 'approved',
+        phoneVerified: true,
+      };
+      Sentry.setUser({ id: syntheticId });
+      // Don't call identifyAnalytics — kiosk traffic is anonymous and the
+      // PostHog identity should remain unset. Channel attribution is done
+      // via placement_source on the order itself.
+      return next();
+    }
+
     if (auth?.startsWith('Bearer ')) {
       const token = auth.slice(7);
       const decoded = jwt.verify(token, config.jwt.secret) as AuthUser;
