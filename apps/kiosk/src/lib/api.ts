@@ -230,6 +230,19 @@ export const api = {
   },
 
   /**
+   * POST /orders/:id/kiosk-rating — submit a thumbs-up / thumbs-down
+   * for the just-placed order (K7.3). Idempotent server-side; if the
+   * customer somehow submits twice the second call returns ok with
+   * alreadyRated=true and the kiosk leaves the success state intact.
+   */
+  rateKioskOrder(orderId: string, rating: 'up' | 'down'): Promise<{ ok: true; alreadyRated: boolean }> {
+    return fetchJson(`/orders/${encodeURIComponent(orderId)}/kiosk-rating`, {
+      method: 'POST',
+      body: JSON.stringify({ rating }),
+    });
+  },
+
+  /**
    * GET /me — fetch the identified customer's profile snapshot. Powers
    * the welcome banner: name + tier + points balance.
    */

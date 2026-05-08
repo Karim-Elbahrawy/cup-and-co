@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Wallet, RotateCw, CloudOff } from 'lucide-react';
 import { BigButton } from '@/components/BigButton';
+import { PostOrderRating } from '@/components/PostOrderRating';
 import { useLastOrder } from '@/lib/useLastOrder';
 import { useLang } from '@/lib/useLang';
 import { useIdentified } from '@/lib/useIdentified';
@@ -137,6 +138,14 @@ export default function ConfirmationPage() {
               : `Ready in ~${minutes} min`}
           </p>
         ) : null}
+
+        {/* K7.3 — quick post-order rating. Hidden when the order is
+            still queued offline (the temp id has nothing the server
+            can attach a rating to until sync). */}
+        <PostOrderRating
+          orderId={order.order.id}
+          queued={order.queued ?? false}
+        />
 
         {/* Restart button with a countdown ring */}
         <div className="mt-12 inline-flex flex-col items-center gap-4">

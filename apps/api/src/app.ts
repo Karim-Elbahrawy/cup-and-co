@@ -103,6 +103,10 @@ import {
   updateKiosk,
   type KioskState,
 } from './db/kiosksStore.js';
+import {
+  recordRating as recordKioskRating,
+  ratingsTodayByKiosk,
+} from './db/kioskRatingsStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
 // if configured, fixture otherwise).
@@ -2030,6 +2034,58 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  /**
+   * Phase K7.3 — kiosk post-order rating.
+   *
+   * The kiosk's confirmation screen shows two big buttons after the
+   * pickup code (👍 / 👎). Tap → POST here. Idempotent per order: a
+   * second tap on the same order is a no-op (silently — the kiosk UI
+   * also prevents double-submit, but server defends).
+   *
+   * Auth: kiosk-bearer + x-kiosk-id, same as /kiosks/heartbeat. The
+   * order-id in the URL must match an order placed at this kiosk —
+   * we don't let one kiosk rate another's orders.
+   */
+  app.post('/orders/:id/kiosk-rating', requireAuth, (req, res, next) => {
+    try {
+      const kioskId = req.kioskId ?? req.header('x-kiosk-id');
+      if (!kioskId) {
+        const e = new Error('x-kiosk-id required for kiosk rating.') as Error & { status?: number };
+        e.status = 400;
+        throw e;
+      }
+      const input = z.object({
+        rating: z.enum(['up', 'down']),
+      }).parse(req.body);
+
+      const order = orders.get(req.params.id as string);
+      if (!order) {
+        const e = new Error('Order not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
+      if (order.placementSource !== 'kiosk' || order.kioskId !== kioskId) {
+        // The order exists but it didn't come from THIS kiosk. Don't
+        // confirm or deny — just 404 so we don't leak existence of
+        // other kiosks' orders.
+        const e = new Error('Order not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
+
+      const row = recordKioskRating({
+        orderId: order.id,
+        kioskId,
+        rating: input.rating,
+      });
+      // Either freshly recorded OR already had one — both are 'ok' from
+      // the customer's perspective. Don't 409 on the duplicate; the
+      // kiosk already shows 'thanks!' state and surfacing an error
+      // would just confuse them.
+      res.json({ ok: true, alreadyRated: row === null });
+    } catch (e) { next(e); }
+  });
+
   // Phase 3.2: stock toggle (separate from availability — staff use this
   // for "ran out of beans" while leaving the product on the menu for
   // tomorrow). Optional `until` auto-clears at that timestamp.
@@ -2406,6 +2462,11 @@ export function createApp(): express.Express {
         }
       }
 
+      // Phase K7.3 — fold today's ratings (👍/👎) per kiosk so the
+      // admin's by-kiosk row shows satisfaction at a glance alongside
+      // orders + revenue.
+      const ratings = ratingsTodayByKiosk();
+
       const rows = kiosks.map((k) => {
         const b = byKiosk.get(k.id) ?? {
           orderCount: 0,
@@ -2416,6 +2477,7 @@ export function createApp(): express.Express {
           .sort((a, b2) => b2.count - a.count)
           .slice(0, 3)
           .map((p) => ({ name_en: p.name_en, name_ar: p.name_ar, count: p.count }));
+        const tally = ratings.get(k.id) ?? { up: 0, down: 0 };
         return {
           kiosk: {
             id: k.id,
@@ -2428,6 +2490,7 @@ export function createApp(): express.Express {
             orderCount: b.orderCount,
             revenueEgp: b.revenueEgp,
             topItems,
+            ratings: tally,
           },
         };
       });
