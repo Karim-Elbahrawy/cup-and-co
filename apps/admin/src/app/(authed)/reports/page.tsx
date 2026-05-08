@@ -27,6 +27,7 @@ import {
   type AdminReportTopItem,
   type AdminReportRoleBreakdown,
 } from '@/lib/api';
+import { KioskBreakdownSection } from '@/components/KioskBreakdownSection';
 
 const PIE_COLORS = ['#C2410C', '#0F766E', '#F4A261', '#9A3412', '#FEF3C7', '#1C1917'];
 
@@ -304,6 +305,11 @@ export default function ReportsPage() {
           </div>
         )}
       </section>
+
+      {/* Phase K6.4 — by-kiosk daily breakdown. Self-fetching so the
+          rest of the Reports page can keep its single-shot Promise.all
+          pattern without growing here. */}
+      <KioskBreakdownSection />
     </div>
   );
 }
