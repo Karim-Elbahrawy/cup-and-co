@@ -92,6 +92,7 @@ import {
   getProductAttrs,
 } from './db/catalogRepo.js';
 import { inferAttributes } from './services/inferAttributes.js';
+import { getStats as getConciergeStats } from './services/conciergeMetrics.js';
 import {
   // New staff-toggle out-of-stock API (Phase 3.2 stage-2).
   isProductOutOfStock,
@@ -2187,6 +2188,36 @@ export function createApp(): express.Express {
         roleCounts.set(role, existing);
       }
       res.json({ breakdown: Object.fromEntries(roleCounts) });
+    } catch (e) { next(e); }
+  });
+
+  // ── Cup AI usage report — answers "is the rule engine carrying its weight?"
+  // Returns aggregates over a configurable rolling window (?days=N, default 7).
+  app.get('/admin/reports/cup-ai', requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const daysParam = Number(req.query.days);
+      const days = Number.isFinite(daysParam) && daysParam > 0 && daysParam <= 90
+        ? Math.floor(daysParam)
+        : 7;
+      const windowMs = days * 24 * 60 * 60 * 1000;
+      const stats = getConciergeStats(windowMs);
+
+      // Hydrate top product ids with names for the UI. Fetched once from the
+      // catalog so we don't make N round trips.
+      const catalog = await getCatalog();
+      const productById = new Map(catalog.products.map((p) => [p.id, p]));
+      const topProducts = stats.topSuggestedProductIds.map(({ productId, count }) => {
+        const p = productById.get(productId);
+        return {
+          productId,
+          count,
+          name_en: p?.name_en ?? '(deleted product)',
+          name_ar: p?.name_ar ?? '',
+        };
+      });
+
+      res.json({ days, ...stats, topProducts });
     } catch (e) { next(e); }
   });
 

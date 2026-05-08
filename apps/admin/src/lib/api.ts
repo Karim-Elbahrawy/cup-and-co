@@ -457,7 +457,24 @@ export const adminApi = {
     api<{ id: string; attrs: Partial<ConciergeAttrs> }>(`/admin/menu/products/${productId}/attrs`, { method: 'PATCH', body }),
   autoDetectAttrs: (productId: string) =>
     api<{ id: string; inferred: ConciergeAttrs }>(`/admin/menu/products/${productId}/auto-detect-attrs`, { method: 'POST' }),
+
+  // Cup AI usage analytics
+  getCupAiStats: (days = 7, signal?: AbortSignal) =>
+    api<CupAiStatsResponse>(`/admin/reports/cup-ai?days=${days}`, { signal }),
 };
+
+export interface CupAiStatsResponse {
+  days: number;
+  windowMs: number;
+  totalQueries: number;
+  byLanguage: { en: number; ar: number };
+  byConfidence: { low: number; medium: number; high: number };
+  zeroMatchCount: number;
+  topQueries: Array<{ query: string; count: number }>;
+  topLowConfidenceQueries: Array<{ query: string; count: number }>;
+  topSuggestedProductIds: Array<{ productId: string; count: number }>;
+  topProducts: Array<{ productId: string; count: number; name_en: string; name_ar: string }>;
+}
 
 // ── Cup AI types (mirror api/services/concierge ConciergeAttrs) ────────────
 export interface ConciergeAttrs {

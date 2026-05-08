@@ -3,6 +3,7 @@ import { getCatalog, getProductDetail } from '../db/catalogRepo.js';
 import { getProductStock } from '../db/productStockRepo.js';
 import { adminOffers } from '../db/offersStore.js';
 import { match, type Language } from '../services/concierge.js';
+import { recordSuggestion } from '../services/conciergeMetrics.js';
 
 export function catalogRouter(): Router {
   const router = Router();
@@ -88,6 +89,10 @@ export function catalogRouter(): Router {
         { text: query, language },
         { products: catalog.products, categorySlugById, limit },
       );
+
+      // Record the call for the admin analytics tile. Synchronous and free —
+      // just appends to an in-memory ring buffer.
+      recordSuggestion({ query, language, result });
 
       res.json(result);
     } catch (e) { next(e); }
