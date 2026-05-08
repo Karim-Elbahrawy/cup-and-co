@@ -17,7 +17,9 @@ import { useIdentified } from '@/lib/useIdentified';
 import { BigButton } from './BigButton';
 import { QuantityStepper } from './QuantityStepper';
 import { IdentifyModal } from './IdentifyModal';
+import { ComboSuggestions } from './ComboSuggestions';
 import type { KioskLang } from '@/lib/lang';
+import type { Product } from '@cup-and-co/types';
 
 /**
  * Bottom-sheet cart drawer (K1.5).
@@ -41,9 +43,21 @@ import type { KioskLang } from '@/lib/lang';
 
 interface CartDrawerProps {
   lang?: KioskLang;
+  /**
+   * K4.9 — pre-computed combo suggestions (1–2 products). Parent owns
+   * this so the drawer doesn't need access to the catalog. Empty array
+   * hides the section entirely.
+   */
+  comboSuggestions?: Product[];
+  /** Called when a combo card is tapped — parent adds with default options. */
+  onAddCombo?: (product: Product) => void;
 }
 
-export function CartDrawer({ lang = 'en' as KioskLang }: CartDrawerProps) {
+export function CartDrawer({
+  lang = 'en' as KioskLang,
+  comboSuggestions = [],
+  onAddCombo,
+}: CartDrawerProps) {
   const router = useRouter();
   const open = useCartDrawer((s) => s.open);
   const hide = useCartDrawer((s) => s.hide);
@@ -140,6 +154,15 @@ export function CartDrawer({ lang = 'en' as KioskLang }: CartDrawerProps) {
 
             {/* Footer */}
             <footer className="border-t border-[var(--cup-stroke)] bg-white px-12 pb-8 pt-6">
+              {/* K4.9 — Complete the combo (renders nothing if empty). */}
+              {onAddCombo ? (
+                <ComboSuggestions
+                  products={comboSuggestions}
+                  lang={lang}
+                  onAdd={onAddCombo}
+                />
+              ) : null}
+
               {/* K4.2 — anonymous customers see an opt-in 'Earn points?'
                   pill; identified customers see a tier badge instead. */}
               {identified ? (
