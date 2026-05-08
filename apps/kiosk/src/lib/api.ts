@@ -146,6 +146,44 @@ export const api = {
    * Either way the API stamps placement_source='kiosk' because we send
    * x-kiosk-id (handled in fetchJson).
    */
+  /**
+   * Build the POST /orders body without sending. Exported so the offline
+   * queue can stash the exact same shape we'd otherwise transmit, and
+   * later replay it verbatim on reconnect.
+   */
+  buildOrderBody(args: {
+    lines: CartLine[];
+    paymentMethod: 'cash';
+    notes?: string;
+    redeemPoints?: number;
+  }): Record<string, unknown> {
+    const items = args.lines.map((line) => ({
+      productId: line.product.id,
+      quantity: line.quantity,
+      options: Object.fromEntries(line.options.map((o) => [o.group, o.nameEn])),
+    }));
+    return {
+      fulfillmentType: 'pickup',
+      paymentMethod: args.paymentMethod,
+      redeemPoints: args.redeemPoints ?? 0,
+      items,
+      notes: args.notes,
+    };
+  },
+
+  /**
+   * Send a pre-built order body to /orders. Lets the offline-queue
+   * flush replay an identical body across retries without re-deriving
+   * from a possibly-mutated cart store.
+   */
+  postOrder(body: Record<string, unknown>, userJwt?: string): Promise<PlaceOrderResponse> {
+    return fetchJson<PlaceOrderResponse>('/orders', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      userJwt,
+    });
+  },
+
   placeOrder(args: {
     lines: CartLine[];
     paymentMethod: 'cash';
@@ -153,21 +191,9 @@ export const api = {
     userJwt?: string;
     redeemPoints?: number;
   }): Promise<PlaceOrderResponse> {
-    const items = args.lines.map((line) => ({
-      productId: line.product.id,
-      quantity: line.quantity,
-      options: Object.fromEntries(line.options.map((o) => [o.group, o.nameEn])),
-    }));
-
     return fetchJson<PlaceOrderResponse>('/orders', {
       method: 'POST',
-      body: JSON.stringify({
-        fulfillmentType: 'pickup',
-        paymentMethod: args.paymentMethod,
-        redeemPoints: args.redeemPoints ?? 0,
-        items,
-        notes: args.notes,
-      }),
+      body: JSON.stringify(this.buildOrderBody(args)),
       userJwt: args.userJwt,
     });
   },
