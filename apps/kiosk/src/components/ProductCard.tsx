@@ -1,20 +1,24 @@
 'use client';
 
 import Image from 'next/image';
+import { Star, Clock } from 'lucide-react';
 import type { Product } from '@cup-and-co/types';
 import type { KioskLang } from '@/lib/lang';
 
 /**
- * Product tile for the kiosk catalog grid (K1.2).
+ * Product tile for the kiosk catalog grid.
  *
- * Three states the card explicitly handles:
- *   - in-stock        → full-colour, tap to open product detail (K1.3)
- *   - out-of-stock    → 50% opacity + 'Out today' pill, tap shows toast
- *   - unavailable     → hidden upstream (the catalog filter strips
- *                        is_available=false products)
+ * Hierarchy after the impeccable refine:
+ *   1. Image dominates ~60% of the card height — the brand sells on craft.
+ *   2. Product name is k-card weight 700 (28px), one line max with truncate.
+ *   3. Price stands alone in terracotta. Rating + prep are secondary,
+ *      kept on a subtle metadata row above the price so they never
+ *      compete with the call-to-buy.
+ *   4. "Out today" pill flips the whole card to a softer amber-tinted
+ *      surface (not just opacity) so the message reads at a glance.
  *
- * Layout is intentionally large: 280×360 minimum at 4-up on a 12.9" landscape
- * iPad. Image-first composition because the brand sells on craft, not copy.
+ * Press feedback is GPU-only (active:scale + active:translate-y) — Framer
+ * isn't worth the per-card cost on a 24-card grid.
  */
 
 interface ProductCardProps {
@@ -34,39 +38,70 @@ export function ProductCard({ product, lang, onTap }: ProductCardProps) {
       aria-label={`${name}, ${product.base_price_egp} EGP${isOut ? ', out of stock today' : ''}`}
       aria-disabled={isOut || undefined}
       className={[
-        'group relative flex min-h-[360px] flex-col overflow-hidden rounded-card bg-white p-5 text-left shadow-card',
-        'border border-[var(--cup-stroke)] transition-[transform,box-shadow] duration-150',
-        'active:scale-[0.99] hover:shadow-elevated',
-        isOut ? 'opacity-50' : '',
+        'group relative flex min-h-[360px] flex-col overflow-hidden rounded-card p-4 text-left shadow-card',
+        'border transition-[transform,box-shadow,background-color] duration-150',
+        'active:scale-[0.985] active:translate-y-px hover:shadow-elevated',
+        isOut
+          ? 'bg-[var(--cup-warning)]/5 border-[var(--cup-warning)]/20 cursor-default'
+          : 'bg-white border-[var(--cup-stroke)] cursor-pointer',
       ].join(' ')}
     >
       {/* Hero image */}
-      <div className="relative mb-4 grid aspect-square place-items-center overflow-hidden rounded-2xl bg-[var(--cup-paper)]">
+      <div
+        className={[
+          'relative grid aspect-square place-items-center overflow-hidden rounded-[16px]',
+          isOut ? 'bg-[var(--cup-warning)]/10' : 'bg-[var(--cup-paper)]',
+        ].join(' ')}
+      >
         <Image
           src={product.image_url}
           alt=""
           fill
           sizes="(min-width: 1280px) 22vw, 30vw"
-          className="object-contain p-3"
+          className={[
+            'object-contain p-2 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+            isOut ? 'opacity-50 saturate-50' : 'group-hover:scale-[1.02]',
+          ].join(' ')}
         />
         {isOut ? (
-          <span className="absolute right-3 top-3 rounded-pill bg-[var(--cup-error)] px-4 py-1.5 text-sm font-bold uppercase tracking-wider text-white">
+          <span className="absolute end-3 top-3 rounded-pill bg-[var(--cup-warning)] px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-subtle">
             {lang === 'ar' ? 'نفد اليوم' : 'Out today'}
           </span>
         ) : null}
       </div>
 
-      {/* Name + price */}
-      <h3 className="font-heading text-k-card font-bold text-[var(--cup-espresso)] line-clamp-2">
-        {name}
-      </h3>
-      <div className="mt-auto flex items-end justify-between pt-4">
-        <span className="font-heading text-[28px] font-extrabold text-[var(--cup-primary)]">
-          {product.base_price_egp} EGP
-        </span>
-        <span className="text-sm font-semibold text-[var(--cup-muted)]">
-          ★ {product.rating_avg.toFixed(1)} · {product.prep_minutes}m
-        </span>
+      {/* Name + metadata + price.
+          Stack pushed to mt-auto so cards with shorter names don't pull
+          the price up and break the grid alignment. */}
+      <div className="mt-4 flex flex-1 flex-col gap-1.5">
+        <h3 className="font-heading text-k-card font-bold leading-tight text-[var(--cup-espresso)] line-clamp-2">
+          {name}
+        </h3>
+
+        {/* Metadata row — tiny, mid-tone, never competes with the price. */}
+        <div className="flex items-center gap-3 text-sm font-semibold text-[var(--cup-muted)]">
+          <span className="inline-flex items-center gap-1">
+            <Star className="h-3.5 w-3.5 fill-[var(--cup-star)] text-[var(--cup-star)]" aria-hidden="true" />
+            {product.rating_avg.toFixed(1)}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+            {product.prep_minutes}m
+          </span>
+        </div>
+
+        {/* Price stands alone in terracotta. mt-auto pins it to bottom. */}
+        <div className="mt-auto pt-3">
+          <span
+            className={[
+              'font-heading text-[30px] font-extrabold tabular-nums',
+              isOut ? 'text-[var(--cup-muted)]' : 'text-[var(--cup-primary)]',
+            ].join(' ')}
+          >
+            {product.base_price_egp}
+            <span className="ms-1 text-base font-bold tracking-wider text-[var(--cup-muted)]">EGP</span>
+          </span>
+        </div>
       </div>
     </button>
   );

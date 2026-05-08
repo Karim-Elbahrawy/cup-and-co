@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Star } from 'lucide-react';
 import type { CatalogResponse, Product } from '@cup-and-co/types';
 import { BigButton } from '@/components/BigButton';
 import { ProductGrid } from '@/components/ProductGrid';
@@ -287,48 +287,71 @@ export default function CatalogPage() {
     <main className="relative h-dvh w-dvw overflow-y-auto bg-[var(--cup-paper)] px-12 pb-24 pt-8">
       <ToastHost bind={bindToast} />
 
-      <header className="mb-6 flex items-center justify-between gap-4">
-        <BigButton
-          variant="secondary"
-          leadingIcon={<ChevronLeft className="h-7 w-7" />}
-          onClick={fullReset}
-          aria-label={lang === 'ar' ? 'العودة' : 'Back to start'}
-        >
-          {lang === 'ar' ? 'البداية' : 'Start over'}
-        </BigButton>
-
+      <header className="mb-8 flex items-end justify-between gap-4">
         <div className="flex items-center gap-4">
-          <LanguageToggle />
-          <div className="text-right">
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[var(--cup-muted)]">
-              Cup &amp; Co
+          <BigButton
+            variant="secondary"
+            leadingIcon={<ChevronLeft className="h-7 w-7" />}
+            onClick={fullReset}
+            aria-label={lang === 'ar' ? 'العودة للبداية' : 'Back to start'}
+          >
+            {lang === 'ar' ? 'البداية' : 'Start over'}
+          </BigButton>
+        </div>
+
+        <div className="flex items-center gap-5">
+          <div className="text-end">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--cup-muted)]">
+              {lang === 'ar' ? 'كاب آند كو' : 'Cup & Co'}
             </p>
-            <h1 className="font-heading text-k-hero text-[var(--cup-espresso)]">
-              {lang === 'ar' ? 'القائمة' : 'Today’s menu'}
+            <h1 className="mt-0.5 font-heading text-[44px] font-extrabold leading-none tracking-tight text-[var(--cup-espresso)]">
+              {lang === 'ar' ? 'القائمة' : "Today's menu"}
             </h1>
           </div>
+          <LanguageToggle />
         </div>
       </header>
 
-      {/* K4.5 — welcome banner for identified members */}
+      {/* Welcome banner for identified members.
+          Refined: tighter padding, single-line layout that doesn't wrap,
+          no emoji ("👋" was the loudest non-brand element on the screen).
+          The teal tier badge picks up the brand-mandatory accent so the
+          banner doesn't read as pure terracotta. */}
       {identified ? (
-        <div className="mb-6 rounded-card bg-gradient-to-r from-cup-primary to-[#F4A261] px-8 py-5 text-white shadow-card">
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/80">
-            {lang === 'ar' ? 'أهلاً بيك تاني' : 'Welcome back'}
-          </p>
-          <p className="mt-1 font-heading text-k-card font-bold">
-            {identified.name
-              ? lang === 'ar' ? `يا ${identified.name} 👋` : `${identified.name} 👋`
-              : '👋'}
-            {identified.tier ? (
-              <span className="ms-3 inline-flex items-center gap-1.5 rounded-pill bg-white/20 px-3 py-1 text-base">
-                ✦ {identified.tier === 'gold' ? (lang === 'ar' ? 'ذهبي' : 'Gold') : identified.tier === 'silver' ? (lang === 'ar' ? 'فضي' : 'Silver') : (lang === 'ar' ? 'برونزي' : 'Bronze')}
-              </span>
-            ) : null}
-            <span className="ms-3 text-base font-medium text-white/90">
-              {identified.pointsBalance} {lang === 'ar' ? 'نقطة' : 'pts'}
+        <div className="mb-6 flex items-center gap-5 rounded-card cup-sunrise px-7 py-4 text-white shadow-card">
+          <span
+            className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-full bg-white/20 font-heading text-[20px] font-extrabold"
+            aria-hidden="true"
+          >
+            {(identified.name?.[0] ?? '?').toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-white/80">
+              {lang === 'ar' ? 'أهلاً بيك تاني' : 'Welcome back'}
+            </p>
+            <p className="mt-0.5 truncate font-heading text-[26px] font-bold">
+              {identified.name ?? (lang === 'ar' ? 'عميلنا' : 'Friend')}
+            </p>
+          </div>
+          {identified.tier ? (
+            <span
+              className="inline-flex items-center gap-2 rounded-pill bg-white/20 px-4 py-2 text-base font-bold"
+              style={{ backdropFilter: 'saturate(140%)' }}
+            >
+              <Star className="h-4 w-4 fill-white text-white" aria-hidden="true" />
+              {identified.tier === 'gold'
+                ? lang === 'ar' ? 'ذهبي' : 'Gold'
+                : identified.tier === 'silver'
+                  ? lang === 'ar' ? 'فضي' : 'Silver'
+                  : lang === 'ar' ? 'برونزي' : 'Bronze'}
             </span>
-          </p>
+          ) : null}
+          <span className="font-heading text-[26px] font-extrabold tabular-nums">
+            {identified.pointsBalance}
+            <span className="ms-1 text-sm font-bold tracking-wider text-white/85">
+              {lang === 'ar' ? 'نقطة' : 'pts'}
+            </span>
+          </span>
         </div>
       ) : null}
 

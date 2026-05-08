@@ -152,63 +152,76 @@ export function CartDrawer({
               )}
             </div>
 
-            {/* Footer */}
-            <footer className="border-t border-[var(--cup-stroke)] bg-white px-12 pb-8 pt-6">
-              {/* K4.9 — Complete the combo (renders nothing if empty). */}
-              {onAddCombo ? (
-                <ComboSuggestions
-                  products={comboSuggestions}
-                  lang={lang}
-                  onAdd={onAddCombo}
-                />
+            {/* Footer.
+                Refine: combo + identify pill belong on a soft paper
+                surface, separate from the high-contrast total + checkout
+                row. The customer's eye reads (1) combo upsell, (2) tier
+                badge or earn-points opt-in, then commits with (3) the
+                terracotta CTA. Visual border between the two layers. */}
+            <footer className="bg-white">
+              {/* Upper layer — soft paper, holds the optional rows. */}
+              {(onAddCombo && comboSuggestions.length > 0) ||
+              identified ||
+              lines.length > 0 ? (
+                <div className="border-t border-[var(--cup-stroke)] bg-[var(--cup-paper)] px-12 pt-5 pb-2">
+                  {onAddCombo ? (
+                    <ComboSuggestions
+                      products={comboSuggestions}
+                      lang={lang}
+                      onAdd={onAddCombo}
+                    />
+                  ) : null}
+
+                  {identified ? (
+                    <IdentifiedRow customer={identified} lang={lang} />
+                  ) : lines.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setIdentifyOpen(true)}
+                      className="mb-4 flex w-full items-center justify-between gap-3 rounded-pill border-2 border-dashed border-cup-primary/40 bg-white px-5 py-3 text-start transition active:scale-[0.99]"
+                    >
+                      <span className="flex items-center gap-3">
+                        <span className="grid h-10 w-10 place-items-center rounded-full bg-cup-primary text-white">
+                          <Sparkles className="h-5 w-5" />
+                        </span>
+                        <span>
+                          <span className="block font-heading text-[20px] font-bold text-[var(--cup-espresso)]">
+                            {lang === 'ar' ? 'جمّع نقاط؟' : 'Earn points?'}
+                          </span>
+                          <span className="block text-sm text-[var(--cup-muted)]">
+                            {lang === 'ar'
+                              ? 'دوس وأكّد رقمك في ٣٠ ثانية'
+                              : 'Tap to identify in 30 seconds'}
+                          </span>
+                        </span>
+                      </span>
+                      <ArrowRight className="h-6 w-6 text-cup-primary rtl:rotate-180" />
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
 
-              {/* K4.2 — anonymous customers see an opt-in 'Earn points?'
-                  pill; identified customers see a tier badge instead. */}
-              {identified ? (
-                <IdentifiedRow customer={identified} lang={lang} />
-              ) : lines.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setIdentifyOpen(true)}
-                  className="mb-4 flex w-full items-center justify-between gap-3 rounded-pill border-2 border-dashed border-cup-primary/40 bg-[var(--cup-paper)] px-5 py-3 text-left transition active:scale-[0.99]"
-                >
-                  <span className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-full bg-cup-primary text-white">
-                      <Sparkles className="h-5 w-5" />
-                    </span>
-                    <span>
-                      <span className="block font-heading text-[20px] font-bold text-[var(--cup-espresso)]">
-                        {lang === 'ar' ? 'جمّع نقاط؟' : 'Earn points?'}
-                      </span>
-                      <span className="block text-sm text-[var(--cup-muted)]">
-                        {lang === 'ar'
-                          ? 'دوس وأكّد رقمك في ٣٠ ثانية'
-                          : 'Tap to identify in 30 seconds'}
-                      </span>
-                    </span>
+              {/* Lower layer — total + checkout, the commit row. */}
+              <div className="border-t border-[var(--cup-stroke)] px-12 pb-8 pt-5">
+                <div className="mb-4 flex items-baseline justify-between gap-4">
+                  <span className="font-heading text-[18px] font-bold uppercase tracking-[0.18em] text-[var(--cup-muted)]">
+                    {lang === 'ar' ? 'الإجمالي' : 'Total'}
                   </span>
-                  <ArrowRight className="h-6 w-6 text-cup-primary" />
-                </button>
-              ) : null}
-
-              <div className="mb-4 flex items-baseline justify-between">
-                <span className="font-heading text-k-card text-[var(--cup-cocoa)]">
-                  {lang === 'ar' ? 'الإجمالي' : 'Total'}
-                </span>
-                <span className="font-heading text-[44px] font-extrabold text-[var(--cup-espresso)]">
-                  {total} EGP
-                </span>
+                  <span className="font-heading text-[44px] font-extrabold leading-none tabular-nums text-[var(--cup-espresso)]">
+                    {total}
+                    <span className="ms-1 text-[18px] font-bold tracking-wider text-[var(--cup-muted)]">EGP</span>
+                  </span>
+                </div>
+                <BigButton
+                  size="xl"
+                  onClick={handleCheckout}
+                  disabled={lines.length === 0}
+                  trailingIcon={<ArrowRight className="h-7 w-7 rtl:rotate-180" />}
+                  className="w-full"
+                >
+                  {lang === 'ar' ? 'إتمام الطلب' : 'Checkout'}
+                </BigButton>
               </div>
-              <BigButton
-                size="xl"
-                onClick={handleCheckout}
-                disabled={lines.length === 0}
-                trailingIcon={<ArrowRight className="h-7 w-7" />}
-                className="w-full"
-              >
-                {lang === 'ar' ? 'إتمام الطلب' : 'CHECKOUT'}
-              </BigButton>
             </footer>
           </motion.section>
 

@@ -118,11 +118,27 @@ export function OrderCard({
         )}
       </footer>
 
-      {!hideStatusPill && order.fulfillmentType === 'delivery' && (
-        <span className="absolute right-3 top-3 rounded-pill bg-cup-teal-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-cup-teal-700">
-          Delivery
-        </span>
-      )}
+      {/* Channel + fulfillment badges, top-right.
+          Kiosk badge is gold-tinted (matches the kiosk's terracotta accent
+          dialed for the admin's cooler palette) so baristas can spot
+          self-served orders at a glance. Stacks vertically when both apply. */}
+      {!hideStatusPill ? (
+        <div className="absolute right-3 top-3 flex flex-col items-end gap-1">
+          {order.placementSource === 'kiosk' ? (
+            <span
+              className="rounded-pill bg-cup-orange-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-cup-orange-800"
+              title={order.kioskId ? `Kiosk ${order.kioskId.slice(0, 8)}` : 'Self-served at the kiosk'}
+            >
+              Kiosk
+            </span>
+          ) : null}
+          {order.fulfillmentType === 'delivery' ? (
+            <span className="rounded-pill bg-cup-teal-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-cup-teal-700">
+              Delivery
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </article>
   );
 }
