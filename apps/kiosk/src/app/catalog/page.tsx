@@ -7,9 +7,11 @@ import type { CatalogResponse, Product } from '@cup-and-co/types';
 import { BigButton } from '@/components/BigButton';
 import { ProductGrid } from '@/components/ProductGrid';
 import { CartPill } from '@/components/CartPill';
+import { CartDrawer } from '@/components/CartDrawer';
 import { ToastHost, type ToastApi } from '@/components/Toast';
 import { useIdleReset } from '@/lib/useIdleReset';
 import { useCart } from '@/lib/cart';
+import { useCartDrawer } from '@/lib/useCartDrawer';
 import { api, ApiError } from '@/lib/api';
 import type { KioskLang } from '@/lib/lang';
 
@@ -40,6 +42,8 @@ export default function CatalogPage() {
   // narrowing the literal — the K1.6 store will return a real KioskLang.
   const lang = 'en' as KioskLang;
   const clearCart = useCart((s) => s.clear);
+  const showDrawer = useCartDrawer((s) => s.show);
+  const hideDrawer = useCartDrawer((s) => s.hide);
 
   // Idle reset returns to attract AND clears the cart, matching the K1.9
   // contract one phase early — easier to keep than to re-introduce later
@@ -47,6 +51,7 @@ export default function CatalogPage() {
   useIdleReset({
     onIdle: () => {
       clearCart();
+      hideDrawer();
       router.replace('/');
     },
     timeoutMs: 90_000,
@@ -130,13 +135,8 @@ export default function CatalogPage() {
         />
       )}
 
-      <CartPill
-        onClick={() =>
-          toastRef.current?.show(
-            lang === 'ar' ? 'العربة قريباً' : 'Cart drawer coming soon',
-          )
-        }
-      />
+      <CartPill onClick={showDrawer} />
+      <CartDrawer lang={lang} />
     </main>
   );
 }
