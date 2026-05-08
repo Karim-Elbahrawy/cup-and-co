@@ -95,6 +95,7 @@ import {
   setProductStock,
 } from './db/productStockRepo.js';
 import { adminOffers } from './db/offersStore.js';
+import { setFeatured as setFeaturedProduct } from './db/featuredProductsStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
 // if configured, fixture otherwise).
@@ -1845,6 +1846,18 @@ export function createApp(): express.Express {
       const input = z.object({ available: z.boolean() }).parse(req.body);
       productAvailability.set(req.params.id as string, input.available);
       res.json({ id: req.params.id, available: input.available });
+    } catch (e) { next(e); }
+  });
+
+  // Phase K4.7 — admin-toggleable "feature today" flag. The kiosk renders
+  // the first featured product as a 2-column hero card at the top of the
+  // catalog "All" tab.
+  app.patch('/admin/menu/products/:id/featured-today', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
+      const input = z.object({ featured: z.boolean() }).parse(req.body);
+      setFeaturedProduct(req.params.id as string, input.featured);
+      res.json({ id: req.params.id, featured: input.featured });
     } catch (e) { next(e); }
   });
 

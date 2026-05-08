@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getCatalog, getProductDetail } from '../db/catalogRepo.js';
 import { getProductStock } from '../db/productStockRepo.js';
 import { adminOffers } from '../db/offersStore.js';
+import { isFeatured } from '../db/featuredProductsStore.js';
 
 export function catalogRouter(): Router {
   const router = Router();
@@ -28,9 +29,16 @@ export function catalogRouter(): Router {
 
       // Phase 3.2: merge stock state onto each product so the customer-web
       // catalog can render an out-of-stock pill without a second roundtrip.
+      // Phase K4.7: also merge the admin's "feature today" flag so the
+      // kiosk can render a hero card without a second request.
       catalog.products = catalog.products.map((p) => {
         const stock = getProductStock(p.id);
-        return { ...p, is_out_of_stock: stock.is_out_of_stock, out_of_stock_until: stock.out_of_stock_until };
+        return {
+          ...p,
+          is_out_of_stock: stock.is_out_of_stock,
+          out_of_stock_until: stock.out_of_stock_until,
+          is_featured_today: isFeatured(p.id),
+        };
       });
 
       res.json(catalog);
