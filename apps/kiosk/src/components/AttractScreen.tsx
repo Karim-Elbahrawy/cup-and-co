@@ -127,29 +127,48 @@ export function AttractScreen({
           {subtitleText}
         </p>
 
-        {/* Pulse hint chip — subtle, drifts down to invite the tap. */}
-        <motion.div
-          initial={{ y: 0, opacity: 0.85 }}
-          animate={{ y: [0, 8, 0], opacity: [0.85, 1, 0.85] }}
-          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-          className="mt-12 inline-flex items-center gap-3 rounded-pill bg-white/15 px-6 py-4 text-k-card backdrop-blur-md"
-        >
-          <span aria-hidden="true">👆</span>
-          <span className="font-semibold">Tap anywhere</span>
-        </motion.div>
+        {/* Tap affordance — refined ripple instead of an emoji.
+            Two concentric circles outline-only, with the inner one
+            rendered crisp and the outer one expanding+fading on a
+            2.4s loop. Reduced-motion CSS rule freezes them. */}
+        <div className="mt-14 inline-flex items-center gap-4">
+          <span
+            className="relative grid h-14 w-14 place-items-center"
+            aria-hidden="true"
+          >
+            <span className="absolute h-full w-full rounded-full border-2 border-white/85" />
+            <motion.span
+              className="absolute h-full w-full rounded-full border-2 border-white"
+              initial={{ scale: 1, opacity: 0.6 }}
+              animate={{ scale: [1, 1.7], opacity: [0.6, 0] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: [0.22, 1, 0.36, 1] }}
+            />
+            <span className="relative h-3 w-3 rounded-full bg-white" />
+          </span>
+          <span className="font-heading text-k-card font-semibold tracking-wide text-white/95">
+            Tap anywhere to start
+          </span>
+        </div>
       </div>
+
+      {/* Subtle bottom rule — adds a horizon line + frames the dots. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-12 bottom-10 h-px bg-white/15"
+      />
 
       {/* ── Position dots (poster index) ──────────────────────────────── */}
       <div
         aria-hidden="true"
-        className="absolute bottom-12 right-12 flex gap-3"
+        className="absolute bottom-7 end-12 flex gap-3"
       >
         {POSTERS.map((p, i) => (
           <span
             key={p.src}
-            className={`block h-2.5 rounded-full transition-all duration-500 ${
-              i === index ? 'w-10 bg-white' : 'w-2.5 bg-white/40'
-            }`}
+            className={[
+              'block h-1.5 rounded-full transition-[width,background-color] duration-500',
+              i === index ? 'w-10 bg-white' : 'w-1.5 bg-white/40',
+            ].join(' ')}
           />
         ))}
       </div>
