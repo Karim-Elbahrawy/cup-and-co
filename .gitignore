@@ -42,6 +42,8 @@ supabase/.temp/
 apps/ios/CupAndCo/DerivedData/
 apps/ios/CupAndCo/*.xcuserdata
 apps/ios/CupAndCo/build/
+apps/ios/CupAndCo/.build/
+apps/ios/CupAndCo/LocalConfig.xcconfig
 
 # Logs
 *.log

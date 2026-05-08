@@ -29,6 +29,9 @@ final class AuthStore {
         SecItemDelete(query as CFDictionary)
         var attrs = query
         attrs[kSecValueData as String] = data
+        // Token is only readable while the device is unlocked at least once,
+        // and never migrates off this device (excludes iCloud Keychain backups).
+        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         SecItemAdd(attrs as CFDictionary, nil)
     }
 

@@ -13,7 +13,7 @@ import {
   Users,
   Tag,
   BarChart3,
-  ScrollText,
+  ChefHat,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 import { Logo } from './Logo';
@@ -33,6 +33,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: 'Today', href: '/', icon: LayoutDashboard },
   { label: 'Orders', href: '/orders', icon: ListOrdered },
+  { label: 'KDS', href: '/kds', icon: ChefHat },
   {
     label: 'Menu',
     href: '/menu',
@@ -65,12 +66,6 @@ const NAV: NavItem[] = [
     hint: (s) => (s.role === 'barista' ? 'Owner only' : null),
   },
   {
-    label: 'Audit Log',
-    href: '/audit',
-    icon: ScrollText,
-    hint: (s) => (s.role === 'barista' ? 'Owner only' : null),
-  },
-  {
     label: 'Settings',
     href: '/settings',
     icon: Settings,
@@ -80,36 +75,57 @@ const NAV: NavItem[] = [
 
 interface SidebarProps {
   session: AdminSession;
+  /**
+   * `'rail'` (default) — collapsed icon-only at the md breakpoint, full
+   * labels at lg+. Used for the desktop persistent sidebar.
+   *
+   * `'drawer'` — always full-width with labels. Used by AdminShell's mobile
+   * slide-over which renders this inside a 288px panel.
+   */
+  variant?: 'rail' | 'drawer';
 }
 
-export function Sidebar({ session }: SidebarProps) {
+export function Sidebar({ session, variant = 'rail' }: SidebarProps) {
   const pathname = usePathname() ?? '/';
   const router = useRouter();
+  const isDrawer = variant === 'drawer';
 
   function handleLogout() {
     clearSession();
     router.replace('/login');
   }
 
+  // Visibility helpers for label / hint columns. The drawer variant always
+  // shows them; the rail variant follows breakpoints (icon-only at md, full
+  // labels at lg+).
+  const labelClass = isDrawer ? 'inline' : 'hidden lg:inline';
+  const hintClass = isDrawer ? 'inline' : 'hidden lg:inline';
+
   return (
     <aside
-      className="sticky top-0 flex h-screen w-16 shrink-0 flex-col border-r border-cup-stroke bg-cup-surface md:w-60"
+      className={
+        isDrawer
+          ? 'flex h-full w-full shrink-0 flex-col bg-cup-surface'
+          : 'sticky top-0 flex h-screen w-16 shrink-0 flex-col border-r border-cup-stroke bg-cup-surface lg:w-60'
+      }
       aria-label="Primary navigation"
     >
-      <div className="flex h-16 items-center justify-center border-b border-cup-stroke px-3 md:justify-start md:px-5">
-        <span className="hidden md:block">
-          <Logo />
-        </span>
-        <span className="md:hidden">
-          <Logo iconOnly />
-        </span>
-      </div>
+      {!isDrawer && (
+        <div className="flex h-16 items-center border-b border-cup-stroke px-3 lg:px-5">
+          <span className="hidden lg:flex">
+            <Logo />
+          </span>
+          <span className="mx-auto lg:hidden">
+            <Logo iconOnly />
+          </span>
+        </div>
+      )}
 
       <nav className="flex-1 overflow-y-auto px-2 py-4 md:px-3">
         <ul className="space-y-1">
           {NAV.filter((item) => {
             // Hide owner-only nav items from baristas
-            const ownerOnly = ['/reviews', '/users', '/offers', '/reports', '/audit'];
+            const ownerOnly = ['/reviews', '/users', '/offers', '/reports'];
             if (ownerOnly.includes(item.href) && session.role !== 'owner') return false;
             return true;
           }).map((item) => {
@@ -122,7 +138,7 @@ export function Sidebar({ session }: SidebarProps) {
                 <Link
                   href={item.href}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`relative flex items-center gap-3 rounded-chip px-2.5 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 md:px-3 ${
+                  className={`relative flex items-center gap-3 rounded-chip px-2.5 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 lg:px-3 ${
                     isActive
                       ? 'bg-cup-orange-100 text-cup-orange-700'
                       : 'text-cup-brown-700 hover:bg-cup-cream-100'
@@ -135,9 +151,11 @@ export function Sidebar({ session }: SidebarProps) {
                     />
                   )}
                   <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                  <span className="hidden flex-1 truncate md:inline">{item.label}</span>
+                  <span className={`flex-1 truncate ${labelClass}`}>{item.label}</span>
                   {hint && (
-                    <span className="hidden rounded-pill bg-cup-brown-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-cup-muted md:inline">
+                    <span
+                      className={`rounded-pill bg-cup-brown-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-cup-muted ${hintClass}`}
+                    >
                       {hint}
                     </span>
                   )}
@@ -148,8 +166,8 @@ export function Sidebar({ session }: SidebarProps) {
         </ul>
       </nav>
 
-      <div className="border-t border-cup-stroke px-2 py-3 md:px-3">
-        <div className="hidden md:block">
+      <div className="border-t border-cup-stroke px-2 py-3 lg:px-3">
+        <div className={isDrawer ? 'block' : 'hidden lg:block'}>
           <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-cup-muted">
             Signed in
           </p>
@@ -162,7 +180,7 @@ export function Sidebar({ session }: SidebarProps) {
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-pill border border-cup-stroke bg-white px-3 py-2 text-sm font-semibold text-cup-brown-700 transition hover:bg-cup-cream-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600"
         >
           <LogOut className="h-4 w-4" aria-hidden />
-          <span className="hidden md:inline">Sign out</span>
+          <span className={labelClass}>Sign out</span>
         </button>
       </div>
     </aside>

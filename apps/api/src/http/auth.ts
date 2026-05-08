@@ -1,7 +1,9 @@
 import jwt from 'jsonwebtoken';
+import * as Sentry from '@sentry/node';
 import type { Request, Response, NextFunction } from 'express';
 import type { UserRole, VerificationStatus } from '@cup-and-co/types';
 import { config } from '../config.js';
+import { identify as identifyAnalytics } from '../services/analytics.js';
 
 export interface AuthUser {
   id: string;
@@ -35,16 +37,22 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       const token = auth.slice(7);
       const decoded = jwt.verify(token, config.jwt.secret) as AuthUser;
       req.user = decoded;
+      // Phase 1.1: tag Sentry scope with user_id only — no phone/role in error reports.
+      Sentry.setUser({ id: decoded.id });
+      // Phase 1.2: identify for PostHog analytics with role only — no PII.
+      identifyAnalytics(decoded.id, { role: decoded.role });
       return next();
     }
 
-    if (config.nodeEnv === 'development' || config.nodeEnv === 'test') {
+    if (process.env.ALLOW_HEADER_AUTH_BYPASS === '1') {
       const id = req.header('x-user-id');
       const role = (req.header('x-user-role') ?? 'student') as UserRole;
       const verificationStatus = (req.header('x-verification-status') ?? 'approved') as VerificationStatus;
       const phone = req.header('x-user-phone') ?? '+201000000001';
       if (id) {
         req.user = { id, phone, role, verificationStatus, phoneVerified: true };
+        Sentry.setUser({ id });
+        identifyAnalytics(id, { role });
         return next();
       }
     }

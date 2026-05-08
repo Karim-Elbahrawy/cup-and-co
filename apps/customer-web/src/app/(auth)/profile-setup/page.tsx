@@ -54,7 +54,7 @@ export default function ProfileSetupPage() {
     }
     setAvatarId(avatarId);
     setGender(gender);
-    router.push('/verify-id');
+    router.push('/');
   };
 
   const isAr = language === 'ar';

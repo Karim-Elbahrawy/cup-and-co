@@ -29,7 +29,8 @@ export default function GamePage() {
     try {
       const s = await api.createGameSession();
       setSession(s);
-      setSessionsUsed((prev) => prev + 1);
+      // Refresh server-truth daily status after starting a session
+      void api.gameDailyStatus().then((d) => setSessionsUsed(d.sessionsUsed)).catch(() => {});
     } catch (e) {
       if (e instanceof ApiError) {
         setError(e.message);
@@ -46,6 +47,8 @@ export default function GamePage() {
       setLoading(false);
       return;
     }
+    // Read server truth for sessionsUsed before starting a new one.
+    void api.gameDailyStatus().then((d) => setSessionsUsed(d.sessionsUsed)).catch(() => {});
     void fetchSession();
   }, [isStudent, fetchSession]);
 
@@ -70,7 +73,7 @@ export default function GamePage() {
         </p>
         <Link
           href="/rewards"
-          className="mt-6 rounded-2xl bg-cup-orange-500 px-8 py-3.5 font-heading text-sm font-bold text-white shadow-elevated transition active:scale-[0.97]"
+          className="mt-6 rounded-2xl bg-cup-orange-600 px-8 py-3.5 font-heading text-sm font-bold text-white shadow-elevated transition active:scale-[0.97]"
         >
           {language === 'ar' ? 'العودة للمكافآت' : 'Back to Rewards'}
         </Link>
@@ -82,7 +85,7 @@ export default function GamePage() {
   if (loading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-cup-paper pb-24">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-cup-orange-500 border-t-transparent" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-cup-orange-600 border-t-transparent" />
         <p className="mt-4 text-sm text-cup-muted">{t('games.preparing')}</p>
       </main>
     );

@@ -4,11 +4,17 @@ import { use, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Check, XCircle, MapPin, Clock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, Check, XCircle, RotateCcw, ChevronDown, Clock } from 'lucide-react';
 import { api, ApiError, BASE_URL } from '@/lib/api';
 import { getToken } from '@/lib/session';
-import { useT, formatPrice } from '@/lib/i18n';
-import type { ApiOrder, TimelineStep } from '@/lib/types';
+import { useT } from '@/lib/i18n';
+import { useCart } from '@/lib/cart';
+import {
+  PostOrderReviewPrompt,
+  isOrderReviewed,
+} from '@/components/PostOrderReviewPrompt';
+import type { ApiOrder, PrepEta, TimelineStep } from '@/lib/types';
 
 const POLL_MS = 5000;
 const TERMINAL_STATUSES = ['completed', 'cancelled', 'refunded'];
@@ -20,29 +26,53 @@ export default function OrderTrackingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const { t, language } = useT();
+  const addToCart = useCart((s) => s.add);
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [timeline, setTimeline] = useState<TimelineStep[]>([]);
-  const [prepMinutesEst, setPrepMinutesEst] = useState<number | null>(null);
+  const [prepEta, setPrepEta] = useState<PrepEta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showItems, setShowItems] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   const sseActive = useRef(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // When the order completes, decide whether to surface the review prompt.
+  // Skipped if the customer already submitted/dismissed for this order.
+  useEffect(() => {
+    if (!order) return;
+    if (order.status !== 'completed') {
+      setShowReviewPrompt(false);
+      return;
+    }
+    setShowReviewPrompt(!isOrderReviewed(order.id));
+  }, [order?.id, order?.status, order]);
+
+  function reorder() {
+    if (!order) return;
+    for (const item of order.items) {
+      addToCart({
+        productId: item.productId,
+        productNameEn: item.productNameEn,
+        productNameAr: item.productNameAr,
+        imageUrl: item.imageUrl,
+        options: item.options,
+        unitPriceEgp: item.unitPriceEgp,
+        quantity: item.quantity,
+      });
+    }
+    router.push('/cart');
+  }
 
   const refresh = useCallback(async () => {
     try {
       const res = await api.getOrder(id);
       setOrder(res.order);
       setTimeline(res.timeline);
-      if (res.prepMinutesEst != null) setPrepMinutesEst(res.prepMinutesEst);
+      if (res.prepEta) setPrepEta(res.prepEta);
       setError(null);
-      // Stop polling when terminal status reached
-      if (TERMINAL_STATUSES.includes(res.order.status) && pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load order');
     }
@@ -97,6 +127,7 @@ export default function OrderTrackingPage({
                 const evt = JSON.parse(jsonStr);
                 if (evt.order) setOrder(evt.order);
                 if (evt.timeline) setTimeline(evt.timeline);
+                if (evt.prepEta) setPrepEta(evt.prepEta);
               } catch {
                 // Malformed SSE data, skip
               }
@@ -113,22 +144,31 @@ export default function OrderTrackingPage({
       }
     }
 
-    // Try SSE, fall back to polling
-    connectSSE().then((sseWorked) => {
-      if (cancelled) return;
-      if (!sseWorked) {
-        // Fall back to polling
-        pollRef.current = setInterval(refresh, POLL_MS);
+    // SSE with exponential backoff reconnect, falling back to polling
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let retryDelay = 1000;
+    const MAX_RETRY_DELAY = 30000;
+
+    async function connectWithBackoff() {
+      while (!cancelled) {
+        const worked = await connectSSE();
+        if (cancelled) return;
+        if (!worked) {
+          pollInterval = setInterval(refresh, POLL_MS);
+          return;
+        }
+        // SSE stream ended (server closed) — reconnect with backoff
+        await new Promise((r) => setTimeout(r, retryDelay));
+        retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
       }
-    });
+    }
+
+    connectWithBackoff();
 
     return () => {
       cancelled = true;
       controller.abort();
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, [order?.id, id, refresh]);
 
@@ -141,6 +181,7 @@ export default function OrderTrackingPage({
       const res = await api.cancelOrder(id);
       setOrder(res.order);
       setTimeline(res.timeline);
+      if (res.prepEta) setPrepEta(res.prepEta);
     } catch (e) {
       setCancelError(e instanceof ApiError ? e.message : 'Failed to cancel order');
     } finally {
@@ -165,33 +206,10 @@ export default function OrderTrackingPage({
   if (!order) {
     return (
       <main className="min-h-screen bg-cup-paper px-6 pt-6">
-        <div className="mx-auto max-w-3xl animate-pulse space-y-4" role="status" aria-label="Loading order">
-          {/* Header skeleton */}
-          <div className="flex items-center justify-between">
-            <div className="h-10 w-10 rounded-full bg-cup-stroke" />
-            <div className="h-5 w-32 rounded bg-cup-stroke" />
-            <div className="h-10 w-10" />
-          </div>
-          {/* Pickup code / delivery card skeleton */}
-          <div className="rounded-card border border-cup-stroke bg-white p-6">
-            <div className="h-3 w-24 rounded bg-cup-stroke" />
-            <div className="mt-3 h-14 w-28 rounded bg-cup-stroke" />
-            <div className="mt-3 h-3 w-48 rounded bg-cup-stroke" />
-          </div>
-          {/* Timeline skeleton */}
-          <div className="rounded-card border border-cup-stroke bg-white p-6 space-y-5">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <div className="h-9 w-9 shrink-0 rounded-full bg-cup-stroke" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-4 w-24 rounded bg-cup-stroke" />
-                  <div className="h-3 w-16 rounded bg-cup-stroke" />
-                </div>
-              </div>
-            ))}
-          </div>
-          {/* Items button skeleton */}
-          <div className="h-14 rounded-card bg-cup-stroke" />
+        <div className="mx-auto max-w-3xl animate-pulse space-y-4">
+          <div className="h-12 rounded-card bg-cup-stroke" />
+          <div className="h-32 rounded-card bg-cup-stroke" />
+          <div className="h-64 rounded-card bg-cup-stroke" />
         </div>
       </main>
     );
@@ -207,69 +225,36 @@ export default function OrderTrackingPage({
         >
           <ChevronLeft className="h-5 w-5 text-cup-brown-900" />
         </Link>
-        <p className="font-heading text-base font-semibold text-cup-brown-900">
+        <h1 className="font-heading text-base font-semibold text-cup-brown-900">
           {t('orders.orderTracking')}
-        </p>
+        </h1>
         <span className="w-10" aria-hidden="true" />
       </header>
 
-      {/* Pickup code hero / Delivery details hero */}
+      {/* Pickup code hero */}
       <section className="mx-auto mt-2 max-w-3xl px-5">
-        {order.fulfillmentType === 'pickup' ? (
-          <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cup-muted">
-              {t('orders.pickupCode')}
-            </p>
-            <p className="mt-1 font-heading text-[64px] font-bold leading-none text-cup-orange-600">
-              {order.pickupCode ?? '—'}
-            </p>
-            <p className="mt-2 text-sm text-cup-muted">
-              {t('orders.pickupInstruction')}
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
-            <div className="flex items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-full bg-cup-orange-600/10">
-                <MapPin className="h-4 w-4 text-cup-orange-600" />
-              </span>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cup-muted">
-                {t('orders.deliveryAddress')}
-              </p>
-            </div>
-            <p className="mt-3 font-heading text-lg font-bold leading-snug text-cup-brown-900">
-              {order.notes
-                ? order.notes.split(' — ')[0]
-                : (language === 'ar' ? 'عنوان غير محدد' : 'No address provided')}
-            </p>
-            {order.notes?.includes(' — ') && (
-              <p className="mt-1 text-sm text-cup-muted">
-                {order.notes.split(' — ').slice(1).join(' — ')}
-              </p>
-            )}
-            <p className="mt-3 text-sm text-cup-muted">
-              {t('orders.deliveryInstruction')}
-            </p>
-          </div>
-        )}
+        <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cup-muted">
+            {t('orders.pickupCode')}
+          </p>
+          <p
+            className="mt-1 font-heading font-bold leading-none text-cup-orange-600"
+            style={{ fontSize: 'clamp(2.5rem, 14vw, 4rem)' }}
+          >
+            {order.pickupCode ?? '—'}
+          </p>
+          <p className="mt-2 text-sm text-cup-muted">
+            {order.fulfillmentType === 'pickup'
+              ? t('orders.pickupInstruction')
+              : t('orders.deliveryInstruction')}
+          </p>
+        </div>
       </section>
 
-      {/* Prep time estimate — shown only while order is still in progress */}
-      {prepMinutesEst != null && !TERMINAL_STATUSES.includes(order.status) && (
-        <section className="mx-auto mt-4 max-w-3xl px-5">
-          <div className="flex items-center gap-3 rounded-2xl border border-cup-orange-500/30 bg-cup-orange-50 px-5 py-3.5">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-cup-orange-500/15">
-              <Clock className="h-5 w-5 text-cup-orange-600" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="font-heading text-sm font-bold text-cup-orange-700">
-                {language === 'ar' ? `جاهز خلال ~${prepMinutesEst} دقيقة` : `Ready in ~${prepMinutesEst} min`}
-              </p>
-              <p className="text-xs text-cup-orange-600/70">
-                {language === 'ar' ? 'وقت تحضير تقريبي' : 'Estimated prep time'}
-              </p>
-            </div>
-          </div>
+      {/* Prep ETA pill — only while the order is in motion */}
+      {prepEta && prepEta.basis !== 'ready' && prepEta.basis !== 'cancelled' && (
+        <section className="mx-auto mt-3 max-w-3xl px-5">
+          <PrepEtaPill eta={prepEta} language={language} />
         </section>
       )}
 
@@ -298,34 +283,56 @@ export default function OrderTrackingPage({
         )}
       </AnimatePresence>
 
+      {/* Review prompt — only on completed orders that haven't been reviewed yet. */}
+      {order && order.status === 'completed' && showReviewPrompt && (
+        <section className="mx-auto mt-4 max-w-3xl px-5">
+          <PostOrderReviewPrompt
+            order={order}
+            language={language}
+            onResolved={() => setShowReviewPrompt(false)}
+          />
+        </section>
+      )}
+
+      {/* Reorder when completed */}
+      {order && order.status === 'completed' && (
+        <section className="mx-auto mt-4 max-w-3xl px-5">
+          <button
+            type="button"
+            onClick={reorder}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-cup-orange-600 px-5 py-3 font-heading text-sm font-semibold text-white shadow-subtle transition active:scale-[0.98]"
+          >
+            <RotateCcw className="h-4 w-4" />
+            {t('orders.reorder')}
+          </button>
+        </section>
+      )}
+
       {/* Vertical timeline */}
       <section className="mx-auto mt-5 max-w-3xl px-5">
         <div className="rounded-card border border-cup-stroke bg-white p-6 shadow-card">
           <ol className="relative space-y-6 ps-2" aria-label="Order status">
             {timeline.map((step, idx) => {
               const isLast = idx === timeline.length - 1;
-              const { solid, soft } = stepColor(idx, timeline.length, step.status);
               return (
                 <li key={`${step.status}-${idx}`} className="relative flex gap-4">
-                  {/* connector line — colored when done, stroke when pending */}
+                  {/* connector — solid for completed, dotted for pending */}
                   {!isLast && (
                     <span
                       aria-hidden="true"
-                      className="absolute left-[18px] top-9 h-[calc(100%+8px)] w-0.5 transition-colors duration-500"
-                      style={{ backgroundColor: step.done ? solid : 'var(--cup-stroke)' }}
+                      className={`absolute left-[17px] top-9 h-[calc(100%+8px)] w-[3px] ${
+                        step.done
+                          ? 'bg-cup-orange-600'
+                          : 'border-l-[3px] border-dotted border-cup-stroke'
+                      }`}
                     />
                   )}
-                  <StepDot done={step.done} active={step.active} solid={solid} soft={soft} />
+                  <StepDot done={step.done} active={step.active} />
                   <div className="flex-1 pt-1">
                     <p
-                      className="font-heading text-sm font-semibold transition-colors duration-300"
-                      style={{
-                        color: step.active
-                          ? solid
-                          : step.done
-                          ? 'var(--cup-espresso)'
-                          : 'var(--cup-muted)',
-                      }}
+                      className={`font-heading text-sm font-semibold ${
+                        step.active ? 'text-cup-orange-700' : step.done ? 'text-cup-brown-900' : 'text-cup-muted'
+                      }`}
                     >
                       {step.label}
                     </p>
@@ -353,7 +360,7 @@ export default function OrderTrackingPage({
           className="flex w-full items-center justify-between rounded-card border border-cup-stroke bg-white px-5 py-4 text-start text-sm font-semibold text-cup-brown-900 shadow-subtle"
         >
           {showItems ? t('orders.hideItems') : `${t('orders.viewItems')} (${order.items.length})`}
-          <span className="text-cup-muted">{showItems ? '▲' : '▼'}</span>
+          <ChevronDown className={`h-4 w-4 text-cup-muted transition-transform ${showItems ? 'rotate-180' : ''}`} />
         </button>
         {showItems && (
           <div className="mt-2 rounded-card border border-cup-stroke bg-white p-4 shadow-subtle">
@@ -385,7 +392,7 @@ export default function OrderTrackingPage({
                     )}
                   </div>
                   <p className="self-center text-sm font-semibold text-cup-orange-700">
-                    {formatPrice(it.lineTotalEgp, language)}
+                    EGP {it.lineTotalEgp}
                   </p>
                 </li>
               ))}
@@ -394,104 +401,101 @@ export default function OrderTrackingPage({
             <div className="flex justify-between text-sm">
               <span className="text-cup-muted">{t('cart.total')}</span>
               <span className="font-heading text-base font-bold text-cup-orange-700">
-                {formatPrice(order.totalEgp, language)}
+                EGP {order.totalEgp}
               </span>
             </div>
           </div>
         )}
       </section>
 
-      <p className="mt-6 text-center text-xs text-cup-muted">
-        {`Status: ${t(`orders.${camelize(order.status)}`)} · ${order.paymentStatus}`}
-      </p>
+      <div className="mt-6 flex justify-center gap-2">
+        <span className="rounded-full bg-cup-orange-600/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-cup-orange-700">
+          {t(`orders.${camelize(order.status)}`)}
+        </span>
+        <span className="rounded-full bg-cup-paper px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-cup-muted">
+          {order.paymentStatus}
+        </span>
+      </div>
     </main>
   );
 }
 
-function StepDot({
-  done,
-  active,
-  solid,
-  soft,
-}: {
-  done: boolean;
-  active: boolean;
-  solid: string;
-  soft: string;
-}) {
+function StepDot({ done, active }: { done: boolean; active: boolean }) {
   if (done) {
     return (
-      <span
-        className="z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full text-white shadow-subtle transition-colors duration-500"
-        style={{ backgroundColor: solid }}
-      >
+      <span className="z-10 grid h-9 w-9 place-items-center rounded-full bg-cup-orange-600 text-white shadow-subtle">
         <Check className="h-4 w-4" />
       </span>
     );
   }
   if (active) {
     return (
-      <span className="relative z-10 grid h-9 w-9 shrink-0 place-items-center" aria-current="step">
-        {/* pulsing halo */}
+      <span className="relative z-10 grid h-9 w-9 place-items-center" aria-current="step">
         <motion.span
           aria-hidden="true"
-          className="absolute inset-0 rounded-full"
-          style={{ backgroundColor: soft }}
-          animate={{ scale: [1, 1.35, 1], opacity: [0.8, 0, 0.8] }}
-          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute inset-0 rounded-full bg-cup-teal-700/30"
+          animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0, 0.6] }}
+          transition={{ duration: 1.6, repeat: Infinity }}
         />
-        {/* ring */}
-        <span
-          className="absolute inset-0 rounded-full border-2 bg-white"
-          style={{ borderColor: solid }}
-        />
-        {/* inner dot */}
-        <span
-          className="relative h-2.5 w-2.5 rounded-full"
-          style={{ backgroundColor: solid }}
-        />
+        <span className="absolute inset-0 rounded-full border-2 border-cup-orange-600 bg-cup-cream-100" />
+        <span className="relative h-2 w-2 rounded-full bg-cup-orange-600" />
       </span>
     );
   }
-  // future step
   return (
-    <span className="z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-cup-stroke bg-white" />
+    <span className="z-10 grid h-9 w-9 place-items-center rounded-full border-2 border-cup-stroke bg-white" />
   );
-}
-
-/**
- * Returns a color for a timeline step. 'preparing' is always yellow; every
- * other step interpolates from terracotta-orange (first) to emerald-green (last).
- */
-function stepColor(idx: number, total: number, status?: string): { solid: string; soft: string } {
-  if (status === 'preparing') {
-    return { solid: 'rgb(234, 179, 8)', soft: 'rgba(234, 179, 8, 0.18)' };
-  }
-  const t = total <= 1 ? 1 : idx / (total - 1);
-
-  // Four anchor colors: orange → amber → lime → green
-  const stops: [number, number, number][] = [
-    [194,  65,  12],   // #C2410C  terracotta (brand primary)
-    [217, 119,   6],   // #D97706  amber
-    [101, 163,  13],   // #65A30D  lime-600
-    [ 21, 128,  61],   // #15803D  emerald (cup-success)
-  ];
-
-  const seg = t * (stops.length - 1);
-  const lo  = Math.floor(seg);
-  const hi  = Math.min(lo + 1, stops.length - 1);
-  const f   = seg - lo;
-
-  const r = Math.round(stops[lo][0] + (stops[hi][0] - stops[lo][0]) * f);
-  const g = Math.round(stops[lo][1] + (stops[hi][1] - stops[lo][1]) * f);
-  const b = Math.round(stops[lo][2] + (stops[hi][2] - stops[lo][2]) * f);
-
-  return {
-    solid: `rgb(${r}, ${g}, ${b})`,
-    soft:  `rgba(${r}, ${g}, ${b}, 0.18)`,
-  };
 }
 
 function camelize(s: string): string {
   return s.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase());
+}
+
+/**
+ * Live prep-ETA pill rendered above the timeline. The headline copy
+ * varies by `basis` so the customer knows whether the wait is queue
+ * position vs barista currently working on it. Self-contained EN/AR
+ * copy to keep the wire-up tight; promote into packages/i18n when the
+ * shape settles.
+ */
+function PrepEtaPill({ eta, language }: { eta: PrepEta; language: 'en' | 'ar' }) {
+  const isAr = language === 'ar';
+  const minutes = Math.max(1, eta.etaMinutes);
+
+  let headline: string;
+  let detail: string;
+  switch (eta.basis) {
+    case 'in_prep':
+      headline = isAr ? `جاهز خلال ~${minutes} دقيقة` : `Ready in ~${minutes} min`;
+      detail = isAr ? 'بنحضر طلبك دلوقتي.' : 'Barista is on your order now.';
+      break;
+    case 'queue':
+      headline = isAr ? `جاهز خلال ~${minutes} دقيقة` : `Ready in ~${minutes} min`;
+      detail = isAr ? 'في الطابور قبل البدء.' : 'In queue before brewing starts.';
+      break;
+    case 'scheduled':
+      headline = isAr ? `جدولة بعد ~${minutes} دقيقة` : `Scheduled in ~${minutes} min`;
+      detail = isAr ? 'بنبدأ في الموعد المحدد.' : 'We will start at your scheduled time.';
+      break;
+    default:
+      headline = isAr ? 'جاهز' : 'Ready';
+      detail = '';
+  }
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      data-testid="prep-eta-pill"
+      className="flex items-center gap-3 rounded-card border border-cup-orange-600/20 bg-cup-cream-100 px-4 py-3 shadow-subtle"
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-cup-orange-600 text-white">
+        <Clock className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-heading text-sm font-bold text-cup-brown-900">{headline}</p>
+        {detail && <p className="mt-0.5 text-xs text-cup-muted">{detail}</p>}
+      </div>
+    </div>
+  );
 }

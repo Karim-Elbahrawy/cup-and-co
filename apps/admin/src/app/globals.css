@@ -36,3 +36,20 @@ button { cursor: pointer; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--cup-stroke); border-radius: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* Slide-over keyframes used by AdminShell drawer + AddProductSheet */
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Skip the slide animation for users who don't want motion. */
+  *[class*='animate-[slideIn'],
+  *[class*='animate-[slideInRight'] {
+    animation: none !important;
+  }
+}

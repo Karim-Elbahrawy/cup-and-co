@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   CatalogResponse,
   CreateOrderRequest,
+  FeatureFlagsResponse,
   GameScoreResponse,
   GameSession,
   LeaderboardCurrentResponse,
@@ -19,6 +20,7 @@ import type {
   ReviewInput,
   ReviewResponse,
 } from './types';
+import type { Campus, Kiosk } from '@cup-and-co/types';
 
 export const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'http://localhost:4000';
@@ -94,14 +96,21 @@ export const api = {
       noAuth: true,
     }),
 
-  verifyOtp: (phone: string, code: string) =>
+  verifyOtp: (phone: string, code: string, referralCode?: string) =>
     apiFetch<AuthResponse>('/auth/otp/verify', {
       method: 'POST',
-      body: { phone, code },
+      body: referralCode ? { phone, code, referralCode } : { phone, code },
       noAuth: true,
     }),
 
   me: () => apiFetch<MeResponse>('/me'),
+
+  /**
+   * Returns this user's variant assignment for every known feature flag.
+   * Bucketing is deterministic server-side, so the result is safe to cache
+   * for the duration of a session.
+   */
+  myFeatureFlags: () => apiFetch<FeatureFlagsResponse>('/me/feature-flags'),
 
   patchMe: (input: {
     full_name?: string;
@@ -120,8 +129,12 @@ export const api = {
   product: (id: string) => apiFetch<ProductDetailResponse>(`/products/${id}`),
 
   // -- Phase 2 ordering --
-  createOrder: (input: CreateOrderRequest) =>
-    apiFetch<OrderResponse>('/orders', { method: 'POST', body: input }),
+  createOrder: (input: CreateOrderRequest, idempotencyKey?: string) =>
+    apiFetch<OrderResponse>('/orders', {
+      method: 'POST',
+      body: input,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
+    }),
 
   getOrder: (id: string) => apiFetch<OrderResponse>(`/orders/${id}`),
 
@@ -163,6 +176,9 @@ export const api = {
   createGameSession: () =>
     apiFetch<GameSession>('/games/sessions', { method: 'POST' }),
 
+  gameDailyStatus: () =>
+    apiFetch<{ sessionsUsed: number; sessionsLeft: number; dailyLimit: number }>('/games/sessions/me'),
+
   submitGameScore: (sessionId: string, score: number, durationSeconds: number) =>
     apiFetch<GameScoreResponse>('/games/scores', {
       method: 'POST',
@@ -178,6 +194,159 @@ export const api = {
   prizes: () =>
     apiFetch<PrizesResponse>('/prizes'),
 
+  validateCoupon: (code: string) =>
+    apiFetch<{ ok: boolean; type?: string; value?: number; descriptionEn?: string; descriptionAr?: string; reason?: string }>('/coupons/validate', {
+      method: 'POST',
+      body: { code },
+    }),
+
+  searchProducts: (q: string) =>
+    apiFetch<CatalogResponse>(`/catalog?q=${encodeURIComponent(q)}`),
+
+  // -- Phase 1.3 account lifecycle / data export --
+  accountStatus: () =>
+    apiFetch<{
+      status: 'active' | 'deletion_requested' | 'deletion_pending';
+      deletionRequestedAt?: string;
+      deletedAt?: string | null;
+      graceUntil?: string;
+      graceDays?: number;
+    }>('/me/account/status'),
+
+  requestAccountDeletion: () =>
+    apiFetch<{ ok: boolean; expiresAt: string; devCode?: string }>(
+      '/me/account/delete-request',
+      { method: 'POST' },
+    ),
+
+  confirmAccountDeletion: (code: string) =>
+    apiFetch<{
+      ok: boolean;
+      deletedAt: string;
+      deletionRequestedAt: string;
+      graceUntil: string;
+      graceDays: number;
+      message: string;
+    }>('/me/account/delete-confirm', { method: 'POST', body: { code } }),
+
+  cancelAccountDeletion: () =>
+    apiFetch<{ ok: boolean; message: string }>(
+      '/me/account/cancel-deletion',
+      { method: 'POST' },
+    ),
+
+  requestDataExport: () =>
+    apiFetch<{
+      jobId: string;
+      status: 'pending' | 'running' | 'done' | 'failed';
+      downloadUrl: string;
+      expiresAt: string | null;
+    }>('/me/data/export', { method: 'POST' }),
+
+  getDataExport: (jobId: string) =>
+    apiFetch<{
+      jobId: string;
+      status: 'pending' | 'running' | 'done' | 'failed';
+      createdAt: string;
+      doneAt: string | null;
+      expiresAt: string | null;
+      error: string | null;
+      downloadUrl?: string;
+    }>(`/me/data/exports/${jobId}`),
+
+  // -- Phase 2.2 multi-campus --
+  listCampuses: () => apiFetch<{ campuses: Campus[] }>('/campuses'),
+
+  getCampus: (id: string) =>
+    apiFetch<{ campus: Campus; kiosks: Kiosk[] }>(`/campuses/${id}`),
+
+  myCampus: () => apiFetch<{ campus: Campus | null }>('/me/campus'),
+
+  setMyCampus: (campusId: string) =>
+    apiFetch<{ campus: Campus }>('/me/campus', {
+      method: 'PATCH',
+      body: { campus_id: campusId },
+    }),
+
+  // -- Phase 6.1 order favorites (separate from product `addFavorite`) --
+  listOrderFavorites: () => apiFetch<{ favorites: OrderFavorite[] }>('/me/favorites/orders'),
+
+  createOrderFavorite: (input: {
+    name: string;
+    items: OrderFavoriteItem[];
+    timeOfDay?: 'morning' | 'midday' | 'evening' | null;
+    isDefault?: boolean;
+  }) =>
+    apiFetch<{ favorite: OrderFavorite }>('/me/favorites/orders', {
+      method: 'POST',
+      body: input,
+    }),
+
+  updateOrderFavorite: (
+    id: string,
+    input: Partial<{
+      name: string;
+      items: OrderFavoriteItem[];
+      timeOfDay: 'morning' | 'midday' | 'evening' | null;
+      isDefault: boolean;
+    }>,
+  ) =>
+    apiFetch<{ favorite: OrderFavorite }>(`/me/favorites/orders/${id}`, {
+      method: 'PATCH',
+      body: input,
+    }),
+
+  deleteOrderFavorite: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/me/favorites/orders/${id}`, { method: 'DELETE' }),
+
+  reorderOrderFavorite: (id: string) =>
+    apiFetch<{ items: OrderFavoriteItem[]; favoriteId: string; favoriteName: string }>(
+      `/me/favorites/orders/${id}/reorder`,
+      { method: 'POST' },
+    ),
+
+  // -- Phase 6.2 streaks --
+  myStreak: () => apiFetch<{ streak: StreakState }>('/me/streak'),
+
+  // -- Phase 6.3 tiered loyalty --
+  myTier: () =>
+    apiFetch<{
+      tier: LoyaltyTier;
+      tierCalculatedAt: string | null;
+      trailing12mPoints: number;
+      benefits: TierBenefits;
+      nextTier: LoyaltyTier | null;
+      pointsToNext: number | null;
+      history: TierHistoryEntry[];
+    }>('/me/tier'),
+
+  // -- Phase 6.4 smart suggestion --
+  mySuggestion: () => apiFetch<{ suggestion: Suggestion | null }>('/me/suggestion'),
+
+  // -- Phase 7.1 referrals --
+  trackReferralClick: (code: string) =>
+    apiFetch<{ referralId: string; code: string }>('/referrals/track-click', {
+      method: 'POST',
+      body: { code },
+      noAuth: true,
+    }),
+
+  myReferral: () =>
+    apiFetch<{
+      code: string;
+      stats: { totalClicks: number; totalSignups: number; totalConversions: number; totalPointsEarned: number };
+      recent: Array<{
+        id: string;
+        status: 'pending' | 'signed_up' | 'converted' | 'rejected';
+        refClickedAt: string;
+        signedUpAt: string | null;
+        convertedAt: string | null;
+        referrerReward: number | null;
+      }>;
+      shareLinkPath: string;
+      rewards: { referrer: number; referee: number; minOrderEgp: number };
+    }>('/me/referral'),
+
   /**
    * Cup AI Concierge — describe what you want, get matched products.
    * Free + offline-friendly: server uses a rule-based matcher, no LLM call.
@@ -190,6 +359,73 @@ export const api = {
       signal,
     }),
 };
+
+// Phase 6.1 types — kept inline so callers can import alongside `api`.
+export interface OrderFavoriteItem {
+  productId: string;
+  productNameEn: string;
+  productNameAr: string;
+  imageUrl: string;
+  quantity: number;
+  options: Record<string, string>;
+  unitPriceEgp: number;
+}
+
+export interface OrderFavorite {
+  id: string;
+  userId: string;
+  name: string;
+  items: OrderFavoriteItem[];
+  timeOfDay: 'morning' | 'midday' | 'evening' | null;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Phase 6.2 streak state.
+export interface StreakState {
+  currentStreak: number;
+  longestStreak: number;
+  lastOrderDate: string | null;
+  freezesUsedThisWeek: number;
+  freezesResetAt: string;
+  lastBonusStreak: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Phase 6.3 tiered loyalty types.
+export type LoyaltyTier = 'bronze' | 'silver' | 'gold';
+
+export interface TierBenefits {
+  tier: LoyaltyTier;
+  multiplier: number;
+  freeUpsizesPerMonth: number;
+  birthdayDrinkFree: boolean;
+  kdsPriority: boolean;
+}
+
+export interface TierHistoryEntry {
+  id: string;
+  userId: string;
+  fromTier: LoyaltyTier | null;
+  toTier: LoyaltyTier;
+  trailing12mPoints: number;
+  reason: string;
+  changedAt: string;
+}
+
+// Phase 6.4 smart suggestion shape.
+export interface Suggestion {
+  productId: string;
+  productNameEn: string;
+  productNameAr: string;
+  imageUrl: string;
+  basePriceEgp: number;
+  bucket: 'morning' | 'midday' | 'evening';
+  season: 'summer' | 'winter';
+  reason: 'history' | 'season' | 'bestseller';
+}
 
 // ── Cup AI Concierge response types ─────────────────────────────────────────
 export interface ConciergeSignals {

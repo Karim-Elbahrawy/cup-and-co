@@ -40,7 +40,7 @@ export function UserAvatar({ name, phone, avatarUrl, avatarId, size = 'md', clas
   const resolvedSrc =
     avatarId && avatarId >= 1 && avatarId <= 7
       ? `/brand/avatars/avatar-${avatarId}.svg`
-      : avatarUrl ?? '/brand/avatar-placeholder.svg';
+      : avatarUrl ?? '/brand/avatar-mascot.png';
 
   const isPersonality = Boolean(avatarId && avatarId >= 1 && avatarId <= 7);
 

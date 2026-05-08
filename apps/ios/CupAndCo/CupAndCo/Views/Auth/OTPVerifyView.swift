@@ -11,6 +11,7 @@ struct OTPVerifyView: View {
     @Environment(SessionStore.self) private var session
 
     @State private var code: String = ""
+    @State private var resendCooldown: Int = 30
     @FocusState private var focused: Bool
 
     private let length = 6
@@ -89,13 +90,24 @@ struct OTPVerifyView: View {
                 .padding(.bottom, 8)
 
                 Button {
-                    Task { await session.sendOTP(phone: phone) }
+                    Task {
+                        await session.sendOTP(phone: phone)
+                        resendCooldown = 30
+                    }
                 } label: {
-                    Text("otp.resend")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(CupColors.accent)
-                        .frame(maxWidth: .infinity)
+                    if resendCooldown > 0 {
+                        Text("Resend in \(resendCooldown)s")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(CupColors.muted)
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("otp.resend")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(CupColors.accent)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
+                .disabled(resendCooldown > 0)
                 .padding(.bottom, 24)
             }
             .padding(.horizontal, 24)
@@ -103,6 +115,9 @@ struct OTPVerifyView: View {
         }
         .preferredColorScheme(.light)
         .onAppear { focused = true }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            if resendCooldown > 0 { resendCooldown -= 1 }
+        }
     }
 
     private var otpRow: some View {

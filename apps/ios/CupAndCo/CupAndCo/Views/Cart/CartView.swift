@@ -227,6 +227,11 @@ struct CartView: View {
 struct CartItemRow: View {
     let item: CartItem
     @Environment(CartStore.self) private var cart
+    @Environment(SessionStore.self) private var session
+
+    private var language: LanguagePref {
+        session.user?.languagePref ?? .en
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -235,7 +240,7 @@ struct CartItemRow: View {
 
             // Info
             VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: item.product.nameEn)
+                Text(verbatim: item.product.localizedName(language: language))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(CupColors.espresso)
                     .lineLimit(1)
@@ -304,13 +309,10 @@ struct CartItemRow: View {
     private var productImage: some View {
         Group {
             if let url = URL(string: item.product.imageUrl), !item.product.imageUrl.isEmpty {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().scaledToFill()
-                    default:
-                        imagePlaceholder
-                    }
+                CachedAsyncImage(url: url) {
+                    imagePlaceholder
+                } content: { img in
+                    img.resizable().scaledToFill()
                 }
             } else {
                 imagePlaceholder

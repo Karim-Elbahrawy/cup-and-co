@@ -47,6 +47,9 @@ export interface Translations {
     };
   };
   home: {
+    goodMorning: string;
+    goodAfternoon: string;
+    goodEvening: string;
     todayOnly: string;
     superDiscount: string;
     offPercent: string;
@@ -72,6 +75,14 @@ export interface Translations {
     no: string;
     prepTime: string;
     minutes: string;
+    reviews: {
+      header: string;
+      writeAReview: string;
+      placeholder: string;
+      submitButton: string;
+      submittedThankYou: string;
+      noReviewsYet: string;
+    };
   };
   cart: {
     myCart: string;
@@ -82,6 +93,7 @@ export interface Translations {
     emptyCartMessage: string;
     redeemPoints: string;
     pointsAvailable: string;
+    browseMenu: string;
   };
   checkout: {
     pickupTime: string;
@@ -103,7 +115,6 @@ export interface Translations {
   nav: {
     home: string;
     usual: string;
-    orders: string;
     cart: string;
     rewards: string;
     profile: string;
@@ -127,7 +138,7 @@ export interface Translations {
     viewItems: string;
     pickupInstruction: string;
     deliveryInstruction: string;
-    deliveryAddress: string;
+    reorder: string;
   };
   loyalty: {
     rewards: string;
@@ -189,5 +200,62 @@ export interface Translations {
     support: string;
     about: string;
     iOSOnly: string;
+  };
+  privacy: {
+    title: string;
+    intro: string;
+    exportSection: string;
+    exportDescription: string;
+    exportButton: string;
+    exportPreparing: string;
+    exportReady: string;
+    exportDownload: string;
+    exportRateLimited: string;
+    deleteSection: string;
+    deleteDescription: string;
+    deleteButton: string;
+    deleteConfirmTitle: string;
+    deleteConfirmBody: string;
+    deleteConfirmGrace: string;
+    deleteSendCode: string;
+    deleteCodeLabel: string;
+    deleteCodePlaceholder: string;
+    deleteFinalConfirm: string;
+    deleteCancelButton: string;
+    deletePendingTitle: string;
+    deletePendingBody: string;
+    deletePendingGraceUntil: string;
+    deleteUndoButton: string;
+    deleteUndoneTitle: string;
+    deleteUndoneBody: string;
+    error: string;
+    invalidCode: string;
+  };
+  campus: {
+    title: string;
+    intro: string;
+    current: string;
+    switchNotice: string;
+    noneAvailable: string;
+  };
+  favorites: {
+    sectionTitle: string;
+    sectionSubtitle: string;
+    saveAsFavorite: string;
+    saveDefaultPrompt: string;
+    namePlaceholder: string;
+    saveButton: string;
+    cancel: string;
+    reorder: string;
+    delete: string;
+    setDefault: string;
+    isDefault: string;
+    timeMorning: string;
+    timeMidday: string;
+    timeEvening: string;
+    anyTime: string;
+    emptyTitle: string;
+    emptyBody: string;
+    saved: string;
   };
 }

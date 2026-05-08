@@ -20,7 +20,7 @@ export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded
 
 export type LoyaltySource = 'online_paid' | 'cash_in_app' | 'qr_receipt' | 'game_reward';
 
-export type OptionGroup = 'size' | 'sugar' | 'ice' | 'milk' | 'extras' | 'shots';
+export type OptionGroup = 'shots' | 'size' | 'sugar' | 'ice' | 'milk' | 'extras';
 
 /**
  * Controls what customers see in the Reviews section on the product detail page.
@@ -67,10 +67,24 @@ export interface Product {
   sort_order: number;
   rating_avg: number;
   rating_count: number;
-  /** null = unlimited inventory; 0 = sold out; positive = units remaining. */
+  /** null = unlimited stock; 0 = out of stock; >0 = units remaining */
   stock_count: number | null;
   /** Admin-set display mode for the reviews section on the product detail page. */
   review_mode: ReviewMode;
+  /**
+   * Phase 3.4 — Cloudflare Images ID. When set, customer-web builds the
+   * CDN URL via `cdnImage()` (with on-the-fly resize variants); when
+   * null, falls back to `image_url`.
+   */
+  image_id?: string | null;
+  /**
+   * Phase 3.2 — staff-managed out-of-stock toggle that complements
+   * `stock_count`. `is_out_of_stock` overrides display regardless of
+   * count. `out_of_stock_until` auto-clears the flag at that timestamp
+   * via a cron job.
+   */
+  is_out_of_stock?: boolean;
+  out_of_stock_until?: string | null;
   // ── Cup AI concierge attributes (all optional; populated by admin) ────────
   /** Stimulation level — drives matches like "energising" vs "calming". */
   energy_level?: 'low' | 'medium' | 'high' | null;
@@ -255,6 +269,7 @@ export interface ProductDetailResponse {
   options: ProductOption[];
   reviews: Review[];
   is_favorited: boolean;
+  review_mode: ReviewMode;
 }
 
 export interface LoyaltyResponse {
@@ -267,4 +282,45 @@ export interface LeaderboardResponse {
   entries: { user_id: string; name: string; score: number; rank: number }[];
   my_rank: number | null;
   my_score: number | null;
+}
+
+// Phase 2.1 of UPGRADE-PLAN.md — multi-campus types.
+export interface Campus {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_ar: string;
+  timezone: string;
+  currency: string;
+  default_language: 'en' | 'ar';
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Kiosk {
+  id: string;
+  campus_id: string;
+  slug: string;
+  name_en: string;
+  name_ar: string;
+  building: string | null;
+  lat: number | null;
+  lng: number | null;
+  is_open: boolean;
+  is_active: boolean;
+  message_en: string | null;
+  message_ar: string | null;
+  capacity_per_slot: number;
+  slot_minutes: number;
+  opens_at: string; // 'HH:MM' or 'HH:MM:SS'
+  closes_at: string;
+}
+
+export interface CampusListResponse {
+  campuses: Campus[];
+}
+
+export interface CampusKiosksResponse {
+  campus: Campus;
+  kiosks: Kiosk[];
 }

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev -p 3000 -H 0.0.0.0",
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
@@ -15,11 +15,14 @@
     "@cup-and-co/design-tokens": "workspace:*",
     "@cup-and-co/i18n": "workspace:*",
     "@cup-and-co/types": "workspace:*",
+    "@sentry/nextjs": "^8.45.0",
     "@supabase/supabase-js": "^2.45.0",
     "framer-motion": "^11.11.0",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.460.0",
     "next": "^15.0.0",
     "next-intl": "^3.21.0",
+    "posthog-js": "^1.205.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zustand": "^5.0.0"

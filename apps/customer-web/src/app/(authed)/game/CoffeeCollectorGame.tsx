@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Trophy, Clock, Gamepad2, ChevronLeft } from 'lucide-react';
+import { Heart, Trophy, Clock, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
+import { Logo } from '@/components/Logo';
 import { api, ApiError } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import type { GameSession } from '@/lib/types';
@@ -402,8 +403,8 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
             transition={{ type: 'spring', stiffness: 260, damping: 24 }}
             className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-cup-paper px-6 text-center"
           >
-            <span className="mb-4 grid h-20 w-20 place-items-center rounded-3xl bg-cup-orange-500/10">
-              <Gamepad2 className="h-10 w-10 text-cup-orange-600" />
+            <span className="mb-4 grid h-20 w-20 place-items-center rounded-3xl bg-cup-orange-600/10">
+              <Logo size={48} />
             </span>
             <h1 className="font-heading text-2xl font-bold text-cup-brown-900">
               {language === 'ar' ? 'جامع القهوة' : 'Coffee Collector'}
@@ -424,7 +425,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
               </ul>
             </div>
 
-            <div className="mt-4 rounded-xl bg-cup-orange-500/10 px-4 py-2 text-sm font-semibold text-cup-orange-600">
+            <div className="mt-4 rounded-xl bg-cup-orange-600/10 px-4 py-2 text-sm font-semibold text-cup-orange-600">
               {language === 'ar' ? 'المحاولات المتبقية: ' : 'Daily sessions left: '}{Math.max(0, dailyLeft)}
             </div>
 
@@ -432,7 +433,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
               type="button"
               onClick={startGame}
               disabled={dailyLeft <= 0}
-              className="mt-6 w-full rounded-2xl bg-cup-orange-500 py-4 font-heading text-base font-bold text-white shadow-elevated transition active:scale-[0.97] disabled:opacity-40"
+              className="mt-6 w-full rounded-2xl bg-cup-orange-600 py-4 font-heading text-base font-bold text-white shadow-elevated transition active:scale-[0.97] disabled:opacity-40"
             >
               {dailyLeft <= 0 ? (language === 'ar' ? 'لا توجد محاولات متبقية' : 'No sessions left today') : t('games.play')}
             </button>
@@ -459,7 +460,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
             transition={{ type: 'spring', stiffness: 260, damping: 22 }}
             className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-cup-paper/95 px-6 text-center backdrop-blur-sm"
           >
-            <span className="mb-3 grid h-20 w-20 place-items-center rounded-3xl bg-cup-orange-500/10">
+            <span className="mb-3 grid h-20 w-20 place-items-center rounded-3xl bg-cup-orange-600/10">
               <Trophy className="h-10 w-10 text-cup-orange-600" />
             </span>
             <h2 className="font-heading text-2xl font-bold text-cup-brown-900">{t('games.gameOver')}</h2>
@@ -475,7 +476,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
               <div className="mt-4 border-t border-cup-stroke pt-4">
                 {submitting && (
                   <div className="flex items-center justify-center gap-2 text-sm text-cup-muted">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-cup-orange-500 border-t-transparent" />
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-cup-orange-600 border-t-transparent" />
                     {language === 'ar' ? 'جاري حفظ النتيجة…' : 'Saving score…'}
                   </div>
                 )}
@@ -506,7 +507,7 @@ export function CoffeeCollectorGame({ session, sessionsUsed, onBack }: Props) {
                 type="button"
                 onClick={startGame}
                 disabled={dailyLeft <= 0 || submitting}
-                className="flex-1 rounded-2xl bg-cup-orange-500 py-3.5 font-heading text-sm font-bold text-white shadow-elevated transition active:scale-[0.97] disabled:opacity-40"
+                className="flex-1 rounded-2xl bg-cup-orange-600 py-3.5 font-heading text-sm font-bold text-white shadow-elevated transition active:scale-[0.97] disabled:opacity-40"
               >
                 {language === 'ar' ? 'العب مجدداً' : 'Play Again'}
               </button>

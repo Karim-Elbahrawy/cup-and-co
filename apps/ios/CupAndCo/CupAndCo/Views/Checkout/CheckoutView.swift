@@ -12,6 +12,7 @@ struct CheckoutView: View {
     @State private var paymentMethod: PaymentMethod = .cash
     @State private var notes: String = ""
     @State private var isPlacing: Bool = false
+    @State private var showSuccess: Bool = false
     @State private var showTracking: Bool = false
     @State private var placedOrderResponse: OrderResponse?
 
@@ -72,6 +73,24 @@ struct CheckoutView: View {
         }
         .navigationTitle(Text("checkout.title"))
         .navigationBarTitleDisplayMode(.inline)
+        .fullScreenCover(isPresented: $showSuccess) {
+            if let response = placedOrderResponse {
+                OrderSuccessOverlay(
+                    orderId: response.order.id,
+                    pickupCode: response.order.pickupCode,
+                    onTrackOrder: {
+                        showSuccess = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showTracking = true
+                        }
+                    },
+                    onBackToHome: {
+                        showSuccess = false
+                        dismiss()
+                    }
+                )
+            }
+        }
         .navigationDestination(isPresented: $showTracking) {
             if let response = placedOrderResponse {
                 OrderTrackingView(orderId: response.order.id,
@@ -262,7 +281,8 @@ struct CheckoutView: View {
                 isPlacing = false
                 if let response {
                     placedOrderResponse = response
-                    showTracking = true
+                    cart.clear()
+                    showSuccess = true
                 }
             }
         } label: {

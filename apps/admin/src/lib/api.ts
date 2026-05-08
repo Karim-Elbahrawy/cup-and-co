@@ -10,6 +10,8 @@
  */
 
 import { getSession } from './session';
+import { getStoredCampusId } from './campus';
+import type { Campus } from '@cup-and-co/types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -27,12 +29,20 @@ export class ApiError extends Error {
 function buildAuthHeaders(): Record<string, string> {
   const session = getSession();
   if (!session) return {};
-  return {
+  const headers: Record<string, string> = {
     'x-user-id': session.userId,
     'x-user-role': session.role,
     'x-user-phone': session.phone,
     'x-verification-status': 'approved',
   };
+  // Phase 2.3: forward the currently-selected admin campus to the API.
+  // The server-side filter is queued for after API state moves off
+  // in-memory Maps; sending the header now makes the wire format ready.
+  const campusId = getStoredCampusId();
+  if (campusId) {
+    headers['x-admin-campus-id'] = campusId;
+  }
+  return headers;
 }
 
 export interface ApiOptions {
@@ -295,27 +305,69 @@ export const adminApi = {
       method: 'PATCH',
       body: patch,
     }),
-  createProduct: (body: {
-    category_id: string;
-    name_en: string;
-    name_ar: string;
-    description_en: string;
-    description_ar: string;
-    base_price_egp: number;
-    image_url: string;
-    prep_minutes: number;
-    sort_order: number;
-    is_available: boolean;
-  }) => api<{ product: Product }>('/admin/menu/products', { method: 'POST', body }),
   setProductAvailability: (productId: string, available: boolean) =>
     api<{ id: string; available: boolean }>(
       `/admin/menu/products/${productId}/availability`,
       { method: 'PATCH', body: { available } },
     ),
-  setProductReviewMode: (productId: string, mode: 'full' | 'write_only' | 'hidden') =>
-    api<{ id: string; review_mode: string }>(
+  // Phase 3.2 — staff out-of-stock toggle (separate from availability and
+  // from the numeric `setProductStock` count below). The two endpoints
+  // share the URL but accept different payloads server-side.
+  setProductOutOfStock: (
+    productId: string,
+    isOutOfStock: boolean,
+    outOfStockUntil?: string | null,
+  ) =>
+    api<{ id: string; is_out_of_stock: boolean; out_of_stock_until: string | null }>(
+      `/admin/menu/products/${productId}/stock`,
+      {
+        method: 'PATCH',
+        body: { is_out_of_stock: isOutOfStock, out_of_stock_until: outOfStockUntil ?? null },
+      },
+    ),
+  getProductStock: (productId: string, signal?: AbortSignal) =>
+    api<{ id: string; is_out_of_stock: boolean; out_of_stock_until: string | null }>(
+      `/admin/menu/products/${productId}/stock`,
+      { signal },
+    ),
+  createProduct: (input: {
+    category_id: string;
+    name_en: string;
+    name_ar: string;
+    description_en?: string | null;
+    description_ar?: string | null;
+    base_price_egp: number;
+    image_url?: string | null;
+    prep_minutes?: number | null;
+  }) =>
+    api<{ product: import('@cup-and-co/types').Product }>('/admin/menu/products', {
+      method: 'POST',
+      body: input,
+    }),
+  updateProduct: (
+    id: string,
+    input: Partial<{
+      category_id: string;
+      name_en: string;
+      name_ar: string;
+      description_en: string | null;
+      description_ar: string | null;
+      base_price_egp: number;
+      image_url: string | null;
+      prep_minutes: number | null;
+      is_available: boolean;
+    }>,
+  ) =>
+    api<{ product: import('@cup-and-co/types').Product }>(`/admin/menu/products/${id}`, {
+      method: 'PATCH',
+      body: input,
+    }),
+  deleteProduct: (id: string) =>
+    api<void>(`/admin/menu/products/${id}`, { method: 'DELETE' }),
+  setProductReviewMode: (productId: string, review_mode: 'full' | 'write_only' | 'hidden') =>
+    api<{ id: string; review_mode: 'full' | 'write_only' | 'hidden' }>(
       `/admin/menu/products/${productId}/review-mode`,
-      { method: 'PATCH', body: { mode } },
+      { method: 'PATCH', body: { review_mode } },
     ),
   setProductStock: (productId: string, stock_count: number | null) =>
     api<{ id: string; stock_count: number | null }>(
@@ -393,6 +445,10 @@ export const adminApi = {
     api<{ category: AdminCategory }>(`/admin/menu/categories/${id}`, { method: 'PATCH', body }),
   deleteCategory: (id: string) =>
     api<{ ok: boolean }>(`/admin/menu/categories/${id}`, { method: 'DELETE' }),
+
+  // Phase 2.3 — multi-campus
+  listCampuses: (signal?: AbortSignal) =>
+    api<{ campuses: Campus[] }>('/campuses', { signal, anonymous: true }),
 
   // ── Cup AI: per-product concierge attributes ─────────────────────────────
   getProductAttrs: (productId: string, signal?: AbortSignal) =>

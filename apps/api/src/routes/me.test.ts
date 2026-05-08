@@ -22,6 +22,30 @@ describe('GET /me', () => {
   });
 });
 
+describe('GET /me/feature-flags', () => {
+  it('requires auth', async () => {
+    await request(createApp()).get('/me/feature-flags').expect(401);
+  });
+
+  it('returns variant names for every known flag', async () => {
+    const res = await request(createApp())
+      .get('/me/feature-flags')
+      .set(headers())
+      .expect(200);
+    expect(res.body.flags).toBeDefined();
+    expect(typeof res.body.flags.welcome_banner).toBe('string');
+    expect(['control', 'variant_a']).toContain(res.body.flags.welcome_banner);
+    expect(res.body.flags.home_offers_visible).toBe('enabled');
+  });
+
+  it('is deterministic for the same user across calls', async () => {
+    const app = createApp();
+    const a = await request(app).get('/me/feature-flags').set(headers()).expect(200);
+    const b = await request(app).get('/me/feature-flags').set(headers()).expect(200);
+    expect(a.body.flags).toEqual(b.body.flags);
+  });
+});
+
 describe('PATCH /me', () => {
   it('updates language preference', async () => {
     const app = createApp();

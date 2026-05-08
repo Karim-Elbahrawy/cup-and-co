@@ -42,10 +42,22 @@ final class APIClient: @unchecked Sendable {
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
-    init(baseURL: URL = URL(string: "http://localhost:4000")!,
-         session: URLSession = .shared) {
+    init(baseURL: URL = {
+             let plist = Bundle.main.infoDictionary?["API_BASE_URL"] as? String ?? "http://localhost:4000"
+             return URL(string: plist)!
+         }(),
+         session: URLSession? = nil) {
         self.baseURL = baseURL
-        self.session = session
+        if let session {
+            self.session = session
+        } else {
+            // Bound transport timeouts: 15s for request, 30s for total resource.
+            // SSE streams override this on a per-request basis if needed.
+            let cfg = URLSessionConfiguration.default
+            cfg.timeoutIntervalForRequest = 15
+            cfg.timeoutIntervalForResource = 30
+            self.session = URLSession(configuration: cfg)
+        }
         self.decoder = JSONDecoder()
         // The API uses snake_case directly; our models declare `CodingKeys`
         // explicitly so we keep the default key strategy.
@@ -126,6 +138,41 @@ final class APIClient: @unchecked Sendable {
     private func attachAuth(_ req: inout URLRequest) {
         if let token = AuthStore.shared.token {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+    }
+
+    // MARK: - Server-Sent Events
+
+    /// Streams `data:` events from `path`. Yields each parsed JSON payload
+    /// of type `T`. Throws on transport failure so callers can reconnect.
+    func streamSSE<T: Decodable>(_ path: String, type: T.Type) -> AsyncThrowingStream<T, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                var req = URLRequest(url: baseURL.appendingPathComponent(path))
+                req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                attachAuth(&req)
+                do {
+                    let (bytes, response) = try await session.bytes(for: req)
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    guard (200..<300).contains(status) else {
+                        continuation.finish(throwing: APIError.http(status, nil))
+                        return
+                    }
+                    for try await line in bytes.lines {
+                        if Task.isCancelled { break }
+                        guard line.hasPrefix("data:") else { continue }
+                        let json = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+                        guard !json.isEmpty,
+                              let data = json.data(using: .utf8),
+                              let payload = try? decoder.decode(T.self, from: data) else { continue }
+                        continuation.yield(payload)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 }

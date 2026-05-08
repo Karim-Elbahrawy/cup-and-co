@@ -54,11 +54,12 @@ export default function CartPage() {
         <CartHeader t={t} />
         <div className="mx-auto mt-16 max-w-sm rounded-card border border-cup-stroke bg-white p-8 text-center shadow-card">
           <Image
-            src="/brand/monogram.svg"
+            src="/brand/empty-cart.png"
             alt=""
-            width={72}
-            height={72}
-            className="mx-auto opacity-70"
+            width={180}
+            height={180}
+            className="mx-auto"
+            priority
           />
           <h2 className="mt-4 font-heading text-xl font-bold text-cup-brown-900">
             {t('cart.emptyCart')}
@@ -68,7 +69,7 @@ export default function CartPage() {
             href="/"
             className="mt-5 inline-block rounded-pill bg-cup-orange-600 px-6 py-2.5 text-sm font-semibold text-white shadow-subtle"
           >
-            {t('common.back')}
+            {t('cart.browseMenu')}
           </Link>
         </div>
       </main>
@@ -102,9 +103,9 @@ export default function CartPage() {
                   />
                 ) : null}
               </div>
-              <div className="flex flex-1 flex-col">
+              <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-heading text-sm font-semibold text-cup-brown-900">
+                  <p className="line-clamp-2 font-heading text-sm font-semibold text-cup-brown-900">
                     {language === 'ar' ? item.productNameAr : item.productNameEn}
                   </p>
                   <button
@@ -118,9 +119,7 @@ export default function CartPage() {
                 </div>
                 {Object.keys(item.options).length > 0 && (
                   <p className="mt-0.5 text-xs text-cup-muted">
-                    {Object.entries(item.options)
-                      .map(([k, v]) => `${k}: ${v}`)
-                      .join(' · ')}
+                    {formatOptions(item.options, language)}
                   </p>
                 )}
                 <div className="mt-auto flex items-center justify-between pt-2">
@@ -173,9 +172,10 @@ export default function CartPage() {
           <p className="mt-2 text-[10px] text-cup-muted">
             (Max usable for this order: {maxRedeemPoints} pts = {pointsToEgp(maxRedeemPoints)} EGP)
           </p>
-          <p className="mt-1 text-[10px] italic text-cup-muted">
-            Discount cap: {discountAvailable} EGP available globally.
-          </p>
+          <div className="mt-3 flex items-center gap-2 rounded-card bg-cup-paper px-3 py-2 text-[11px] font-medium text-cup-muted">
+            <span aria-hidden="true">💡</span>
+            <span>Discount cap: {discountAvailable} EGP available across all orders today.</span>
+          </div>
         </section>
       )}
 
@@ -201,7 +201,7 @@ export default function CartPage() {
         <button
           type="button"
           onClick={() => router.push('/checkout')}
-          className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98]"
+          className="mx-auto flex w-full max-w-3xl items-center justify-between rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98]"
         >
           <span>{t('common.checkout')}</span>
           <span>{formatPrice(total, language)}</span>
@@ -221,12 +221,27 @@ function CartHeader({ t }: { t: (k: string) => string }) {
       >
         <ChevronLeft className="h-5 w-5 text-cup-brown-900" />
       </Link>
-      <p className="font-heading text-base font-semibold text-cup-brown-900">
+      <h1 className="font-heading text-base font-semibold text-cup-brown-900">
         {t('cart.myCart')}
-      </p>
+      </h1>
       <span className="w-10" aria-hidden="true" />
     </header>
   );
+}
+
+const OPTION_LABELS_AR: Record<string, string> = {
+  small: 'صغير', medium: 'وسط', large: 'كبير',
+  none: 'بدون', less: 'أقل', normal: 'عادي', extra: 'إضافي',
+};
+
+function formatOptions(options: Record<string, string>, language: 'en' | 'ar'): string {
+  const order = ['size', 'sugar', 'ice', 'milk', 'extras'];
+  const sorted = Object.entries(options).sort(
+    ([a], [b]) => (order.indexOf(a) === -1 ? 99 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 99 : order.indexOf(b)),
+  );
+  return sorted
+    .map(([, v]) => (language === 'ar' ? OPTION_LABELS_AR[v.toLowerCase()] ?? v : v))
+    .join(' · ');
 }
 
 function CartQuantityStepper({

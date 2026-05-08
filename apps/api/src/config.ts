@@ -10,14 +10,12 @@ function required(name: string, fallback?: string): string {
   return v;
 }
 
-/** Like required() but throws in production even when a dev fallback is provided. */
-function secret(name: string, devFallback: string): string {
-  if (isProd) {
-    const v = process.env[name];
-    if (!v) throw new Error(`Missing required production secret: ${name}`);
-    return v;
+function secret(name: string): string {
+  const v = process.env[name];
+  if (!v || v.length < 32) {
+    throw new Error(`Missing or too-short secret: ${name} (must be ≥32 chars)`);
   }
-  return process.env[name] ?? devFallback;
+  return v;
 }
 
 function num(name: string, fallback: number): number {
@@ -31,8 +29,6 @@ function num(name: string, fallback: number): number {
 export const config = {
   port: num('PORT', 4000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
-  devApiBaseUrl: process.env.API_BASE_URL ?? 'http://localhost:4000',
-  customerWebUrl: process.env.CUSTOMER_WEB_URL ?? 'http://localhost:3000',
 
   supabase: {
     url: required('SUPABASE_URL', 'http://127.0.0.1:54321'),
@@ -41,12 +37,12 @@ export const config = {
   },
 
   jwt: {
-    secret: secret('JWT_SECRET', 'dev-only-secret-replace-me-in-production-32chars'),
+    secret: secret('JWT_SECRET'),
   },
 
   paymob: {
     apiKey: process.env.PAYMOB_API_KEY ?? '',
-    hmacSecret: secret('PAYMOB_HMAC_SECRET', 'local-dev-secret'),
+    hmacSecret: secret('PAYMOB_HMAC_SECRET'),
     integrationIdCard: process.env.PAYMOB_INTEGRATION_ID_CARD ?? '',
     integrationIdWallet: process.env.PAYMOB_INTEGRATION_ID_WALLET ?? '',
     iframeId: process.env.PAYMOB_IFRAME_ID ?? '',

@@ -6,6 +6,7 @@ struct CupAndCoApp: App {
     @State private var catalog = CatalogStore()
     @State private var cart = CartStore()
     @State private var orderStore = OrderStore()
+    @State private var language = LanguageStore()
 
     var body: some Scene {
         WindowGroup {
@@ -14,9 +15,11 @@ struct CupAndCoApp: App {
                 .environment(catalog)
                 .environment(cart)
                 .environment(orderStore)
-                .environment(\.locale, .init(identifier: AppLanguage.current.code))
+                .environment(language)
+                .environment(\.locale, .init(identifier: language.current.code))
                 .environment(\.layoutDirection,
-                             AppLanguage.current == .arabic ? .rightToLeft : .leftToRight)
+                             language.current == .arabic ? .rightToLeft : .leftToRight)
+                .id(language.current)
                 .preferredColorScheme(.light)
         }
     }
@@ -98,8 +101,7 @@ struct MainTabShell: View {
             Group {
                 switch tab {
                 case .home:    NavigationStack { HomeView() }
-                case .search:  ComingSoonView(title: "tab.search",
-                                              symbol: "magnifyingglass")
+                case .search:  NavigationStack { SearchView() }
                 case .cart:    NavigationStack { CartView() }
                 case .rewards: NavigationStack { RewardsView() }
                 case .profile: NavigationStack { ProfileView() }
@@ -153,4 +155,17 @@ enum AppLanguage: String, CaseIterable {
     }
 
     var code: String { self == .arabic ? "ar" : "en" }
+}
+
+/// Observable wrapper around the language preference so a runtime change
+/// re-renders every view that consumes it (no app restart needed).
+@MainActor
+@Observable
+final class LanguageStore {
+    var current: AppLanguage = AppLanguage.current
+
+    func set(_ lang: AppLanguage) {
+        current = lang
+        UserDefaults.standard.set(lang.code, forKey: "language_pref")
+    }
 }

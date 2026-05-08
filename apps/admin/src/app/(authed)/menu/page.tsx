@@ -1,898 +1,539 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff, MessageSquare, X, Plus, Pencil, Trash2, ChevronDown, ChevronUp, AlertTriangle, Layers } from 'lucide-react';
-import { api, adminApi, ApiError } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { CupSoda, Eye, EyeOff, MessageSquare, MessageSquareOff, Pencil, Plus, Search, Star, Trash2 } from 'lucide-react';
+import Image from 'next/image';
+import { adminApi, api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/useSession';
 import { can } from '@/lib/permissions';
 import { formatEgp } from '@/lib/format';
+import { AddProductSheet } from '@/components/AddProductSheet';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { EmptyState } from '@/components/EmptyState';
+import { Skeleton } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import { AttributesEditor } from '@/components/AttributesEditor';
-import type { Product, Category, CatalogResponse, ReviewMode, ProductOption } from '@cup-and-co/types';
+import type { Product, Category, CatalogResponse } from '@cup-and-co/types';
+
+const SEED_PREFIX = '22222222';
 
 /**
- * Menu admin. Owners can manage everything; baristas can flip availability
- * and update stock. Review-mode cycling and product creation are owner-only.
+ * Menu admin. Owners can create / edit / delete custom products and toggle
+ * availability on every product. Baristas can only toggle availability.
+ *
+ * Seed (FALLBACK) products have ids prefixed `22222222-…` and are read-only;
+ * admin-created products are prefixed `99999999-…` and support full CRUD via
+ * `POST/PATCH/DELETE /admin/menu/products`.
  */
-
-const OPTION_GROUPS: ProductOption['group_name'][] = ['size', 'sugar', 'ice', 'milk', 'extras', 'shots'];
-
-const REVIEW_MODE_CYCLE: ReviewMode[] = ['full', 'write_only', 'hidden'];
-
-const REVIEW_MODE_META: Record<ReviewMode, { label: string; tooltip: string; cls: string }> = {
-  full: { label: 'FULL', tooltip: 'Stars + review list + write form all visible to customers', cls: 'border-cup-teal-200 bg-cup-teal-100 text-cup-teal-700' },
-  write_only: { label: 'WRITE', tooltip: 'Write form visible; stars and review list hidden', cls: 'border-indigo-200 bg-indigo-50 text-indigo-700' },
-  hidden: { label: 'OFF', tooltip: 'Entire reviews section hidden from customers', cls: 'border-cup-stroke bg-cup-brown-100 text-cup-brown-500' },
-};
-
-const PRESET_IMAGES = [
-  { url: '/images/products/hot_coffee.png', label: 'Hot' },
-  { url: '/images/products/cold_coffee.png', label: 'Cold' },
-  { url: '/images/products/dessert.png', label: 'Dessert' },
-  { url: '/images/products/breakfast.png', label: 'Breakfast' },
-];
-
-const INITIAL_ADD_FORM = {
-  category_id: '',
-  name_en: '',
-  name_ar: '',
-  description_en: '',
-  description_ar: '',
-  base_price_egp: '',
-  prep_minutes: '5',
-  image_url: '/images/products/hot_coffee.png',
-  is_available: true,
-};
-
-function nextReviewMode(current: ReviewMode): ReviewMode {
-  const idx = REVIEW_MODE_CYCLE.indexOf(current);
-  return REVIEW_MODE_CYCLE[(idx + 1) % REVIEW_MODE_CYCLE.length];
-}
-
-function StockBadge({ stockVal }: { stockVal: number | null }) {
-  if (stockVal === null) return null;
-  if (stockVal === 0) {
-    return (
-      <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-600">
-        Out of stock
-      </span>
-    );
-  }
-  if (stockVal <= 5) {
-    return (
-      <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
-        <AlertTriangle className="h-2.5 w-2.5" />
-        Low: {stockVal}
-      </span>
-    );
-  }
-  return null;
-}
-
-// ── Product Options Editor ────────────────────────────────────────────────────
-
-interface OptionsEditorProps {
-  product: Product;
-  canManage: boolean;
-}
-
-function OptionsEditor({ product, canManage }: OptionsEditorProps) {
-  const toast = useToast();
-  const [options, setOptions] = useState<ProductOption[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState({ name_en: '', name_ar: '', group_name: 'size' as ProductOption['group_name'], price_delta_egp: 0 });
-  const [editForm, setEditForm] = useState({ name_en: '', name_ar: '', group_name: 'size' as ProductOption['group_name'], price_delta_egp: 0 });
-
-  const loadOptions = useCallback(async () => {
-    if (options !== null) return; // already loaded
-    setLoading(true);
-    try {
-      const res = await adminApi.listProductOptions(product.id);
-      setOptions(res.options);
-    } catch (err) {
-      toast('error', (err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [options, product.id, toast]);
-
-  // Auto-load options when editor mounts
-  useEffect(() => {
-    loadOptions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (!addForm.name_en.trim()) return;
-    try {
-      const res = await adminApi.addProductOption(product.id, {
-        product_id: product.id,
-        name_en: addForm.name_en.trim(),
-        name_ar: addForm.name_ar.trim() || addForm.name_en.trim(),
-        group_name: addForm.group_name,
-        price_delta_egp: addForm.price_delta_egp,
-      });
-      setOptions(prev => [...(prev ?? []), res.option]);
-      setAddForm({ name_en: '', name_ar: '', group_name: 'size', price_delta_egp: 0 });
-      setShowAddForm(false);
-      toast('success', 'Option added');
-    } catch (err) {
-      toast('error', (err as Error).message);
-    }
-  }
-
-  function startEdit(opt: ProductOption) {
-    setEditingId(opt.id);
-    setEditForm({
-      name_en: opt.name_en,
-      name_ar: opt.name_ar,
-      group_name: opt.group_name,
-      price_delta_egp: opt.price_delta_egp,
-    });
-  }
-
-  async function handleEditSave(optId: string) {
-    try {
-      const res = await adminApi.updateProductOption(product.id, optId, {
-        name_en: editForm.name_en.trim(),
-        name_ar: editForm.name_ar.trim() || editForm.name_en.trim(),
-        group_name: editForm.group_name,
-        price_delta_egp: editForm.price_delta_egp,
-      });
-      setOptions(prev => prev?.map(o => o.id === optId ? res.option : o) ?? null);
-      setEditingId(null);
-      toast('success', 'Option updated');
-    } catch (err) {
-      toast('error', (err as Error).message);
-    }
-  }
-
-  async function handleDelete(optId: string) {
-    if (!confirm('Delete this option group? This cannot be undone.')) return;
-    try {
-      await adminApi.deleteProductOption(product.id, optId);
-      setOptions(prev => prev?.filter(o => o.id !== optId) ?? null);
-      toast('success', 'Option deleted');
-    } catch (err) {
-      toast('error', (err as Error).message);
-    }
-  }
-
-  if (!canManage) return null;
-
-  return (
-    <div className="mt-3 rounded-lg border border-cup-stroke bg-cup-cream-100 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-cup-muted flex items-center gap-1">
-          <Layers className="h-3 w-3" /> Options
-        </span>
-        <button
-          type="button"
-          onClick={() => setShowAddForm(v => !v)}
-          className="flex items-center gap-1 rounded-full bg-cup-orange-600 px-2.5 py-1 text-[10px] font-semibold text-white transition hover:bg-cup-orange-700"
-        >
-          <Plus className="h-3 w-3" /> Add
-        </button>
-      </div>
-
-      {loading && <p className="text-xs text-cup-muted animate-pulse">Loading…</p>}
-
-      {options !== null && options.length === 0 && !showAddForm && (
-        <p className="text-xs text-cup-muted">No option groups yet.</p>
-      )}
-
-      {options !== null && options.map(opt => (
-        <div key={opt.id} className="mb-2 last:mb-0">
-          {editingId === opt.id ? (
-            <div className="space-y-2 rounded-lg border border-cup-stroke bg-white p-3">
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  value={editForm.name_en}
-                  onChange={e => setEditForm(f => ({ ...f, name_en: e.target.value }))}
-                  placeholder="Name (EN)"
-                  className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-                />
-                <input
-                  value={editForm.name_ar}
-                  onChange={e => setEditForm(f => ({ ...f, name_ar: e.target.value }))}
-                  placeholder="Name (AR)"
-                  dir="rtl"
-                  className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={editForm.group_name}
-                  onChange={e => setEditForm(f => ({ ...f, group_name: e.target.value as ProductOption['group_name'] }))}
-                  className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-                >
-                  {OPTION_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={editForm.price_delta_egp}
-                  onChange={e => setEditForm(f => ({ ...f, price_delta_egp: Number(e.target.value) }))}
-                  placeholder="Price delta (EGP)"
-                  className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => handleEditSave(opt.id)} className="rounded-pill bg-cup-orange-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-cup-orange-700">Save</button>
-                <button type="button" onClick={() => setEditingId(null)} className="rounded-pill border border-cup-stroke bg-white px-3 py-1 text-[11px] font-semibold text-cup-brown-700 hover:bg-cup-cream-100">Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-start justify-between rounded-lg border border-cup-stroke bg-white px-3 py-2">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-cup-brown-900">{opt.name_en}</p>
-                <p className="text-[10px] text-cup-muted">
-                  {opt.group_name}{opt.price_delta_egp ? ` · +${opt.price_delta_egp} EGP` : ''}
-                </p>
-              </div>
-              <div className="flex shrink-0 gap-1 ml-2">
-                <button type="button" onClick={() => startEdit(opt)} className="rounded p-1 text-cup-muted hover:text-cup-orange-600 transition">
-                  <Pencil className="h-3 w-3" />
-                </button>
-                <button type="button" onClick={() => handleDelete(opt.id)} className="rounded p-1 text-cup-muted hover:text-rose-600 transition">
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-
-      {showAddForm && (
-        <form onSubmit={handleAdd} className="mt-2 space-y-2 rounded-lg border border-cup-stroke bg-white p-3">
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              required
-              value={addForm.name_en}
-              onChange={e => setAddForm(f => ({ ...f, name_en: e.target.value }))}
-              placeholder="Name (EN) *"
-              className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-            />
-            <input
-              value={addForm.name_ar}
-              onChange={e => setAddForm(f => ({ ...f, name_ar: e.target.value }))}
-              placeholder="Name (AR)"
-              dir="rtl"
-              className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              value={addForm.group_name}
-              onChange={e => setAddForm(f => ({ ...f, group_name: e.target.value as ProductOption['group_name'] }))}
-              className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-            >
-              {OPTION_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-            <input
-              type="number"
-              step="0.5"
-              value={addForm.price_delta_egp}
-              onChange={e => setAddForm(f => ({ ...f, price_delta_egp: Number(e.target.value) }))}
-              placeholder="Price delta (EGP)"
-              className="rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className="rounded-pill bg-cup-orange-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-cup-orange-700">Add Option</button>
-            <button type="button" onClick={() => setShowAddForm(false)} className="rounded-pill border border-cup-stroke bg-white px-3 py-1 text-[11px] font-semibold text-cup-brown-700 hover:bg-cup-cream-100">Cancel</button>
-          </div>
-        </form>
-      )}
-    </div>
-  );
-}
-
-// ── Category Management ───────────────────────────────────────────────────────
-
-interface CategoryManagerProps {
-  categories: Category[];
-  canManage: boolean;
-  onRefresh: () => void;
-}
-
-function CategoryManager({ categories, canManage, onRefresh }: CategoryManagerProps) {
-  const toast = useToast();
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [addForm, setAddForm] = useState({ name_en: '', name_ar: '' });
-  const [editForm, setEditForm] = useState({ name_en: '', name_ar: '', sort_order: 0 });
-
-  if (!canManage) return null;
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (!addForm.name_en.trim()) return;
-    try {
-      await adminApi.createCategory({
-        name_en: addForm.name_en.trim(),
-        name_ar: addForm.name_ar.trim() || addForm.name_en.trim(),
-        sort_order: categories.length,
-      });
-      setAddForm({ name_en: '', name_ar: '' });
-      setShowForm(false);
-      toast('success', 'Category created');
-      onRefresh();
-    } catch (err) {
-      toast('error', (err as Error).message);
-    }
-  }
-
-  function startEdit(cat: Category) {
-    setEditingId(cat.id);
-    setEditForm({ name_en: cat.name_en, name_ar: cat.name_ar, sort_order: cat.sort_order });
-  }
-
-  async function handleEditSave(id: string) {
-    try {
-      await adminApi.updateCategory(id, {
-        name_en: editForm.name_en.trim(),
-        name_ar: editForm.name_ar.trim() || editForm.name_en.trim(),
-        sort_order: editForm.sort_order,
-      });
-      setEditingId(null);
-      toast('success', 'Category updated');
-      onRefresh();
-    } catch (err) {
-      toast('error', (err as Error).message);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this category? Products in it will become uncategorised.')) return;
-    try {
-      await adminApi.deleteCategory(id);
-      toast('success', 'Category deleted');
-      onRefresh();
-    } catch (err) {
-      toast('error', (err as Error).message);
-    }
-  }
-
-  return (
-    <section className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-heading text-base font-semibold text-cup-brown-900">Categories</h2>
-        <button
-          type="button"
-          onClick={() => setShowForm(v => !v)}
-          className="flex items-center gap-1.5 rounded-pill bg-cup-orange-600 px-3 py-1.5 text-xs font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700"
-        >
-          <Plus className="h-3.5 w-3.5" /> New Category
-        </button>
-      </div>
-
-      {showForm && (
-        <form onSubmit={handleAdd} className="mb-4 space-y-3 rounded-lg border border-cup-stroke bg-white p-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-cup-muted">Name (EN) *</label>
-              <input
-                required
-                value={addForm.name_en}
-                onChange={e => setAddForm(f => ({ ...f, name_en: e.target.value }))}
-                placeholder="e.g. Hot Drinks"
-                className="w-full rounded-lg border border-cup-stroke px-3 py-2 text-sm focus:border-cup-orange-600 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-cup-muted">Name (AR)</label>
-              <input
-                value={addForm.name_ar}
-                onChange={e => setAddForm(f => ({ ...f, name_ar: e.target.value }))}
-                placeholder="مشروبات ساخنة"
-                dir="rtl"
-                className="w-full rounded-lg border border-cup-stroke px-3 py-2 text-sm focus:border-cup-orange-600 focus:outline-none"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className="rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-subtle hover:bg-cup-orange-700">Create</button>
-            <button type="button" onClick={() => setShowForm(false)} className="rounded-pill border border-cup-stroke bg-white px-4 py-2 text-sm font-semibold text-cup-brown-700 hover:bg-cup-cream-100">Cancel</button>
-          </div>
-        </form>
-      )}
-
-      <ul className="divide-y divide-cup-stroke">
-        {categories.map(cat => (
-          <li key={cat.id} className="py-3 first:pt-0 last:pb-0">
-            {editingId === cat.id ? (
-              <div className="space-y-3 rounded-lg border border-cup-stroke bg-white p-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    value={editForm.name_en}
-                    onChange={e => setEditForm(f => ({ ...f, name_en: e.target.value }))}
-                    placeholder="Name (EN)"
-                    className="rounded border border-cup-stroke px-2 py-1.5 text-sm focus:border-cup-orange-600 focus:outline-none"
-                  />
-                  <input
-                    value={editForm.name_ar}
-                    onChange={e => setEditForm(f => ({ ...f, name_ar: e.target.value }))}
-                    placeholder="Name (AR)"
-                    dir="rtl"
-                    className="rounded border border-cup-stroke px-2 py-1.5 text-sm focus:border-cup-orange-600 focus:outline-none"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-cup-muted">Sort order:</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={editForm.sort_order}
-                    onChange={e => setEditForm(f => ({ ...f, sort_order: Number(e.target.value) }))}
-                    className="w-16 rounded border border-cup-stroke px-2 py-1 text-xs focus:border-cup-orange-600 focus:outline-none"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => handleEditSave(cat.id)} className="rounded-pill bg-cup-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cup-orange-700">Save</button>
-                  <button type="button" onClick={() => setEditingId(null)} className="rounded-pill border border-cup-stroke bg-white px-3 py-1.5 text-xs font-semibold text-cup-brown-700 hover:bg-cup-cream-100">Cancel</button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-heading text-sm font-semibold text-cup-brown-900">{cat.name_en}</p>
-                  <p className="text-xs text-cup-muted" dir="rtl">{cat.name_ar}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="mr-2 text-[11px] text-cup-muted">#{cat.sort_order}</span>
-                  <button type="button" onClick={() => startEdit(cat)} className="rounded p-1.5 text-cup-muted transition hover:text-cup-orange-600">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button type="button" onClick={() => handleDelete(cat.id)} className="rounded p-1.5 text-cup-muted transition hover:text-rose-600">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </li>
-        ))}
-        {categories.length === 0 && (
-          <li className="py-4 text-center text-sm text-cup-muted">No categories yet.</li>
-        )}
-      </ul>
-    </section>
-  );
-}
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function MenuPage() {
   const session = useSession();
   const toast = useToast();
   const [products, setProducts] = useState<Product[] | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [reviewPendingId, setReviewPendingId] = useState<string | null>(null);
-  const [expandedOptions, setExpandedOptions] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string | 'all'>('all');
+  const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState<Product | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
-  const [reviewModeMap, setReviewModeMap] = useState<Record<string, ReviewMode>>({});
-  const [stockMap, setStockMap] = useState<Record<string, number | null>>({});
-  const stockTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState(INITIAL_ADD_FORM);
-  const [addSubmitting, setAddSubmitting] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
-
-  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
-
-  const loadCatalog = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const data = await api<CatalogResponse>('/catalog', { signal });
-      if (signal?.aborted) return;
-      setProducts(data.products);
-      setCategories(data.categories);
-      const modes: Record<string, ReviewMode> = {};
-      const stocks: Record<string, number | null> = {};
-      for (const p of data.products) {
-        modes[p.id] = (p.review_mode != null && p.review_mode in REVIEW_MODE_META) ? p.review_mode : 'full';
-        stocks[p.id] = p.stock_count;
-      }
-      setReviewModeMap(modes);
-      setStockMap(stocks);
-      setError(null);
-    } catch (err) {
-      if (signal?.aborted) return;
-      setError(err instanceof ApiError ? err.message : 'Could not load menu.');
-    }
-  }, []);
-
-  useEffect(() => {
-    const ctl = new AbortController();
-    loadCatalog(ctl.signal);
-    return () => ctl.abort();
-  }, [loadCatalog]);
+  type ReviewMode = 'full' | 'write_only' | 'hidden';
+  const REVIEW_MODE_CYCLE: ReviewMode[] = ['full', 'write_only', 'hidden'];
 
   const canToggle = can(session?.role, 'menu:update_availability');
   const canManage = can(session?.role, 'menu:manage');
+  const canManageReviews = can(session?.role, 'reviews:manage');
+  // Per-product review mode. 'full' = stars + list + write; 'write_only' = write form only;
+  // 'hidden' = nothing shown. Defaults to 'full' when not set.
+  const [reviewModeMap, setReviewModeMap] = useState<Record<string, ReviewMode>>({});
 
-  // Low stock count for header badge
-  const lowStockProducts = (products ?? []).filter(p => {
-    const s = stockMap[p.id] ?? p.stock_count;
-    return s !== null && s <= 5;
-  });
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api<CatalogResponse>('/catalog');
+        if (cancelled) return;
+        setProducts(data.products);
+        setCategories(data.categories);
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(err instanceof ApiError ? err.message : 'Could not load menu.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function isCustom(product: Product): boolean {
+    return !product.id.startsWith(SEED_PREFIX);
+  }
 
   async function toggleAvailability(product: Product) {
     if (!canToggle || !products) return;
     const previous = products;
-    setProducts(products.map(p => p.id === product.id ? { ...p, is_available: !p.is_available } : p));
+    setProducts(products.map((p) => (p.id === product.id ? { ...p, is_available: !p.is_available } : p)));
     setPendingId(product.id);
     try {
       await adminApi.setProductAvailability(product.id, !product.is_available);
-      setError(null);
+      toast('success', `${product.name_en} marked ${product.is_available ? 'out of stock' : 'available'}.`);
     } catch (err) {
       setProducts(previous);
-      setError(err instanceof ApiError ? err.message : 'Could not update availability.');
+      toast('error', err instanceof ApiError ? err.message : 'Could not update availability.');
     } finally {
       setPendingId(null);
     }
   }
 
-  async function cycleReviewMode(product: Product) {
-    if (!canManage) return;
-    const rawCurrent = reviewModeMap[product.id] ?? product.review_mode;
-    const current: ReviewMode = (rawCurrent != null && rawCurrent in REVIEW_MODE_META ? rawCurrent : 'full');
-    const next = nextReviewMode(current);
-    setReviewModeMap(m => ({ ...m, [product.id]: next }));
-    setReviewPendingId(product.id);
+  async function handleReviewModeClick(productId: string) {
+    const current: ReviewMode = reviewModeMap[productId] ?? 'full';
+    const nextIdx = (REVIEW_MODE_CYCLE.indexOf(current) + 1) % REVIEW_MODE_CYCLE.length;
+    const next = REVIEW_MODE_CYCLE[nextIdx]!;
+    setReviewModeMap((prev) => ({ ...prev, [productId]: next }));
     try {
-      await adminApi.setProductReviewMode(product.id, next);
+      await adminApi.setProductReviewMode(productId, next);
+      const labels: Record<ReviewMode, string> = {
+        full: 'Full reviews shown (stars, list, write form).',
+        write_only: 'Write-review form shown — stars and list hidden.',
+        hidden: 'All reviews hidden from customers.',
+      };
+      toast('success', labels[next]);
     } catch (err) {
-      setReviewModeMap(m => ({ ...m, [product.id]: current }));
-      setError(err instanceof ApiError ? err.message : 'Could not update review mode.');
-    } finally {
-      setReviewPendingId(null);
+      setReviewModeMap((prev) => ({ ...prev, [productId]: current }));
+      toast('error', err instanceof ApiError ? err.message : 'Could not update review mode.');
     }
   }
 
-  function handleStockInput(productId: string, rawValue: string) {
-    const parsed = rawValue === '' ? null : parseInt(rawValue, 10);
-    if (parsed !== null && isNaN(parsed)) return;
-    setStockMap(m => ({ ...m, [productId]: parsed }));
-    clearTimeout(stockTimers.current[productId]);
-    stockTimers.current[productId] = setTimeout(async () => {
-      try {
-        await adminApi.setProductStock(productId, parsed);
-      } catch (err) {
-        toast('error', err instanceof ApiError ? err.message : 'Could not update stock.');
-      }
-    }, 600);
-  }
+  const [stockMap, setStockMap] = useState<Record<string, number | null>>({});
 
-  async function handleAddProduct(e: React.FormEvent) {
-    e.preventDefault();
-    const price = parseFloat(addForm.base_price_egp);
-    const prep  = parseInt(addForm.prep_minutes, 10);
-    if (!addForm.category_id)  { setAddError('Please select a category.'); return; }
-    if (!addForm.name_en.trim()) { setAddError('English name is required.'); return; }
-    if (isNaN(price) || price <= 0) { setAddError('Price must be greater than 0.'); return; }
-    if (isNaN(prep)  || prep < 1)   { setAddError('Prep time must be at least 1 minute.'); return; }
-
-    setAddSubmitting(true);
-    setAddError(null);
+  async function handleStockChange(productId: string, count: number | null) {
+    const previous = stockMap[productId] ?? null;
+    setStockMap((prev) => ({ ...prev, [productId]: count }));
     try {
-      await adminApi.createProduct({
-        category_id: addForm.category_id,
-        name_en: addForm.name_en.trim(),
-        name_ar: addForm.name_ar.trim() || addForm.name_en.trim(),
-        description_en: addForm.description_en.trim(),
-        description_ar: addForm.description_ar.trim(),
-        base_price_egp: price,
-        prep_minutes: prep,
-        image_url: addForm.image_url || '/images/products/hot_coffee.png',
-        is_available: addForm.is_available,
-        sort_order: 0,
-      });
-      setShowAddModal(false);
-      setAddForm(INITIAL_ADD_FORM);
-      await loadCatalog();
+      await adminApi.setProductStock(productId, count);
+      toast('success', count === null ? 'Stock set to unlimited.' : `Stock set to ${count}.`);
     } catch (err) {
-      setAddError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Could not add product.');
-    } finally {
-      setAddSubmitting(false);
+      setStockMap((prev) => ({ ...prev, [productId]: previous }));
+      toast('error', err instanceof ApiError ? err.message : 'Could not update stock.');
     }
   }
 
-  const grouped = (products ?? []).reduce<Record<string, Product[]>>((acc, p) => {
+  async function handleDelete() {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try {
+      await adminApi.deleteProduct(deleting.id);
+      setProducts((prev) => prev?.filter((p) => p.id !== deleting.id) ?? null);
+      toast('success', `${deleting.name_en} deleted.`);
+      setDeleting(null);
+    } catch (err) {
+      toast('error', err instanceof ApiError ? err.message : 'Could not delete product.');
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  // Filtered + grouped view
+  const visibleProducts = (products ?? []).filter((p) => {
+    if (activeCategory !== 'all' && p.category_id !== activeCategory) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (!p.name_en.toLowerCase().includes(q) && !p.name_ar.includes(search.trim())) return false;
+    }
+    return true;
+  });
+
+  const grouped = visibleProducts.reduce<Record<string, Product[]>>((acc, p) => {
     (acc[p.category_id] ??= []).push(p);
     return acc;
   }, {});
+
+  const totalCount = products?.length ?? 0;
+  const availableCount = products?.filter((p) => p.is_available).length ?? 0;
+  const outCount = totalCount - availableCount;
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cup-muted">Catalog</p>
-          <h1 className="font-heading text-3xl font-bold text-cup-brown-900 flex items-center gap-3">
-            Menu
-            {lowStockProducts.length > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                {lowStockProducts.length} low stock
-              </span>
-            )}
-          </h1>
+          <h1 className="font-heading text-3xl font-bold text-cup-brown-900">Menu</h1>
           <p className="mt-1 text-sm text-cup-muted">
-            {canManage ? 'Set availability, stock, review mode, options, and manage categories.' : 'Flip availability and update stock when items run low.'}
+            {canManage
+              ? 'Add new items, edit details, toggle availability, or remove out-of-stock products.'
+              : 'Flip availability when an item runs out. Read-only otherwise.'}
           </p>
         </div>
         {canManage && (
           <button
             type="button"
-            onClick={() => { setAddError(null); setAddForm(INITIAL_ADD_FORM); setShowAddModal(true); }}
-            className="rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 active:scale-95"
+            onClick={() => setAddOpen(true)}
+            className="inline-flex items-center gap-2 rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600"
           >
-            + Add Product
+            <Plus className="h-4 w-4" aria-hidden />
+            Add product
           </button>
         )}
       </header>
 
-      {error && (
-        <p role="alert" className="rounded-chip border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-cup-error">
-          {error}
+      {/* Stats strip */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatPill label="Total items" value={totalCount} tone="brown" />
+        <StatPill label="Available now" value={availableCount} tone="teal" />
+        <StatPill label="Out of stock" value={outCount} tone={outCount > 0 ? 'rose' : 'brown'} />
+      </div>
+
+      {/* Search + filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="relative flex flex-1 min-w-[200px] items-center">
+          <Search className="absolute left-3 h-4 w-4 text-cup-muted" aria-hidden />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name…"
+            className="h-10 w-full rounded-pill border border-cup-stroke bg-cup-surface pl-9 pr-3 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+          />
+        </label>
+        <div className="flex gap-2 overflow-x-auto">
+          <CategoryChip
+            label={`All · ${products?.length ?? '—'}`}
+            active={activeCategory === 'all'}
+            onClick={() => setActiveCategory('all')}
+          />
+          {categories.map((c) => {
+            const count = products?.filter((p) => p.category_id === c.id).length ?? 0;
+            if (count === 0) return null;
+            return (
+              <CategoryChip
+                key={c.id}
+                label={`${c.name_en} · ${count}`}
+                active={activeCategory === c.id}
+                onClick={() => setActiveCategory(c.id)}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {canManage && (
+        <AddProductSheet
+          open={addOpen || Boolean(editing)}
+          onClose={() => {
+            setAddOpen(false);
+            setEditing(null);
+          }}
+          categories={categories}
+          editing={editing}
+          onCreated={(product) => setProducts((prev) => (prev ? [...prev, product] : [product]))}
+          onUpdated={(product) =>
+            setProducts((prev) => (prev ? prev.map((p) => (p.id === product.id ? product : p)) : null))
+          }
+        />
+      )}
+
+      {canManage && (
+        <ConfirmDialog
+          open={Boolean(deleting)}
+          title="Delete this product?"
+          message={
+            deleting
+              ? `${deleting.name_en} will be removed from the menu. Customers won't see it on their next refresh.`
+              : ''
+          }
+          confirmLabel="Delete"
+          destructive
+          busy={deleteBusy}
+          onConfirm={handleDelete}
+          onCancel={() => !deleteBusy && setDeleting(null)}
+        />
+      )}
+
+      {loadError && (
+        <p
+          role="alert"
+          className="rounded-chip border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-cup-error"
+        >
+          {loadError}
         </p>
       )}
 
-      {/* Tabs */}
-      {canManage && (
-        <div className="flex gap-1 rounded-lg border border-cup-stroke bg-cup-cream-100 p-1 w-fit">
-          {(['products', 'categories'] as const).map(tab => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`rounded-md px-4 py-1.5 text-sm font-semibold capitalize transition ${
-                activeTab === tab ? 'bg-white shadow-subtle text-cup-brown-900' : 'text-cup-muted hover:text-cup-brown-700'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+      {products === null ? (
+        <div className="space-y-3">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
         </div>
-      )}
-
-      {/* Categories tab */}
-      {activeTab === 'categories' && canManage && (
-        <CategoryManager categories={categories} canManage={canManage} onRefresh={loadCatalog} />
-      )}
-
-      {/* Products tab */}
-      {(activeTab === 'products' || !canManage) && (
-        <>
-          {products === null ? (
-            <p className="text-sm text-cup-muted">Loading menu…</p>
-          ) : products.length === 0 ? (
-            <p className="rounded-chip bg-cup-cream-100 px-4 py-6 text-center text-sm text-cup-muted">
-              No products yet. Add the first one!
-            </p>
-          ) : (
-            <div className="space-y-6">
-              {categories
-                .filter(c => grouped[c.id]?.length)
-                .map(category => (
-                  <section key={category.id} className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card">
-                    <h2 className="font-heading text-base font-semibold text-cup-brown-900">{category.name_en}</h2>
-                    <ul className="mt-4 space-y-0 divide-y divide-cup-stroke" role="list">
-                      {grouped[category.id]?.map(product => {
-                        const rawMode  = reviewModeMap[product.id] ?? product.review_mode;
-                        const reviewMode: ReviewMode = (rawMode != null && rawMode in REVIEW_MODE_META ? rawMode : 'full');
-                        const stockVal = stockMap[product.id] ?? product.stock_count;
-                        const isOptionsOpen = expandedOptions === product.id;
-
-                        return (
-                          <li key={product.id} className="py-3.5 first:pt-0 last:pb-0">
-                            {/* Row 1: name + price */}
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <p className="font-heading text-sm font-semibold text-cup-brown-900">{product.name_en}</p>
-                                  <StockBadge stockVal={stockVal} />
-                                </div>
-                                <p className="mt-0.5 truncate text-xs text-cup-muted">{product.description_en || '—'}</p>
-                              </div>
-                              <span className="shrink-0 font-mono text-sm font-semibold text-cup-orange-700">
-                                {formatEgp(product.base_price_egp)}
-                              </span>
-                            </div>
-
-                            {/* Row 2: controls */}
-                            {(canToggle || canManage) && (
-                              <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                                {canToggle && (
-                                  <label className="flex items-center gap-1.5 rounded-lg border border-cup-stroke bg-cup-paper px-2.5 py-1.5">
-                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-cup-muted">Stock</span>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      placeholder="∞"
-                                      aria-label={`Stock count for ${product.name_en}`}
-                                      value={stockVal === null ? '' : String(stockVal)}
-                                      onChange={e => handleStockInput(product.id, e.target.value)}
-                                      className="w-12 bg-transparent text-center font-mono text-xs text-cup-brown-900 focus:outline-none"
-                                    />
-                                  </label>
-                                )}
-
-                                {canManage && (
-                                  <button
-                                    type="button"
-                                    title={REVIEW_MODE_META[reviewMode]?.tooltip}
-                                    disabled={reviewPendingId === product.id}
-                                    onClick={() => cycleReviewMode(product)}
-                                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 disabled:cursor-not-allowed disabled:opacity-50 ${REVIEW_MODE_META[reviewMode]?.cls ?? ''}`}
-                                  >
-                                    {reviewMode === 'full' && <Eye size={11} aria-hidden />}
-                                    {reviewMode === 'write_only' && <MessageSquare size={11} aria-hidden />}
-                                    {reviewMode === 'hidden' && <EyeOff size={11} aria-hidden />}
-                                    {REVIEW_MODE_META[reviewMode]?.label}
-                                  </button>
-                                )}
-
-                                <AvailabilityToggle
-                                  product={product}
-                                  disabled={!canToggle || pendingId === product.id}
-                                  onToggle={() => toggleAvailability(product)}
-                                />
-
-                                {canManage && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setExpandedOptions(v => v === product.id ? null : product.id)}
-                                    className="inline-flex items-center gap-1 rounded-full border border-cup-stroke bg-cup-paper px-3 py-1.5 text-[10px] font-semibold text-cup-muted transition hover:bg-cup-cream-100"
-                                  >
-                                    <Layers size={11} />
-                                    Options
-                                    {isOptionsOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                                  </button>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Expandable editors */}
-                            {isOptionsOpen && (
-                              <>
-                                <OptionsEditor product={product} canManage={canManage} />
-                                {canManage && <AttributesEditor product={product} />}
-                              </>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </section>
-                ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ── Add Product Modal ── */}
-      {showAddModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center sm:p-6"
-          onClick={e => { if (e.target === e.currentTarget) setShowAddModal(false); }}
-        >
-          <form
-            onSubmit={handleAddProduct}
-            className="relative w-full max-w-lg rounded-card bg-cup-paper shadow-2xl"
-          >
-            <div className="flex items-center justify-between border-b border-cup-stroke px-6 py-4">
-              <h2 className="font-heading text-lg font-bold text-cup-brown-900">New Product</h2>
-              <button type="button" onClick={() => setShowAddModal(false)} className="grid h-8 w-8 place-items-center rounded-full text-cup-muted transition hover:bg-cup-cream-100">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">
-              {/* Category */}
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">Category</label>
-                <select
-                  required
-                  value={addForm.category_id}
-                  onChange={e => setAddForm(f => ({ ...f, category_id: e.target.value }))}
-                  className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2.5 text-sm text-cup-brown-900 focus:border-cup-orange-600 focus:outline-none"
-                >
-                  <option value="">Select category…</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name_en}</option>)}
-                </select>
-              </div>
-
-              {/* Names */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">Name (EN) *</label>
-                  <input required value={addForm.name_en} onChange={e => setAddForm(f => ({ ...f, name_en: e.target.value }))} placeholder="e.g. Oat Latte"
-                    className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none" />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">Name (AR)</label>
-                  <input value={addForm.name_ar} onChange={e => setAddForm(f => ({ ...f, name_ar: e.target.value }))} placeholder="لاتيه شوفان" dir="rtl"
-                    className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none" />
-                </div>
-              </div>
-
-              {/* Descriptions */}
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">Description (EN)</label>
-                <textarea value={addForm.description_en} onChange={e => setAddForm(f => ({ ...f, description_en: e.target.value }))} placeholder="Short product description…" rows={2} maxLength={500}
-                  className="w-full resize-none rounded-lg border border-cup-stroke bg-white px-3 py-2 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none" />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">Description (AR)</label>
-                <textarea value={addForm.description_ar} onChange={e => setAddForm(f => ({ ...f, description_ar: e.target.value }))} placeholder="وصف قصير للمنتج…" dir="rtl" rows={2} maxLength={500}
-                  className="w-full resize-none rounded-lg border border-cup-stroke bg-white px-3 py-2 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none" />
-              </div>
-
-              {/* Price + Prep time */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">Price (EGP) *</label>
-                  <input required type="number" min={0.5} step={0.5} value={addForm.base_price_egp} onChange={e => setAddForm(f => ({ ...f, base_price_egp: e.target.value }))} placeholder="65"
-                    className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none" />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">Prep Time (min) *</label>
-                  <input required type="number" min={1} max={120} value={addForm.prep_minutes} onChange={e => setAddForm(f => ({ ...f, prep_minutes: e.target.value }))}
-                    className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2.5 text-sm focus:border-cup-orange-600 focus:outline-none" />
-                </div>
-              </div>
-
-              {/* Image picker */}
-              <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-cup-muted">Image</label>
-                <div className="mb-2 grid grid-cols-4 gap-2">
-                  {PRESET_IMAGES.map(preset => (
-                    <button key={preset.url} type="button" onClick={() => setAddForm(f => ({ ...f, image_url: preset.url }))}
-                      className={`relative aspect-square overflow-hidden rounded-lg border-2 transition ${addForm.image_url === preset.url ? 'border-cup-orange-600 ring-2 ring-cup-orange-600/25' : 'border-cup-stroke hover:border-cup-brown-400'}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={preset.url} alt={preset.label} className="h-full w-full object-cover" />
-                      <span className="absolute inset-x-0 bottom-0 bg-black/50 py-0.5 text-center text-[9px] font-semibold text-white">{preset.label}</span>
-                    </button>
+      ) : visibleProducts.length === 0 ? (
+        <EmptyState
+          icon={CupSoda}
+          title={search ? 'No products match that search.' : 'No products yet.'}
+          description={
+            canManage && !search
+              ? 'Add your first product to start serving customers.'
+              : 'Try clearing the search or pick a different category.'
+          }
+          action={canManage && !search ? { label: 'Add product', onClick: () => setAddOpen(true) } : undefined}
+        />
+      ) : (
+        <div className="space-y-6">
+          {categories
+            .filter((c) => grouped[c.id]?.length)
+            .map((category) => (
+              <section
+                key={category.id}
+                className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card"
+                aria-labelledby={`cat-${category.id}`}
+              >
+                <header className="mb-4 flex items-center justify-between">
+                  <h2
+                    id={`cat-${category.id}`}
+                    className="font-heading text-base font-semibold text-cup-brown-900"
+                  >
+                    {category.name_en}
+                  </h2>
+                  <span className="text-xs text-cup-muted">{grouped[category.id]?.length} items</span>
+                </header>
+                <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" role="list">
+                  {grouped[category.id]?.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      isCustom={isCustom(product)}
+                      canToggle={canToggle}
+                      canManage={canManage}
+                      canManageReviews={canManageReviews}
+                      pending={pendingId === product.id}
+                      reviewMode={reviewModeMap[product.id] ?? 'full'}
+                      stockCount={stockMap[product.id] ?? null}
+                      onToggle={() => toggleAvailability(product)}
+                      onEdit={() => setEditing(product)}
+                      onDelete={() => setDeleting(product)}
+                      onCycleReviewMode={() => handleReviewModeClick(product.id)}
+                      onStockChange={(count) => handleStockChange(product.id, count)}
+                    />
                   ))}
-                </div>
-                <input value={addForm.image_url} onChange={e => setAddForm(f => ({ ...f, image_url: e.target.value }))} placeholder="Or paste a custom image URL…"
-                  className="w-full rounded-lg border border-cup-stroke bg-white px-3 py-2 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none" />
-              </div>
-
-              {/* Available toggle */}
-              <button type="button" onClick={() => setAddForm(f => ({ ...f, is_available: !f.is_available }))}
-                className="flex w-full items-center justify-between rounded-lg border border-cup-stroke bg-white px-4 py-3 transition hover:bg-cup-paper">
-                <span className="text-sm font-semibold text-cup-brown-900">Available immediately</span>
-                <span className={`relative inline-block h-6 w-11 rounded-full transition ${addForm.is_available ? 'bg-cup-teal-700' : 'bg-cup-brown-400'}`}>
-                  <span className={`absolute top-[3px] inline-block h-[18px] w-[18px] rounded-full bg-white shadow transition-all ${addForm.is_available ? 'left-[23px]' : 'left-[3px]'}`} />
-                </span>
-              </button>
-
-              {addError && (
-                <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-cup-error">{addError}</p>
-              )}
-            </div>
-
-            <div className="flex gap-3 border-t border-cup-stroke px-6 py-4">
-              <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 rounded-pill border border-cup-stroke bg-white py-2.5 text-sm font-semibold text-cup-brown-700 transition hover:bg-cup-cream-100">Cancel</button>
-              <button type="submit" disabled={addSubmitting} className="flex-1 rounded-pill bg-cup-orange-600 py-2.5 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 disabled:opacity-70">
-                {addSubmitting ? 'Adding…' : 'Add Product'}
-              </button>
-            </div>
-          </form>
+                </ul>
+              </section>
+            ))}
         </div>
       )}
     </div>
   );
 }
 
-function AvailabilityToggle({ product, disabled, onToggle }: { product: Product; disabled: boolean; onToggle: () => void }) {
+// ─── ProductCard ───────────────────────────────────────────────────────────
+
+type ReviewMode = 'full' | 'write_only' | 'hidden';
+
+const REVIEW_MODE_META: Record<ReviewMode, {
+  label: string;
+  next: string;
+  icon: React.ReactNode;
+  style: string;
+  badge: string;
+}> = {
+  full: {
+    label: 'Stars · Reviews · Write form',
+    next: 'Next: write form only (hide stars & list)',
+    icon: <Star className="h-3.5 w-3.5" aria-hidden />,
+    style: 'border-cup-teal-200 bg-cup-teal-50 text-cup-teal-700 hover:bg-cup-teal-100',
+    badge: 'bg-cup-teal-200 text-cup-teal-800',
+  },
+  write_only: {
+    label: 'Write reviews only',
+    next: 'Next: hide all reviews',
+    icon: <MessageSquare className="h-3.5 w-3.5" aria-hidden />,
+    style: 'border-cup-orange-200 bg-cup-orange-50 text-cup-orange-700 hover:bg-cup-orange-100',
+    badge: 'bg-cup-orange-200 text-cup-orange-800',
+  },
+  hidden: {
+    label: 'Reviews hidden',
+    next: 'Next: show all (stars, list, write form)',
+    icon: <EyeOff className="h-3.5 w-3.5" aria-hidden />,
+    style: 'border-cup-stroke bg-cup-paper text-cup-muted hover:bg-cup-cream-100',
+    badge: 'bg-cup-stroke text-cup-muted',
+  },
+};
+
+function ProductCard({
+  product,
+  isCustom,
+  canToggle,
+  canManage,
+  canManageReviews,
+  pending,
+  reviewMode,
+  stockCount,
+  onToggle,
+  onEdit,
+  onDelete,
+  onCycleReviewMode,
+  onStockChange,
+}: {
+  product: Product;
+  isCustom: boolean;
+  canToggle: boolean;
+  canManage: boolean;
+  canManageReviews: boolean;
+  pending: boolean;
+  reviewMode: ReviewMode;
+  stockCount: number | null;
+  onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onCycleReviewMode: () => void;
+  onStockChange: (count: number | null) => void;
+}) {
+  const [stockInput, setStockInput] = useState(stockCount !== null ? String(stockCount) : '');
+  // Sync input if parent updates stock (e.g. after API response)
+  const syncedStock = stockCount !== null ? String(stockCount) : '';
+  if (stockInput !== syncedStock && document.activeElement?.id !== `stock-${product.id}`) {
+    setStockInput(syncedStock);
+  }
+
+  function commitStock() {
+    const val = stockInput.trim();
+    if (val === '') { onStockChange(null); return; }
+    const n = parseInt(val, 10);
+    if (!isNaN(n) && n >= 0) onStockChange(n);
+    else setStockInput(stockCount !== null ? String(stockCount) : '');
+  }
+
+  return (
+    <li
+      className={`flex flex-col gap-3 rounded-chip border p-3 transition ${
+        product.is_available
+          ? 'border-cup-stroke bg-cup-surface'
+          : 'border-cup-stroke/70 bg-cup-paper opacity-80'
+      }`}
+    >
+      <div className="flex gap-3">
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-chip bg-cup-paper">
+          {product.image_url ? (
+            <Image
+              src={product.image_url}
+              alt=""
+              fill
+              sizes="56px"
+              className="object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.opacity = '0';
+              }}
+            />
+          ) : null}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-heading text-sm font-semibold text-cup-brown-900">
+            {product.name_en}
+          </p>
+          <p className="truncate text-xs text-cup-muted">{product.description_en || '—'}</p>
+          <p className="mt-1 font-mono text-sm font-semibold text-cup-orange-700">
+            {formatEgp(product.base_price_egp)}
+          </p>
+        </div>
+      </div>
+
+      {/* Availability toggle row */}
+      <div className="flex items-center justify-between gap-2">
+        <AvailabilityToggle
+          product={product}
+          disabled={!canToggle || pending}
+          onToggle={onToggle}
+        />
+        {canManage && isCustom && (
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label={`Edit ${product.name_en}`}
+              className="grid h-8 w-8 place-items-center rounded-chip border border-cup-stroke bg-white text-cup-brown-700 transition hover:bg-cup-cream-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600"
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label={`Delete ${product.name_en}`}
+              className="grid h-8 w-8 place-items-center rounded-chip border border-rose-200 bg-white text-cup-error transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-error"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Stock count input (owners + baristas) */}
+      {canToggle && (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cup-muted">
+            Stock
+          </span>
+          <input
+            id={`stock-${product.id}`}
+            type="number"
+            min="0"
+            value={stockInput}
+            placeholder="∞ unlimited"
+            onChange={(e) => setStockInput(e.target.value)}
+            onBlur={commitStock}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+            className="w-28 rounded-chip border border-cup-stroke bg-cup-paper px-2 py-1 text-xs placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none focus:ring-1 focus:ring-cup-orange-600"
+          />
+          {stockCount !== null && (
+            <button
+              type="button"
+              onClick={() => { setStockInput(''); onStockChange(null); }}
+              title="Set to unlimited"
+              className="text-[11px] text-cup-muted underline hover:text-cup-brown-900"
+            >
+              ∞
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Review mode cycle button (owners only) */}
+      {canManageReviews && (() => {
+        const meta = REVIEW_MODE_META[reviewMode];
+        return (
+          <button
+            type="button"
+            onClick={onCycleReviewMode}
+            title={meta.next}
+            className={`flex w-full items-center justify-between rounded-chip border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 ${meta.style}`}
+          >
+            <span className="flex items-center gap-1.5">
+              {meta.icon}
+              {meta.label}
+            </span>
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.badge}`}>
+              {reviewMode === 'full' ? 'FULL' : reviewMode === 'write_only' ? 'WRITE' : 'OFF'}
+            </span>
+          </button>
+        );
+      })()}
+
+      {/* Cup AI per-product attribute editor */}
+      {canManage && <AttributesEditor product={product} />}
+    </li>
+  );
+}
+
+// ─── Small subcomponents ──────────────────────────────────────────────────
+
+function AvailabilityToggle({
+  product,
+  disabled,
+  onToggle,
+}: {
+  product: Product;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
   const available = product.is_available;
   return (
     <button
@@ -903,13 +544,60 @@ function AvailabilityToggle({ product, disabled, onToggle }: { product: Product;
       disabled={disabled}
       onClick={onToggle}
       className={`inline-flex items-center gap-2 rounded-pill border px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 disabled:cursor-not-allowed disabled:opacity-50 ${
-        available ? 'border-cup-teal-200 bg-cup-teal-100 text-cup-teal-700' : 'border-cup-stroke bg-cup-brown-100 text-cup-brown-700'
+        available
+          ? 'border-cup-teal-200 bg-cup-teal-100 text-cup-teal-700'
+          : 'border-cup-stroke bg-cup-brown-100 text-cup-brown-700'
       }`}
     >
-      <span className={`relative inline-block h-3.5 w-6 rounded-pill transition ${available ? 'bg-cup-teal-700' : 'bg-cup-brown-400'}`} aria-hidden>
-        <span className={`absolute top-[2px] inline-block h-2.5 w-2.5 rounded-full bg-white shadow transition-all ${available ? 'left-[12px]' : 'left-[2px]'}`} />
+      <span
+        className={`relative inline-block h-3.5 w-6 rounded-pill transition ${
+          available ? 'bg-cup-teal-700' : 'bg-cup-brown-400'
+        }`}
+        aria-hidden
+      >
+        <span
+          className={`absolute top-[2px] inline-block h-2.5 w-2.5 rounded-full bg-white shadow transition-all ${
+            available ? 'left-[12px]' : 'left-[2px]'
+          }`}
+        />
       </span>
-      {available ? 'Available' : 'Unavailable'}
+      {available ? 'Available' : 'Out of stock'}
+    </button>
+  );
+}
+
+function StatPill({ label, value, tone }: { label: string; value: number; tone: 'brown' | 'teal' | 'rose' }) {
+  const accent =
+    tone === 'teal' ? 'text-cup-teal-700' : tone === 'rose' ? 'text-cup-error' : 'text-cup-brown-900';
+  return (
+    <div className="rounded-card border border-cup-stroke bg-cup-surface px-4 py-3 shadow-card">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cup-muted">{label}</p>
+      <p className={`mt-1 font-heading text-2xl font-bold ${accent}`}>{value}</p>
+    </div>
+  );
+}
+
+function CategoryChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`shrink-0 rounded-pill border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600 ${
+        active
+          ? 'border-cup-orange-600 bg-cup-orange-100 text-cup-orange-700'
+          : 'border-cup-stroke bg-cup-surface text-cup-brown-700 hover:bg-cup-cream-100'
+      }`}
+    >
+      {label}
     </button>
   );
 }

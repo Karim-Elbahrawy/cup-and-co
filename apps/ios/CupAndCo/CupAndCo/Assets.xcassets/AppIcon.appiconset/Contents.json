@@ -1,0 +1,74 @@
+{
+  "images": [
+    {
+      "filename": "icon-1024.png",
+      "idiom": "universal",
+      "platform": "ios",
+      "size": "1024x1024"
+    },
+    {
+      "filename": "icon-180.png",
+      "idiom": "universal",
+      "platform": "ios",
+      "size": "180x180"
+    },
+    {
+      "filename": "icon-167.png",
+      "idiom": "universal",
+      "platform": "ios",
+      "size": "167x167"
+    },
+    {
+      "filename": "icon-152.png",
+      "idiom": "universal",
+      "platform": "ios",
+      "size": "152x152"
+    },
+    {
+      "filename": "icon-120.png",
+      "idiom": "universal",
+      "platform": "universal",
+      "size": "120x120"
+    },
+    {
+      "filename": "icon-87.png",
+      "idiom": "universal",
+      "platform": "universal",
+      "size": "87x87"
+    },
+    {
+      "filename": "icon-80.png",
+      "idiom": "universal",
+      "platform": "universal",
+      "size": "80x80"
+    },
+    {
+      "filename": "icon-76.png",
+      "idiom": "universal",
+      "platform": "universal",
+      "size": "76x76"
+    },
+    {
+      "filename": "icon-60.png",
+      "idiom": "universal",
+      "platform": "universal",
+      "size": "60x60"
+    },
+    {
+      "filename": "icon-58.png",
+      "idiom": "universal",
+      "platform": "universal",
+      "size": "58x58"
+    },
+    {
+      "filename": "icon-40.png",
+      "idiom": "universal",
+      "platform": "universal",
+      "size": "40x40"
+    }
+  ],
+  "info": {
+    "version": 1,
+    "author": "generate-stubs.mjs"
+  }
+}

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type {
   CatalogResponse,
   Category,
@@ -31,28 +30,28 @@ const FALLBACK: CatalogResponse = {
     { id: '11111111-1111-1111-1111-111111111108', slug: 'breakfast',   name_en: 'Breakfast',   name_ar: 'فطور',        sort_order: 8 },
   ],
   products: [
-    p('22222222-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111103', 'Velvet Cappuccino',  'كابتشينو فيلفيت',     'Silky steamed milk over a double shot, dusted with cocoa', 65, '/images/products/hot_coffee.png', 5, 1, 4.9, 128),
-    p('22222222-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111103', 'Caramel Macchiato',  'كراميل ماكياتو',       'Espresso, vanilla, foam, and a caramel drizzle',           70, '/images/products/hot_coffee.png', 5, 2, 4.8, 96),
-    p('22222222-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111103', 'Honey Latte',        'لاتيه عسل',           'Local honey blended with espresso and steamed milk',       68, '/images/products/hot_coffee.png', 5, 3, 4.7, 64),
-    p('22222222-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111102', 'Vanilla Cold Brew',  'كولد برو فانيليا',     '12-hour cold brew, vanilla, over ice',                     62, '/images/products/cold_coffee.png', 3, 4, 4.8, 82),
-    p('22222222-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111101', 'Espresso Romano',    'إسبريسو رومانو',       'Double shot with a twist of lemon',                        45, '/images/products/hot_coffee.png', 3, 5, 4.6, 41),
-    p('22222222-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111102', 'Iced Americano',     'أمريكانو مثلج',       'Long espresso shaken over ice',                            50, '/images/products/cold_coffee.png', 3, 6, 4.7, 73),
-    p('22222222-0000-0000-0000-000000000007', '11111111-1111-1111-1111-111111111103', 'Mocha Royale',       'موكا رويال',           'Dark chocolate ganache, espresso, milk',                   75, '/images/products/hot_coffee.png', 6, 7, 4.9, 110),
-    p('22222222-0000-0000-0000-000000000008', '11111111-1111-1111-1111-111111111103', 'Hazelnut Latte',     'لاتيه بندق',          'Roasted hazelnut syrup, espresso, milk',                   68, '/images/products/hot_coffee.png', 5, 8, 4.6, 58),
-    p('22222222-0000-0000-0000-000000000009', '11111111-1111-1111-1111-111111111103', 'Spanish Latte',      'لاتيه إسباني',         'Espresso, condensed milk, steamed milk',                   70, '/images/products/hot_coffee.png', 5, 9, 4.8, 92),
-    p('22222222-0000-0000-0000-00000000000A', '11111111-1111-1111-1111-111111111103', 'Flat White',         'فلات وايت',            'Double ristretto under silky microfoam',                   63, '/images/products/hot_coffee.png', 5, 10, 4.7, 67),
-    p('22222222-0000-0000-0000-00000000000B', '11111111-1111-1111-1111-111111111107', 'Tiramisu Cup',         'كأس تيراميسو',         'Mascarpone, espresso-soaked ladyfingers, cocoa',           85, '/images/products/dessert.png', 2, 1, 4.9, 88),
-    p('22222222-0000-0000-0000-00000000000C', '11111111-1111-1111-1111-111111111107', 'Brownie Bar',          'براوني',                'Fudgy double-chocolate brownie',                           55, '/images/products/dessert.png', 2, 2, 4.7, 74),
-    p('22222222-0000-0000-0000-00000000000D', '11111111-1111-1111-1111-111111111107', 'Almond Croissant',     'كرواسون لوز',           'Buttery croissant filled with almond cream',               60, '/images/products/dessert.png', 2, 3, 4.8, 56),
-    p('22222222-0000-0000-0000-00000000000E', '11111111-1111-1111-1111-111111111107', 'Cheesecake Slice',     'تشيز كيك',              'New York style cheesecake, berry compote',                 70, '/images/products/dessert.png', 2, 4, 4.8, 81),
-    p('22222222-0000-0000-0000-00000000000F', '11111111-1111-1111-1111-111111111107', 'Chocolate Tart',       'تارت شوكولاتة',          'Dark chocolate ganache in butter pastry',                  65, '/images/products/dessert.png', 2, 5, 4.7, 49),
-    p('22222222-0000-0000-0000-000000000010', '11111111-1111-1111-1111-111111111107', 'Cinnamon Roll',        'سينامون رول',            'Warm cinnamon roll with cream cheese glaze',               50, '/images/products/dessert.png', 2, 6, 4.6, 42),
-    p('22222222-0000-0000-0000-000000000011', '11111111-1111-1111-1111-111111111108', 'Avocado Toast',          'توست أفوكادو',           'Sourdough, smashed avocado, chili flakes, lemon',          80, '/images/products/breakfast.png', 7, 1, 4.7, 65),
-    p('22222222-0000-0000-0000-000000000012', '11111111-1111-1111-1111-111111111108', 'Egg & Cheese Sandwich',  'ساندويتش بيض وجبنة',       'Scrambled eggs, melted cheese, on a toasted bun',          65, '/images/products/breakfast.png', 6, 2, 4.6, 54),
-    p('22222222-0000-0000-0000-000000000013', '11111111-1111-1111-1111-111111111108', 'Smoked Turkey Bagel',    'بيغل ديك رومي مدخن',        'Smoked turkey, swiss, mustard, on a fresh bagel',          75, '/images/products/breakfast.png', 6, 3, 4.7, 48),
-    p('22222222-0000-0000-0000-000000000014', '11111111-1111-1111-1111-111111111108', 'Granola Bowl',           'وعاء جرانولا',           'House granola, yogurt, seasonal fruit, honey',             70, '/images/products/breakfast.png', 5, 4, 4.8, 62),
-    p('22222222-0000-0000-0000-000000000015', '11111111-1111-1111-1111-111111111108', 'Acai Bowl',              'وعاء آساي',              'Acai, banana, granola, fresh berries',                     90, '/images/products/breakfast.png', 5, 5, 4.9, 71),
-    p('22222222-0000-0000-0000-000000000016', '11111111-1111-1111-1111-111111111108', 'Spinach Feta Wrap',      'راب سبانخ وفيتا',          'Spinach, feta, sundried tomatoes in spinach tortilla',     75, '/images/products/breakfast.png', 6, 6, 4.6, 38),
+    p('22222222-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111103', 'Velvet Cappuccino',  'كابتشينو فيلفيت',     'Silky steamed milk over a double shot, dusted with cocoa', 65, '/images/products/velvet_cappuccino.svg', 5, 1, 4.9, 128),
+    p('22222222-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111103', 'Caramel Macchiato',  'كراميل ماكياتو',       'Espresso, vanilla, foam, and a caramel drizzle',           70, '/images/products/caramel_macchiato.svg', 5, 2, 4.8, 96),
+    p('22222222-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111103', 'Honey Latte',        'لاتيه عسل',           'Local honey blended with espresso and steamed milk',       68, '/images/products/honey_latte.svg', 5, 3, 4.7, 64),
+    p('22222222-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111102', 'Vanilla Cold Brew',  'كولد برو فانيليا',     '12-hour cold brew, vanilla, over ice',                     62, '/images/products/vanilla_cold_brew.svg', 3, 4, 4.8, 82),
+    p('22222222-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111101', 'Espresso Romano',    'إسبريسو رومانو',       'Double shot with a twist of lemon',                        45, '/images/products/espresso_romano.svg', 3, 5, 4.6, 41),
+    p('22222222-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111102', 'Iced Americano',     'أمريكانو مثلج',       'Long espresso shaken over ice',                            50, '/images/products/iced_americano.svg', 3, 6, 4.7, 73),
+    p('22222222-0000-0000-0000-000000000007', '11111111-1111-1111-1111-111111111103', 'Mocha Royale',       'موكا رويال',           'Dark chocolate ganache, espresso, milk',                   75, '/images/products/mocha_royale.svg', 6, 7, 4.9, 110),
+    p('22222222-0000-0000-0000-000000000008', '11111111-1111-1111-1111-111111111103', 'Hazelnut Latte',     'لاتيه بندق',          'Roasted hazelnut syrup, espresso, milk',                   68, '/images/products/hazelnut_latte.svg', 5, 8, 4.6, 58),
+    p('22222222-0000-0000-0000-000000000009', '11111111-1111-1111-1111-111111111103', 'Spanish Latte',      'لاتيه إسباني',         'Espresso, condensed milk, steamed milk',                   70, '/images/products/spanish_latte.svg', 5, 9, 4.8, 92),
+    p('22222222-0000-0000-0000-00000000000A', '11111111-1111-1111-1111-111111111103', 'Flat White',         'فلات وايت',            'Double ristretto under silky microfoam',                   63, '/images/products/flat_white.svg', 5, 10, 4.7, 67),
+    p('22222222-0000-0000-0000-00000000000B', '11111111-1111-1111-1111-111111111107', 'Tiramisu Cup',         'كأس تيراميسو',         'Mascarpone, espresso-soaked ladyfingers, cocoa',           85, '/images/products/tiramisu_cup.svg', 2, 1, 4.9, 88),
+    p('22222222-0000-0000-0000-00000000000C', '11111111-1111-1111-1111-111111111107', 'Brownie Bar',          'براوني',                'Fudgy double-chocolate brownie',                           55, '/images/products/brownie_bar.svg', 2, 2, 4.7, 74),
+    p('22222222-0000-0000-0000-00000000000D', '11111111-1111-1111-1111-111111111107', 'Almond Croissant',     'كرواسون لوز',           'Buttery croissant filled with almond cream',               60, '/images/products/almond_croissant.svg', 2, 3, 4.8, 56),
+    p('22222222-0000-0000-0000-00000000000E', '11111111-1111-1111-1111-111111111107', 'Cheesecake Slice',     'تشيز كيك',              'New York style cheesecake, berry compote',                 70, '/images/products/cheesecake_slice.svg', 2, 4, 4.8, 81),
+    p('22222222-0000-0000-0000-00000000000F', '11111111-1111-1111-1111-111111111107', 'Chocolate Tart',       'تارت شوكولاتة',          'Dark chocolate ganache in butter pastry',                  65, '/images/products/chocolate_tart.svg', 2, 5, 4.7, 49),
+    p('22222222-0000-0000-0000-000000000010', '11111111-1111-1111-1111-111111111107', 'Cinnamon Roll',        'سينامون رول',            'Warm cinnamon roll with cream cheese glaze',               50, '/images/products/cinnamon_roll.svg', 2, 6, 4.6, 42),
+    p('22222222-0000-0000-0000-000000000011', '11111111-1111-1111-1111-111111111108', 'Avocado Toast',          'توست أفوكادو',           'Sourdough, smashed avocado, chili flakes, lemon',          80, '/images/products/avocado_toast.svg', 7, 1, 4.7, 65),
+    p('22222222-0000-0000-0000-000000000012', '11111111-1111-1111-1111-111111111108', 'Egg & Cheese Sandwich',  'ساندويتش بيض وجبنة',       'Scrambled eggs, melted cheese, on a toasted bun',          65, '/images/products/egg_cheese_sandwich.svg', 6, 2, 4.6, 54),
+    p('22222222-0000-0000-0000-000000000013', '11111111-1111-1111-1111-111111111108', 'Smoked Turkey Bagel',    'بيغل ديك رومي مدخن',        'Smoked turkey, swiss, mustard, on a fresh bagel',          75, '/images/products/smoked_turkey_bagel.svg', 6, 3, 4.7, 48),
+    p('22222222-0000-0000-0000-000000000014', '11111111-1111-1111-1111-111111111108', 'Granola Bowl',           'وعاء جرانولا',           'House granola, yogurt, seasonal fruit, honey',             70, '/images/products/granola_bowl.svg', 5, 4, 4.8, 62),
+    p('22222222-0000-0000-0000-000000000015', '11111111-1111-1111-1111-111111111108', 'Acai Bowl',              'وعاء آساي',              'Acai, banana, granola, fresh berries',                     90, '/images/products/acai_bowl.svg', 5, 5, 4.9, 71),
+    p('22222222-0000-0000-0000-000000000016', '11111111-1111-1111-1111-111111111108', 'Spinach Feta Wrap',      'راب سبانخ وفيتا',          'Spinach, feta, sundried tomatoes in spinach tortilla',     75, '/images/products/spinach_feta_wrap.svg', 6, 6, 4.6, 38),
   ],
   offers: [
     {
@@ -153,22 +152,18 @@ for (const product of FALLBACK.products) {
   if (seed) Object.assign(product, seed);
 }
 
-/** Coffee categories that get shot + size + sugar options. */
-const COFFEE_CATEGORY_IDS = [
-  '11111111-1111-1111-1111-111111111101', // hot_coffee
-  '11111111-1111-1111-1111-111111111102', // cold_coffee
-  '11111111-1111-1111-1111-111111111103', // milk_coffee
+const SHOT_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
+  { group_name: 'shots', name_en: 'Single', name_ar: 'شوت واحد', price_delta_egp: 0 },
+  { group_name: 'shots', name_en: 'Double', name_ar: 'شوتين',    price_delta_egp: 10 },
 ];
 
 const COFFEE_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
-  { group_name: 'shots', name_en: 'Single',  name_ar: 'شوت واحد', price_delta_egp: 0 },
-  { group_name: 'shots', name_en: 'Double',  name_ar: 'شوتين',    price_delta_egp: 5 },
-  { group_name: 'size',  name_en: 'Small',   name_ar: 'صغير',     price_delta_egp: -5 },
-  { group_name: 'size',  name_en: 'Medium',  name_ar: 'وسط',      price_delta_egp: 0 },
-  { group_name: 'size',  name_en: 'Large',   name_ar: 'كبير',     price_delta_egp: 10 },
-  { group_name: 'sugar', name_en: 'Normal',  name_ar: 'عادي',     price_delta_egp: 0 },
-  { group_name: 'sugar', name_en: 'Less',    name_ar: 'أقل',      price_delta_egp: 0 },
-  { group_name: 'sugar', name_en: 'No',      name_ar: 'بدون',     price_delta_egp: 0 },
+  { group_name: 'size',  name_en: 'Small',  name_ar: 'صغير',  price_delta_egp: -5 },
+  { group_name: 'size',  name_en: 'Medium', name_ar: 'وسط',   price_delta_egp: 0 },
+  { group_name: 'size',  name_en: 'Large',  name_ar: 'كبير',  price_delta_egp: 10 },
+  { group_name: 'sugar', name_en: 'Normal', name_ar: 'عادي',  price_delta_egp: 0 },
+  { group_name: 'sugar', name_en: 'Less',   name_ar: 'أقل',   price_delta_egp: 0 },
+  { group_name: 'sugar', name_en: 'No',     name_ar: 'بدون',  price_delta_egp: 0 },
 ];
 
 const ICE_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
@@ -177,194 +172,63 @@ const ICE_OPTIONS: Omit<ProductOption, 'product_id' | 'id'>[] = [
   { group_name: 'ice', name_en: 'No',     name_ar: 'بدون', price_delta_egp: 0 },
 ];
 
+// Category IDs
+const HOT_COFFEE_CAT  = '11111111-1111-1111-1111-111111111101';
+const COLD_COFFEE_CAT = '11111111-1111-1111-1111-111111111102';
+const MILK_COFFEE_CAT = '11111111-1111-1111-1111-111111111103';
+
 function fallbackOptionsFor(productId: string): ProductOption[] {
   const product = FALLBACK.products.find((x) => x.id === productId);
   if (!product) return [];
-  if (COFFEE_CATEGORY_IDS.includes(product.category_id)) {
-    const isCold = product.category_id === '11111111-1111-1111-1111-111111111102';
-    const all: Omit<ProductOption, 'product_id' | 'id'>[] = isCold
-      ? [...COFFEE_OPTIONS, ...ICE_OPTIONS]
-      : COFFEE_OPTIONS;
-    return all.map((o, i) => ({ ...o, id: `${productId}-opt-${i}`, product_id: productId }));
-  }
-  return [];
+  const { category_id: cat } = product;
+  const coffeeCategories = [HOT_COFFEE_CAT, COLD_COFFEE_CAT, MILK_COFFEE_CAT];
+  if (!coffeeCategories.includes(cat)) return [];
+
+  // Hot/milk espresso drinks get shot + size + sugar options.
+  // Cold coffee additionally gets ice.
+  const withShots = cat === HOT_COFFEE_CAT || cat === MILK_COFFEE_CAT;
+  const all: Omit<ProductOption, 'product_id' | 'id'>[] = [
+    ...(withShots ? SHOT_OPTIONS : []),
+    ...COFFEE_OPTIONS,
+    ...(cat === COLD_COFFEE_CAT ? ICE_OPTIONS : []),
+  ];
+  return all.map((o, i) => ({ ...o, id: `${productId}-opt-${i}`, product_id: productId }));
 }
 
-// ---------------------------------------------------------------------------
-// Admin-mutable in-memory overlays (survive hot-reloads in dev; reset on
-// process restart — swap for a DB-backed store in production).
-// ---------------------------------------------------------------------------
+// ─── Per-product review-mode overlay ─────────────────────────────────────────
+// Default is 'full'. The admin can cycle this per-product at runtime.
+const productReviewMode = new Map<string, ReviewMode>();
 
-/** Admin-created products (stored in memory; reset on server restart in dev). */
-const adminProducts: Product[] = [];
+export function setProductReviewMode(productId: string, mode: ReviewMode): void {
+  productReviewMode.set(productId, mode);
+}
 
-/** Per-product review-mode override set by admin. Defaults to 'full'. */
-const productReviewModes = new Map<string, ReviewMode>();
+export function getProductReviewMode(productId: string): ReviewMode {
+  return productReviewMode.get(productId) ?? 'full';
+}
 
-/**
- * Per-product stock override.
- * `undefined` (absent) = unlimited; `0` = sold out; positive = units left.
- */
+// ─── Per-product stock overlay ───────────────────────────────────────────────
+// null = unlimited (default). Any non-negative integer = tracked stock count.
+// When count hits 0 the product is considered out of stock. Admin sets it;
+// order creation decrements it automatically.
 const productStockMap = new Map<string, number>();
 
-/**
- * Per-product option overrides. When set, these replace the fallback options
- * returned for that product. Admins can add/edit/delete choices here.
- */
-const adminProductOptions = new Map<string, ProductOption[]>();
-
-/** Admin-created categories (added on top of FALLBACK.categories). */
-const adminCategories: Category[] = [];
-
-/**
- * Creates a new product. In dev (no Supabase) it is stored in the
- * in-memory `adminProducts` array. With Supabase it inserts a row and
- * keeps an in-memory copy so the fallback catch path also sees it.
- */
-// ── Category management ──────────────────────────────────────────────────────
-
-export async function createCategory(
-  input: Omit<Category, 'id'>,
-): Promise<Category> {
-  const id = randomUUID();
-  const category: Category = { id, ...input };
-  if (isSupabaseReady()) {
-    const sb = getServiceClient();
-    const { data, error } = await sb.from('categories').insert(category).select().single();
-    if (error || !data) throw new Error(error?.message ?? 'Failed to create category');
-    adminCategories.push(data as Category);
-    return data as Category;
-  }
-  adminCategories.push(category);
-  return category;
-}
-
-export function updateCategory(id: string, patch: Partial<Omit<Category, 'id'>>): Category | null {
-  // Try admin-created first
-  const idx = adminCategories.findIndex((c) => c.id === id);
-  if (idx !== -1) {
-    adminCategories[idx] = { ...adminCategories[idx], ...patch };
-    return adminCategories[idx];
-  }
-  // Fallback (mutate in-place for dev)
-  const fb = FALLBACK.categories.find((c) => c.id === id);
-  if (fb) {
-    Object.assign(fb, patch);
-    return fb;
-  }
-  return null;
-}
-
-export function deleteCategory(id: string): boolean {
-  const idx = adminCategories.findIndex((c) => c.id === id);
-  if (idx !== -1) { adminCategories.splice(idx, 1); return true; }
-  const fbIdx = FALLBACK.categories.findIndex((c) => c.id === id);
-  if (fbIdx !== -1) { FALLBACK.categories.splice(fbIdx, 1); return true; }
-  return false;
-}
-
-// ── Product options management ───────────────────────────────────────────────
-
-export function getAdminOptions(productId: string): ProductOption[] | null {
-  return adminProductOptions.has(productId) ? (adminProductOptions.get(productId) ?? []) : null;
-}
-
-export function addProductOption(
-  productId: string,
-  input: Omit<ProductOption, 'id' | 'product_id'>,
-): ProductOption {
-  const existing = adminProductOptions.get(productId) ?? fallbackOptionsFor(productId);
-  const option: ProductOption = { id: randomUUID(), product_id: productId, ...input };
-  existing.push(option);
-  adminProductOptions.set(productId, existing);
-  return option;
-}
-
-export function updateProductOption(
-  productId: string,
-  optionId: string,
-  patch: Partial<Omit<ProductOption, 'id' | 'product_id'>>,
-): ProductOption | null {
-  const list = adminProductOptions.get(productId) ?? fallbackOptionsFor(productId);
-  const idx = list.findIndex((o) => o.id === optionId);
-  if (idx === -1) return null;
-  list[idx] = { ...list[idx], ...patch };
-  adminProductOptions.set(productId, list);
-  return list[idx];
-}
-
-export function deleteProductOption(productId: string, optionId: string): boolean {
-  const list = adminProductOptions.get(productId) ?? fallbackOptionsFor(productId);
-  const idx = list.findIndex((o) => o.id === optionId);
-  if (idx === -1) return false;
-  list.splice(idx, 1);
-  adminProductOptions.set(productId, list);
-  return true;
-}
-
-export async function createProduct(
-  input: Omit<Product, 'id' | 'rating_avg' | 'rating_count' | 'stock_count' | 'review_mode'>,
-): Promise<Product> {
-  const id = randomUUID();
-  const product: Product = {
-    id,
-    ...input,
-    rating_avg: 0,
-    rating_count: 0,
-    stock_count: null,
-    review_mode: 'full',
-  };
-
-  if (isSupabaseReady()) {
-    const sb = getServiceClient();
-    const { data, error } = await sb
-      .from('products')
-      .insert({
-        id,
-        category_id: input.category_id,
-        name_en: input.name_en,
-        name_ar: input.name_ar,
-        description_en: input.description_en,
-        description_ar: input.description_ar,
-        base_price_egp: input.base_price_egp,
-        image_url: input.image_url,
-        prep_minutes: input.prep_minutes,
-        is_available: input.is_available,
-        sort_order: input.sort_order,
-        rating_avg: 0,
-        rating_count: 0,
-        stock_count: null,
-        review_mode: 'full',
-      })
-      .select()
-      .single();
-    if (error || !data) throw new Error(error?.message ?? 'Failed to create product in database');
-    const created = data as Product;
-    adminProducts.push(created); // keep in-memory copy for fallback catch path
-    return created;
-  }
-
-  adminProducts.push(product);
-  return product;
-}
-
-export function setProductReviewMode(id: string, mode: ReviewMode): void {
-  productReviewModes.set(id, mode);
-}
-
-/** Pass `null` to remove the stock cap (unlimited). */
-export function setProductStock(id: string, count: number | null): void {
+export function setProductStock(productId: string, count: number | null): void {
   if (count === null) {
-    productStockMap.delete(id);
+    productStockMap.delete(productId);
   } else {
-    productStockMap.set(id, count);
+    productStockMap.set(productId, Math.max(0, count));
   }
+}
+
+export function getProductStock(productId: string): number | null {
+  return productStockMap.has(productId) ? (productStockMap.get(productId) ?? null) : null;
 }
 
 // ───────────────────────────────────────────────────────────────────────────
 // Cup AI concierge attribute overrides — admins set these per product so the
 // matcher knows how to suggest the drink. Stored as a partial overlay so a
-// single `null` field doesn't wipe out the rest. Keyed by product ID.
+// single null field doesn't wipe out the rest. Keyed by product ID.
 // ───────────────────────────────────────────────────────────────────────────
 
 export interface ConciergeAttrs {
@@ -392,47 +256,28 @@ export function getProductAttrs(product: Product): ConciergeAttrs {
 }
 
 /**
- * Replaces the admin overlay for a product. Pass `null` for any individual
- * field to clear it (and fall back to whatever the product itself has).
+ * Replaces (merges) the admin overlay for a product. Pass `null` for any
+ * individual field to clear it (and fall back to whatever the product itself
+ * has).
  */
 export function setProductAttrs(id: string, attrs: Partial<ConciergeAttrs>): void {
   productAttrsMap.set(id, { ...productAttrsMap.get(id), ...attrs });
 }
 
-/** Returns the live stock count for a product. `null` = unlimited. */
-export function getProductStock(id: string): number | null {
-  const v = productStockMap.get(id);
-  return v === undefined ? null : v;
-}
-
-/**
- * Decrements stock by `qty`. Call only after confirming there is enough stock.
- * No-ops for unlimited products (not in the map).
- */
-export function decrementStock(id: string, qty: number): void {
-  const current = productStockMap.get(id);
-  if (current !== undefined) {
-    productStockMap.set(id, Math.max(0, current - qty));
-  }
-}
-
-/** Applies in-memory stock, review-mode, and concierge-attribute overlays. */
-function withMeta(product: Product): Product {
-  const stockVal = productStockMap.get(product.id);
-  const modeVal = productReviewModes.get(product.id);
-  const attrsVal = productAttrsMap.get(product.id);
-  if (stockVal === undefined && modeVal === undefined && attrsVal === undefined) return product;
+/** Apply both stock + concierge-attribute overlays to a product. */
+function withStock(product: Product): Product {
+  const stock = getProductStock(product.id);
+  const attrs = productAttrsMap.get(product.id);
+  if (stock === null && !attrs) return product;
   return {
     ...product,
-    stock_count: stockVal !== undefined ? stockVal : product.stock_count,
-    review_mode: modeVal ?? product.review_mode,
-    // Concierge attribute overlays — admin values win over the seeded defaults
-    energy_level: attrsVal?.energy_level ?? product.energy_level ?? null,
-    sweetness:    attrsVal?.sweetness    ?? product.sweetness    ?? null,
-    temperature:  attrsVal?.temperature  ?? product.temperature  ?? null,
-    caffeine_mg:  attrsVal?.caffeine_mg  ?? product.caffeine_mg  ?? null,
-    tags_en:      attrsVal?.tags_en      ?? product.tags_en      ?? [],
-    tags_ar:      attrsVal?.tags_ar      ?? product.tags_ar      ?? [],
+    ...(stock !== null && { stock_count: stock }),
+    ...(attrs?.energy_level !== undefined && { energy_level: attrs.energy_level }),
+    ...(attrs?.sweetness    !== undefined && { sweetness: attrs.sweetness }),
+    ...(attrs?.temperature  !== undefined && { temperature: attrs.temperature }),
+    ...(attrs?.caffeine_mg  !== undefined && { caffeine_mg: attrs.caffeine_mg }),
+    ...(attrs?.tags_en      !== undefined && { tags_en: attrs.tags_en }),
+    ...(attrs?.tags_ar      !== undefined && { tags_ar: attrs.tags_ar }),
   };
 }
 
@@ -440,12 +285,113 @@ function isSupabaseReady(): boolean {
   return !!(config.supabase.serviceRoleKey && config.supabase.url && !config.supabase.url.includes('127.0.0.1:54321'));
 }
 
+/**
+ * In-memory product overlay for fallback mode. Lets the admin "Add product"
+ * flow create new menu items at runtime without a Supabase write. Lives only
+ * for the lifetime of the API process — production uses the real DB insert.
+ */
+const extraProducts: Product[] = [];
+
+export interface AddProductInput {
+  category_id: string;
+  name_en: string;
+  name_ar: string;
+  description_en?: string | null;
+  description_ar?: string | null;
+  base_price_egp: number;
+  image_url?: string | null;
+  prep_minutes?: number | null;
+}
+
+export function addProduct(input: AddProductInput): Product {
+  const sortOrder = FALLBACK.products.length + extraProducts.length + 1;
+  const slug = input.name_en
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 32) || `product-${sortOrder}`;
+  const product: Product = {
+    id: `99999999-0000-0000-0000-${String(sortOrder).padStart(12, '0')}`,
+    category_id: input.category_id,
+    name_en: input.name_en,
+    name_ar: input.name_ar,
+    description_en: input.description_en ?? '',
+    description_ar: input.description_ar ?? '',
+    base_price_egp: input.base_price_egp,
+    image_url: input.image_url || `/images/products/${slug}.svg`,
+    prep_minutes: input.prep_minutes ?? 5,
+    sort_order: sortOrder,
+    rating_avg: 0,
+    rating_count: 0,
+    is_available: true,
+    stock_count: null,
+    review_mode: 'full',
+  };
+  extraProducts.push(product);
+  return product;
+}
+
+export function listExtraProducts(): Product[] {
+  return [...extraProducts];
+}
+
+export type UpdateProductInput = Partial<{
+  category_id: string;
+  name_en: string;
+  name_ar: string;
+  description_en: string | null;
+  description_ar: string | null;
+  base_price_egp: number;
+  image_url: string | null;
+  prep_minutes: number | null;
+  is_available: boolean;
+}>;
+
+/**
+ * Update an extra product (admin-created). FALLBACK seed products are
+ * read-only — the admin can flip availability via the existing
+ * productAvailability override but can't rename/reprice them.
+ */
+export function updateExtraProduct(id: string, patch: UpdateProductInput): Product | null {
+  const idx = extraProducts.findIndex((p) => p.id === id);
+  if (idx === -1) return null;
+  const current = extraProducts[idx]!;
+  // Coerce nullable text/numeric fields back to Product's stricter shape.
+  const next: Product = {
+    ...current,
+    ...(patch.category_id !== undefined && { category_id: patch.category_id }),
+    ...(patch.name_en !== undefined && { name_en: patch.name_en }),
+    ...(patch.name_ar !== undefined && { name_ar: patch.name_ar }),
+    ...(patch.description_en !== undefined && { description_en: patch.description_en ?? '' }),
+    ...(patch.description_ar !== undefined && { description_ar: patch.description_ar ?? '' }),
+    ...(patch.base_price_egp !== undefined && { base_price_egp: patch.base_price_egp }),
+    ...(patch.image_url !== undefined && { image_url: patch.image_url ?? current.image_url }),
+    ...(patch.prep_minutes !== undefined && { prep_minutes: patch.prep_minutes ?? current.prep_minutes }),
+    ...(patch.is_available !== undefined && { is_available: patch.is_available }),
+    id: current.id,
+  };
+  extraProducts[idx] = next;
+  return next;
+}
+
+/** Remove an extra product. FALLBACK products can't be deleted. */
+export function deleteExtraProduct(id: string): boolean {
+  const idx = extraProducts.findIndex((p) => p.id === id);
+  if (idx === -1) return false;
+  extraProducts.splice(idx, 1);
+  return true;
+}
+
+/** Used by admin endpoints to know whether a product id is editable. */
+export function isExtraProduct(id: string): boolean {
+  return extraProducts.some((p) => p.id === id);
+}
+
 export async function getCatalog(): Promise<CatalogResponse> {
   if (!isSupabaseReady()) {
     return {
       ...FALLBACK,
-      categories: [...FALLBACK.categories, ...adminCategories].sort((a, b) => a.sort_order - b.sort_order),
-      products: [...FALLBACK.products, ...adminProducts].map(withMeta),
+      products: [...FALLBACK.products, ...extraProducts].map(withStock),
     };
   }
   try {
@@ -459,35 +405,34 @@ export async function getCatalog(): Promise<CatalogResponse> {
     if (categoriesRes.error || productsRes.error || offersRes.error) {
       throw new Error('Catalog query failed');
     }
-    const rawProducts = (productsRes.data ?? []) as Product[];
-    const dbCategories = (categoriesRes.data as Category[]);
     return {
-      categories: [...dbCategories, ...adminCategories].sort((a, b) => a.sort_order - b.sort_order),
-      products: [...rawProducts, ...adminProducts].map(withMeta),
+      categories: categoriesRes.data as Category[],
+      products: ((productsRes.data ?? []) as Product[]).map(withStock),
       offers: (offersRes.data ?? []) as Offer[],
       kiosk: (kioskRes.data ?? FALLBACK.kiosk) as KioskStatus,
     };
   } catch {
-    return {
-      ...FALLBACK,
-      categories: [...FALLBACK.categories, ...adminCategories].sort((a, b) => a.sort_order - b.sort_order),
-      products: [...FALLBACK.products, ...adminProducts].map(withMeta),
-    };
+    return { ...FALLBACK, products: FALLBACK.products.map(withStock) };
   }
 }
 
 export async function getProductDetail(id: string, userId?: string): Promise<ProductDetailResponse | null> {
-  // Check both FALLBACK products and admin-created products
-  const allFallback = [...FALLBACK.products, ...adminProducts];
+  const reviewMode = getProductReviewMode(id);
+  // Only fetch the review list from DB in 'full' mode — 'write_only' shows
+  // the write form but not the existing list; 'hidden' shows nothing.
+  const fetchReviews = reviewMode === 'full';
+
   if (!isSupabaseReady()) {
-    const product = allFallback.find((x) => x.id === id);
+    const product =
+      FALLBACK.products.find((x) => x.id === id) ??
+      extraProducts.find((x) => x.id === id);
     if (!product) return null;
-    const overriddenOptions = adminProductOptions.get(id);
     return {
-      product: withMeta(product),
-      options: overriddenOptions ?? fallbackOptionsFor(id),
+      product: withStock(product),
+      options: fallbackOptionsFor(id),
       reviews: [],
       is_favorited: false,
+      review_mode: reviewMode,
     };
   }
   try {
@@ -495,19 +440,22 @@ export async function getProductDetail(id: string, userId?: string): Promise<Pro
     const [productRes, optionsRes, reviewsRes, favRes] = await Promise.all([
       sb.from('products').select('*').eq('id', id).single(),
       sb.from('product_options').select('*').eq('product_id', id).order('sort_order'),
-      sb.from('reviews').select('*').eq('product_id', id).eq('hidden', false).order('created_at', { ascending: false }).limit(20),
+      fetchReviews
+        ? sb.from('reviews').select('*').eq('product_id', id).eq('hidden', false).order('created_at', { ascending: false }).limit(20)
+        : Promise.resolve({ data: [] as Review[], error: null }),
       userId ? sb.from('favorites').select('id').eq('product_id', id).eq('user_id', userId).maybeSingle() : Promise.resolve({ data: null }),
     ]);
     if (productRes.error || !productRes.data) return null;
     return {
-      product: withMeta(productRes.data as Product),
+      product: withStock(productRes.data as Product),
       options: (optionsRes.data ?? []) as ProductOption[],
       reviews: (reviewsRes.data ?? []) as Review[],
       is_favorited: !!favRes.data,
+      review_mode: reviewMode,
     };
   } catch {
     const product = FALLBACK.products.find((x) => x.id === id);
     if (!product) return null;
-    return { product: withMeta(product), options: fallbackOptionsFor(id), reviews: [], is_favorited: false };
+    return { product: withStock(product), options: fallbackOptionsFor(id), reviews: [], is_favorited: false, review_mode: reviewMode };
   }
 }

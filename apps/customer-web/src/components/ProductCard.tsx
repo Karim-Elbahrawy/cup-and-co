@@ -7,137 +7,96 @@ import { Heart, Star } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { Product } from '@/lib/types';
 import { useT, pickName, formatPrice } from '@/lib/i18n';
-import { api } from '@/lib/api';
+import { cdnImage } from '@/lib/cdnImage';
 
 interface ProductCardProps {
   product: Product;
   /** Optional override for the favorited state (defaults to local toggle). */
   initiallyFavorited?: boolean;
-  /** Called after a successful favorite toggle so the parent can sync its state. */
-  onFavoriteChange?: (productId: string, favorited: boolean) => void;
 }
 
 /**
- * Product card for the customer-facing grid.
- *
- * Image rendering: the image container uses a padding-bottom trick
- * (`pb-[100%]`) as the most reliable cross-browser aspect-ratio enforcer.
- * A nested `absolute inset-0` div is the actual `position: relative`
- * context for Next.js `<Image fill>` — separating sizing from clipping.
- *
- * Padding inside the image is done via inline `style` on the <Image> so
- * it is never dropped by Tailwind's JIT purge pass.
+ * Square-image product card. Heart icon top-right toggles a local favorite
+ * state (server sync lands in Phase 2). The card scales to 0.98 on press
+ * via Framer Motion, and the rating + price line keeps the brand's contrast.
  */
-export function ProductCard({ product, initiallyFavorited = false, onFavoriteChange }: ProductCardProps) {
+export function ProductCard({ product, initiallyFavorited = false }: ProductCardProps) {
   const { language } = useT();
   const reduce = useReducedMotion();
   const [favorited, setFavorited] = useState(initiallyFavorited);
-  const [favPending, setFavPending] = useState(false);
 
   const name = pickName(product, language);
   const price = formatPrice(product.base_price_egp, language);
-  const isOutOfStock = product.stock_count !== null && product.stock_count <= 0;
+  // Phase 3.2: out-of-stock visual treatment. Either the staff toggle
+  // (`is_out_of_stock`) OR a depleted `stock_count` triggers it.
+  const outOfStock =
+    product.is_out_of_stock === true ||
+    (product.stock_count !== null && product.stock_count !== undefined && product.stock_count <= 0);
 
   return (
     <motion.div
-      whileHover={reduce ? undefined : { y: -3 }}
-      whileTap={reduce ? undefined : { scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-      className="group relative overflow-visible rounded-[20px] bg-white shadow-card transition-shadow hover:shadow-elevated"
+      whileTap={reduce || outOfStock ? undefined : { scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+      className={[
+        'group relative overflow-hidden rounded-[20px] bg-white p-3 shadow-card transition-shadow',
+        outOfStock ? '' : 'hover:shadow-elevated',
+      ].join(' ')}
+      aria-disabled={outOfStock || undefined}
     >
       <Link
         href={`/products/${product.id}`}
-        aria-label={`${name}, ${price}${isOutOfStock ? ', out of stock' : ''}`}
-        className="block overflow-hidden rounded-[20px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cup-primary)] focus-visible:ring-offset-2"
+        aria-label={
+          outOfStock ? `${name}, ${price} — out of stock` : `${name}, ${price}`
+        }
+        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cup-primary)] focus-visible:ring-offset-2 rounded-[16px]"
       >
-        {/* ── Image zone ───────────────────────────────────────────────────
-            pb-[100%] makes the row 1:1 square regardless of the child.
-            The inner absolute-positioned div is the `relative` context that
-            Next.js `fill` needs — overflow-hidden clips the hover scale.    */}
-        <div className="relative w-full pb-[100%] rounded-t-[20px] overflow-hidden bg-[#F7F5F2]">
-          <div className="absolute inset-0">
-            <Image
-              src={product.image_url}
-              alt=""
-              fill
-              sizes="(min-width: 1280px) 16vw, (min-width: 1024px) 20vw, (min-width: 768px) 33vw, 50vw"
-              className={`object-contain transition-transform duration-300 group-hover:scale-[1.05]${isOutOfStock ? ' opacity-40 grayscale' : ''}`}
-              style={{ padding: '12%' }}
-              unoptimized={product.image_url.toLowerCase().endsWith('.svg')}
-              priority={false}
-            />
-            {isOutOfStock && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/40">
-                <span className="rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--cup-muted)] shadow-subtle ring-1 ring-[var(--cup-stroke)]">
-                  Sold out
-                </span>
-              </div>
-            )}
-          </div>
+        <div className="relative aspect-square overflow-hidden rounded-2xl bg-white">
+          <Image
+            src={cdnImage(product, 'card')}
+            alt=""
+            width={400}
+            height={400}
+            className={[
+              'h-full w-full rounded-2xl object-contain p-2 transition-transform duration-300',
+              outOfStock ? 'grayscale opacity-50' : 'group-hover:scale-105',
+            ].join(' ')}
+          />
+          {outOfStock && (
+            <span
+              className="absolute bottom-2 start-2 inline-flex items-center rounded-pill bg-[var(--cup-error)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-card"
+              aria-hidden="true"
+            >
+              {language === 'ar' ? 'نفد' : 'Out of stock'}
+            </span>
+          )}
         </div>
-
-        {/* ── Info zone ──────────────────────────────────────────────────── */}
-        <div className="px-3 pb-3 pt-2.5">
-          <p className="line-clamp-1 font-heading text-[13px] font-semibold leading-snug text-[var(--cup-espresso)]">
+        <div className="mt-3 px-1">
+          <p className="line-clamp-1 font-heading text-sm font-semibold text-[var(--cup-espresso)]">
             {name}
           </p>
-          <div className="mt-1.5 flex items-center justify-between gap-1">
-            <span
-              className={`text-sm font-bold tabular-nums leading-none ${
-                isOutOfStock
-                  ? 'text-[var(--cup-muted)] line-through'
-                  : 'text-[var(--cup-primary)]'
-              }`}
-            >
-              {price}
+          <div className="mt-1.5 flex items-center justify-between">
+            <span className="text-sm font-bold text-[var(--cup-primary)]">{price}</span>
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--cup-cocoa)]">
+              <Star size={12} aria-hidden="true" className="fill-[var(--cup-star)] stroke-[var(--cup-star)]" />
+              {product.rating_avg.toFixed(1)}
             </span>
-            {product.review_mode !== 'hidden' && product.rating_count > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[var(--cup-muted)]">
-                <Star
-                  size={10}
-                  aria-hidden="true"
-                  className="fill-[var(--cup-star)] stroke-[var(--cup-star)]"
-                />
-                {product.rating_avg.toFixed(1)}
-              </span>
-            )}
           </div>
         </div>
       </Link>
 
-      {/* ── Favorite button ──────────────────────────────────────────────── */}
       <button
         type="button"
-        disabled={favPending}
-        onClick={async (e) => {
+        onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (favPending) return;
-          const next = !favorited;
-          setFavorited(next);
-          setFavPending(true);
-          try {
-            if (next) {
-              await api.addFavorite(product.id);
-            } else {
-              await api.removeFavorite(product.id);
-            }
-            onFavoriteChange?.(product.id, next);
-          } catch {
-            // Revert on error
-            setFavorited(!next);
-          } finally {
-            setFavPending(false);
-          }
+          setFavorited((v) => !v);
         }}
-        aria-label={
-          favorited ? `Remove ${name} from favorites` : `Add ${name} to favorites`
-        }
+        aria-label={favorited ? `Remove ${name} from favorites` : `Add ${name} to favorites`}
         aria-pressed={favorited}
-        className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-subtle backdrop-blur-sm transition-transform active:scale-90 hover:bg-white disabled:cursor-not-allowed"
+        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-subtle transition-transform active:scale-90 hover:bg-white"
       >
         <Heart
-          size={14}
+          size={16}
           className={
             favorited
               ? 'fill-[var(--cup-primary)] stroke-[var(--cup-primary)]'

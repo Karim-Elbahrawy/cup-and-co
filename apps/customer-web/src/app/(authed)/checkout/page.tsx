@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ChevronLeft, CreditCard, Wallet, Banknote } from 'lucide-react';
+import { ChevronLeft, CreditCard, Wallet, Banknote, Loader2 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useCart, cartSubtotal } from '@/lib/cart';
 import { useT } from '@/lib/i18n';
+import { track } from '@/lib/analytics';
 
 type Fulfillment = 'pickup' | 'delivery';
 type PaymentMethod = 'paymob_card' | 'paymob_wallet' | 'cash';
@@ -21,7 +22,6 @@ export default function CheckoutPage() {
   const clear = useCart((s) => s.clear);
 
   const [fulfillment, setFulfillment] = useState<Fulfillment>('pickup');
-  const [delivery, setDelivery] = useState({ building: '', floor: '', room: '' });
   const [scheduled, setScheduled] = useState<string>(''); // empty = ASAP
   const [payment, setPayment] = useState<PaymentMethod>('cash');
   const [notes, setNotes] = useState('');
@@ -30,6 +30,11 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const orderPlacedRef = useRef(false);
+  // Stable per-mount idempotency key so retries of the same checkout submit
+  // are deduped server-side.
+  const idempotencyKeyRef = useRef<string>(typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
   // Generate next 4 quarter-hour slots
   const slots = useMemo(() => generateSlots(), []);
@@ -38,41 +43,55 @@ export default function CheckoutPage() {
     if (items.length === 0 && !orderPlacedRef.current) router.replace('/cart');
   }, [items.length, router]);
 
+  // Phase 1.2: checkout_started — fire once per checkout-page mount when
+  // there's actually something to check out. Empty-cart visits redirect
+  // and shouldn't pollute the funnel.
+  const checkoutStartedRef = useRef(false);
+  useEffect(() => {
+    if (checkoutStartedRef.current) return;
+    if (items.length === 0) return;
+    checkoutStartedRef.current = true;
+    track({
+      name: 'checkout_started',
+      props: {
+        subtotal: cartSubtotal(items),
+        item_count: items.reduce((s, it) => s + it.quantity, 0),
+        currency: 'EGP',
+      },
+    });
+  }, [items]);
+
+  // Wraps setPayment so every method change is recorded.
+  function handlePaymentChange(method: PaymentMethod) {
+    setPayment(method);
+    const analyticsMethod =
+      method === 'paymob_card' ? 'card' : method === 'paymob_wallet' ? 'wallet' : 'cash';
+    track({
+      name: 'payment_method_selected',
+      props: { method: analyticsMethod },
+    });
+  }
+
   const subtotal = cartSubtotal(items);
   const pointsDiscount = Math.min(Math.floor(redeemPoints / 100) * 5, subtotal);
   const total = Math.max(0, subtotal - pointsDiscount - couponDiscount);
 
   async function placeOrder() {
-    if (fulfillment === 'delivery' && !delivery.building.trim()) {
-      setError(language === 'ar' ? 'الرجاء إدخال عنوان التوصيل' : 'Please enter a delivery address');
-      return;
-    }
     setSubmitting(true);
     setError(null);
     try {
-      // Build address prefix for delivery orders
-      let orderNotes = notes;
-      if (fulfillment === 'delivery') {
-        const parts = [
-          delivery.building.trim(),
-          delivery.floor.trim() ? (language === 'ar' ? `طابق ${delivery.floor.trim()}` : `Floor ${delivery.floor.trim()}`) : '',
-          delivery.room.trim() ? (language === 'ar' ? `غرفة ${delivery.room.trim()}` : `Room ${delivery.room.trim()}`) : '',
-        ].filter(Boolean);
-        const addr = parts.join(', ');
-        orderNotes = notes.trim() ? `${addr} — ${notes.trim()}` : addr;
-      }
       const res = await api.createOrder({
         fulfillmentType: fulfillment,
         paymentMethod: payment,
         scheduledFor: scheduled ? scheduled : null,
         redeemPoints,
-        notes: orderNotes || undefined,
+        notes: notes || undefined,
         items: items.map((it) => ({
           productId: it.productId,
           quantity: it.quantity,
           options: it.options,
         })),
-      });
+      }, idempotencyKeyRef.current);
 
       if (payment === 'cash') {
         orderPlacedRef.current = true;
@@ -104,9 +123,9 @@ export default function CheckoutPage() {
         >
           <ChevronLeft className="h-5 w-5 text-cup-brown-900" />
         </Link>
-        <p className="font-heading text-base font-semibold text-cup-brown-900">
+        <h1 className="font-heading text-base font-semibold text-cup-brown-900">
           {t('common.checkout')}
-        </p>
+        </h1>
         <span className="w-10" aria-hidden="true" />
       </header>
 
@@ -123,38 +142,8 @@ export default function CheckoutPage() {
           />
         </Section>
 
-        {/* Delivery address — only when delivery is selected */}
-        {fulfillment === 'delivery' && (
-          <Section label={language === 'ar' ? 'عنوان التوصيل' : 'Delivery Address'}>
-            <div className="space-y-2">
-              <input
-                value={delivery.building}
-                onChange={(e) => setDelivery((d) => ({ ...d, building: e.target.value }))}
-                placeholder={language === 'ar' ? 'المبنى أو الموقع على الحرم الجامعي' : 'Building or campus location'}
-                className="w-full rounded-card border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
-              />
-              <div className="flex gap-2">
-                <input
-                  value={delivery.floor}
-                  onChange={(e) => setDelivery((d) => ({ ...d, floor: e.target.value }))}
-                  placeholder={language === 'ar' ? 'الطابق' : 'Floor'}
-                  className="flex-1 rounded-card border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
-                />
-                <input
-                  value={delivery.room}
-                  onChange={(e) => setDelivery((d) => ({ ...d, room: e.target.value }))}
-                  placeholder={language === 'ar' ? 'غرفة / مكتب' : 'Room / Office'}
-                  className="flex-1 rounded-card border border-cup-stroke bg-white px-3 py-2.5 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
-                />
-              </div>
-            </div>
-          </Section>
-        )}
-
         {/* Time slot */}
-        <Section label={fulfillment === 'delivery'
-          ? (language === 'ar' ? 'وقت التوصيل' : 'Delivery Time')
-          : t('checkout.pickupTime')}>
+        <Section label={t('checkout.pickupTime')}>
           <div className="flex flex-wrap gap-2">
             <SlotChip
               label={t('checkout.asap')}
@@ -179,33 +168,38 @@ export default function CheckoutPage() {
               icon={<CreditCard className="h-5 w-5" />}
               label={t('checkout.payWithCard')}
               selected={payment === 'paymob_card'}
-              onClick={() => setPayment('paymob_card')}
+              onClick={() => handlePaymentChange('paymob_card')}
             />
             <PaymentCard
               icon={<Wallet className="h-5 w-5" />}
               label={t('checkout.payWithWallet')}
               selected={payment === 'paymob_wallet'}
-              onClick={() => setPayment('paymob_wallet')}
+              onClick={() => handlePaymentChange('paymob_wallet')}
             />
             <PaymentCard
               icon={<Banknote className="h-5 w-5" />}
               label={t('checkout.payWithCash')}
               selected={payment === 'cash'}
-              onClick={() => setPayment('cash')}
+              onClick={() => handlePaymentChange('cash')}
             />
           </div>
         </Section>
 
         {/* Notes */}
         <Section label={language === 'ar' ? 'ملاحظات' : 'Notes'}>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={language === 'ar' ? 'حساسية، طلبات خاصة…' : 'Allergies, special requests…'}
-            rows={3}
-            maxLength={500}
-            className="w-full rounded-card border border-cup-stroke bg-white p-3 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
-          />
+          <div className="relative">
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={language === 'ar' ? 'حساسية، طلبات خاصة…' : 'Allergies, special requests…'}
+              rows={3}
+              maxLength={500}
+              className="w-full rounded-card border border-cup-stroke bg-white p-3 pr-16 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+            />
+            <span className="pointer-events-none absolute bottom-2 end-3 text-[11px] tabular-nums text-cup-muted">
+              {notes.length} / 500
+            </span>
+          </div>
         </Section>
 
         {/* Coupon */}
@@ -218,20 +212,27 @@ export default function CheckoutPage() {
                 setCouponDiscount(0);
               }}
               placeholder={t('checkout.enterCode')}
-              className="flex-1 rounded-lg border border-cup-stroke bg-white px-3 py-2 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
+              className="h-11 flex-1 rounded-pill border border-cup-stroke bg-white px-4 text-sm placeholder:text-cup-muted focus:border-cup-orange-600 focus:outline-none"
             />
             <button
               type="button"
-              onClick={() => {
-                // Phase 5 MVP: client-side placeholder. Wire to /coupons/validate in Phase 6.
-                if (couponCode.trim().toUpperCase() === 'STUDENT15') {
-                  setCouponDiscount(Math.floor(subtotal * 0.15));
-                } else {
+              onClick={async () => {
+                try {
+                  const res = await api.validateCoupon(couponCode.trim());
+                  if (res.ok && res.type === 'percentage' && res.value) {
+                    setCouponDiscount(Math.floor(subtotal * (res.value / 100)));
+                  } else if (res.ok && res.type === 'fixed' && res.value) {
+                    setCouponDiscount(Math.min(res.value * 100, subtotal));
+                  } else {
+                    setCouponDiscount(0);
+                    setError(res.reason ?? (language === 'ar' ? 'كود غير صالح' : 'Invalid coupon code'));
+                  }
+                } catch {
                   setCouponDiscount(0);
                   setError(language === 'ar' ? 'كود غير صالح' : 'Invalid coupon code');
                 }
               }}
-              className="rounded-pill bg-cup-orange-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cup-orange-700"
+              className="h-11 rounded-pill bg-cup-orange-600 px-5 text-xs font-semibold text-white transition hover:bg-cup-orange-700"
             >
               {t('checkout.apply')}
             </button>
@@ -267,9 +268,14 @@ export default function CheckoutPage() {
           type="button"
           onClick={placeOrder}
           disabled={submitting}
-          className="mx-auto flex w-full max-w-3xl items-center justify-center rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98] disabled:opacity-70"
+          className="mx-auto flex w-full max-w-3xl items-center justify-center gap-2 rounded-pill bg-cup-orange-600 px-6 py-4 font-heading text-base font-semibold text-white shadow-[0_8px_24px_rgba(194,65,12,0.28)] transition active:scale-[0.98] disabled:opacity-70"
         >
-          {submitting ? 'Placing order…' : `${t('checkout.placeOrder')} — EGP ${total}`}
+          {submitting && (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          )}
+          {submitting
+            ? language === 'ar' ? 'جاري الطلب…' : 'Placing order…'
+            : `${t('checkout.placeOrder')} — EGP ${total}`}
         </button>
       </div>
     </main>

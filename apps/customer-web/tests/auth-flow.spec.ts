@@ -103,15 +103,12 @@ test('login → verify → role → profile-setup → home flow with stubbed API
   await expect(page.getByText(/How do you take your campus/i)).toBeVisible();
   await page.getByRole('button', { name: /Continue/i }).click();
 
-  // 5. Profile setup → Continue.
+  // 5. Profile setup → Continue. Verify-ID flow was removed in this pass,
+  // so profile-setup completes straight into the home tab.
   await expect(page).toHaveURL(/\/profile-setup/, { timeout: 10000 });
   await page.getByRole('button', { name: /Continue/i }).click();
 
-  // 6. Verify-ID page → Skip for now.
-  await expect(page).toHaveURL(/\/verify-id/, { timeout: 10000 });
-  await page.getByRole('button', { name: /Skip for now/i }).click();
-
-  // 7. Land on home with the popular section visible.
+  // 6. Land on home with the popular section visible.
   await expect(page).toHaveURL(/\/$/, { timeout: 10000 });
   await expect(page.getByRole('heading', { name: /Popular/i })).toBeVisible();
   await expect(page.getByText(/Velvet Cappuccino/i)).toBeVisible();

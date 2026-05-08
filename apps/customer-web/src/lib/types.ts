@@ -12,6 +12,7 @@ export type {
   Offer,
   KioskStatus,
   Review,
+  ReviewMode,
   CatalogResponse,
   ProductDetailResponse,
   Order,
@@ -21,7 +22,6 @@ export type {
   PaymentStatus,
   LoyaltySource,
   Favorite,
-  ReviewMode,
 } from '@cup-and-co/types';
 
 /**
@@ -75,14 +75,24 @@ export interface ApiOrderItem {
   options: Record<string, string>;
   unitPriceEgp: number;
   lineTotalEgp: number;
-  /** Prep time for this item in minutes (if returned by API). */
-  prepMinutes?: number;
 }
 
 export interface ApiStatusEvent {
   status: import('@cup-and-co/types').OrderStatus;
   at: string;
   note?: string;
+}
+
+/**
+ * Server-computed prep ETA (matches apps/api/src/services/prepEta.ts).
+ * `basis` drives copy on the client: queue / in_prep / scheduled show a
+ * countdown, ready / cancelled hide the pill entirely.
+ */
+export type PrepEtaBasis = 'queue' | 'in_prep' | 'ready' | 'cancelled' | 'scheduled';
+
+export interface PrepEta {
+  etaMinutes: number;
+  basis: PrepEtaBasis;
 }
 
 export interface ApiOrder {
@@ -104,6 +114,9 @@ export interface ApiOrder {
   statusHistory: ApiStatusEvent[];
   createdAt: string;
   pickedUpAt: string | null;
+  /** Optional — present on the list endpoint so the home banner can show
+   *  a live ETA without an extra round-trip. Older API builds omit it. */
+  prepEta?: PrepEta;
 }
 
 export interface TimelineStep {
@@ -117,12 +130,15 @@ export interface TimelineStep {
 export interface OrderResponse {
   order: ApiOrder;
   timeline: TimelineStep[];
-  /** Estimated total prep time in minutes, computed from order items. */
-  prepMinutesEst?: number | null;
+  /** Optional — older API builds may not include it. */
+  prepEta?: PrepEta;
 }
 
 export interface OrdersListResponse {
   orders: ApiOrder[];
+  total?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export interface CreateOrderRequest {
@@ -169,6 +185,9 @@ export interface LoyaltyHistoryResponse {
   balance: number;
   discountAvailableEgp: number;
   history: LoyaltyEntry[];
+  total?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export interface ReviewInput {
@@ -209,6 +228,7 @@ export interface LeaderboardEntry {
   userId: string;
   totalScore: number;
   weekKey: string;
+  displayName?: string;
 }
 
 export interface LeaderboardCurrentResponse {
@@ -233,4 +253,23 @@ export interface Prize {
 
 export interface PrizesResponse {
   prizes: Prize[];
+}
+
+// -- Feature flags -----------------------------------------------------------
+
+/**
+ * Names of every feature flag the API knows about. Keep this in sync with
+ * `apps/api/src/services/featureFlags.ts:FlagName` — the API ignores
+ * unknown names, so a stale client just falls back to the default variant
+ * via `useFeatureFlag()`.
+ */
+export type FeatureFlagName =
+  | 'welcome_banner'
+  | 'home_offers_visible';
+
+/** Variant assignment for the current user, keyed by flag name. */
+export type FeatureFlagAssignments = Partial<Record<FeatureFlagName, string>>;
+
+export interface FeatureFlagsResponse {
+  flags: FeatureFlagAssignments;
 }

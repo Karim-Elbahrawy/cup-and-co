@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   ChevronLeft,
   Gift,
@@ -21,9 +21,10 @@ import {
 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useSession } from '@/lib/session';
-import { useT, formatPrice } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 import type {
   LeaderboardCurrentResponse,
+  LeaderboardEntry,
   LeaderboardMeResponse,
   LoyaltyEntry,
   LoyaltyHistoryResponse,
@@ -37,7 +38,6 @@ const SOURCE_CONFIG: Record<string, { label: string; icon: typeof Gift; color: s
   cash_in_app: { label: 'Cash Order', icon: Banknote, color: 'text-cup-brown-700' },
   qr_receipt: { label: 'QR Receipt', icon: ScanLine, color: 'text-cup-orange-600' },
   redeemed: { label: 'Redeemed', icon: ArrowDownLeft, color: 'text-cup-error' },
-  refund: { label: 'Refund', icon: ArrowDownLeft, color: 'text-cup-teal-600' },
   game_reward: { label: 'Game Reward', icon: Gamepad2, color: 'text-purple-600' },
 };
 
@@ -46,8 +46,9 @@ function getSourceConfig(source: string) {
 }
 
 export default function RewardsPage() {
-  const { t, language } = useT();
+  const { t } = useT();
   const user = useSession((s) => s.user);
+  const reduce = useReducedMotion();
   const isStudent = user?.role === 'student';
 
   const [data, setData] = useState<LoyaltyHistoryResponse | null>(null);
@@ -95,9 +96,9 @@ export default function RewardsPage() {
         >
           <ChevronLeft className="h-5 w-5 text-cup-brown-900" />
         </Link>
-        <p className="font-heading text-base font-semibold text-cup-brown-900">
+        <h1 className="font-heading text-base font-semibold text-cup-brown-900">
           {t('loyalty.rewards')}
-        </p>
+        </h1>
         <span className="w-10" aria-hidden="true" />
       </header>
 
@@ -107,13 +108,6 @@ export default function RewardsPage() {
           <div className="rounded-2xl border border-cup-error bg-white p-6 text-center text-cup-error">
             <p className="font-semibold">{t('common.error')}</p>
             <p className="mt-1 text-sm">{error}</p>
-            <button
-              type="button"
-              onClick={refresh}
-              className="mt-4 rounded-pill bg-cup-orange-600 px-5 py-2 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 active:scale-[0.97]"
-            >
-              {t('common.retry')}
-            </button>
           </div>
         </div>
       )}
@@ -135,17 +129,20 @@ export default function RewardsPage() {
         <div className="mx-auto max-w-3xl px-5 pt-2">
           {/* Points balance hero */}
           <motion.section
-            initial={{ opacity: 0, y: 16 }}
+            initial={reduce ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-            className="overflow-hidden rounded-2xl bg-gradient-to-br from-cup-orange-500 to-cup-orange-600 p-6 text-white shadow-elevated"
+            transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 24 }}
+            className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#F4A261] to-[#C2410C] p-6 text-white shadow-elevated"
           >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">
                   {t('loyalty.yourPoints')}
                 </p>
-                <p className="mt-1 font-heading text-[56px] font-bold leading-none">
+                <p
+                  className="mt-1 font-heading font-bold leading-none"
+                  style={{ fontSize: 'clamp(2.5rem, 12vw, 3.5rem)' }}
+                >
                   {data.balance}
                 </p>
               </div>
@@ -158,7 +155,7 @@ export default function RewardsPage() {
               <p className="text-sm font-medium text-white/90">
                 {t('loyalty.discountAvailable')}:{' '}
                 <span className="font-heading font-bold text-white">
-                  {formatPrice(data.discountAvailableEgp, language)}
+                  EGP {data.discountAvailableEgp}
                 </span>
               </p>
             </div>
@@ -167,9 +164,9 @@ export default function RewardsPage() {
           {/* Play Game button — students only */}
           {isStudent && (
             <motion.section
-              initial={{ opacity: 0, y: 12 }}
+              initial={reduce ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.04 }}
+              transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 24, delay: 0.04 }}
               className="mt-4"
             >
               <Link
@@ -196,9 +193,9 @@ export default function RewardsPage() {
 
           {/* QR Scan button */}
           <motion.section
-            initial={{ opacity: 0, y: 12 }}
+            initial={reduce ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.06 }}
+            transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 24, delay: 0.06 }}
             className="mt-3"
           >
             <button
@@ -206,7 +203,7 @@ export default function RewardsPage() {
               onClick={() => setScannerOpen(true)}
               className="flex w-full items-center gap-3 rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle transition active:scale-[0.98]"
             >
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-cup-orange-500/10">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-cup-orange-600/10">
                 <QrCode className="h-5 w-5 text-cup-orange-600" />
               </span>
               <div className="flex-1 text-start">
@@ -284,7 +281,6 @@ function HistoryItem({ entry }: { entry: LoyaltyEntry }) {
   const config = getSourceConfig(entry.source);
   const Icon = config.icon;
   const isPositive = entry.points > 0;
-  const date = new Date(entry.createdAt);
 
   return (
     <motion.li
@@ -303,13 +299,13 @@ function HistoryItem({ entry }: { entry: LoyaltyEntry }) {
           {config.label}
         </p>
         <p className="text-[11px] text-cup-muted">
-          {date.toLocaleDateString(undefined, {
+          {new Date(entry.createdAt).toLocaleDateString(undefined, {
             month: 'short',
             day: 'numeric',
             year: 'numeric',
           })}
           {' '}
-          {date.toLocaleTimeString([], {
+          {new Date(entry.createdAt).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
           })}
@@ -367,6 +363,32 @@ function LeaderboardSection({
         </h2>
       </div>
 
+      {/* Top-3 podium */}
+      {top10.length >= 3 && (
+        <div className="mt-3 flex items-end justify-center gap-2 px-2">
+          {[1, 0, 2].map((idx) => {
+            const e = top10[idx];
+            const heights = [110, 80, 65];
+            const colors = ['bg-yellow-400', 'bg-gray-300', 'bg-amber-600/80'];
+            const h = heights[idx];
+            return (
+              <div key={e.userId} className="flex flex-1 flex-col items-center">
+                <p className="truncate font-heading text-xs font-semibold text-cup-brown-900" title={e.displayName ?? e.userId}>
+                  {e.displayName ?? `…${e.userId.slice(-4)}`}
+                </p>
+                <p className="text-[10px] font-bold text-cup-muted">{e.totalScore} pts</p>
+                <div
+                  className={`mt-1 grid w-full place-items-center rounded-t-xl ${colors[idx]} text-white shadow-subtle`}
+                  style={{ height: h }}
+                >
+                  <span className="font-heading text-2xl font-bold">{e.rank}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Prize key */}
       <div className="mt-3 flex flex-wrap gap-2">
         {Object.values(RANK_PRIZE).map((label) => (
@@ -379,7 +401,7 @@ function LeaderboardSection({
         ))}
       </div>
 
-      {top10.length === 0 ? (
+        {top10.length === 0 ? (
         <div className="mt-3 rounded-2xl border border-cup-stroke bg-white p-6 text-center shadow-subtle">
           <p className="text-sm text-cup-muted">{t('loyalty.noScores')}</p>
         </div>
@@ -399,7 +421,7 @@ function LeaderboardSection({
                 transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                 className={`flex items-center gap-3 rounded-2xl border p-3.5 shadow-subtle ${
                   isMe
-                    ? 'border-cup-orange-500/40 bg-cup-orange-500/5'
+                    ? 'border-cup-orange-600/40 bg-cup-orange-600/5'
                     : 'border-cup-stroke bg-white'
                 }`}
               >
@@ -410,7 +432,7 @@ function LeaderboardSection({
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-heading text-sm font-semibold text-cup-brown-900">
-                    {isMe ? t('games.you') : `…${entry.userId.slice(-6)}`}
+                    {isMe ? t('games.you') : entry.displayName ?? `…${entry.userId.slice(-6)}`}
                   </p>
                   {RANK_PRIZE[entry.rank] && (
                     <p className="text-[10px] text-cup-muted">{RANK_PRIZE[entry.rank]}</p>
@@ -427,7 +449,7 @@ function LeaderboardSection({
 
       {/* My rank if not in top 10 */}
       {me && !top10.some((e) => e.userId === userId) && (
-        <div className="mt-2 flex items-center gap-3 rounded-2xl border border-cup-orange-500/40 bg-cup-orange-500/5 p-3.5 shadow-subtle">
+        <div className="mt-2 flex items-center gap-3 rounded-2xl border border-cup-orange-600/40 bg-cup-orange-600/5 p-3.5 shadow-subtle">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cup-paper text-xs font-bold text-cup-muted">
             #{me.rank}
           </span>
@@ -493,12 +515,9 @@ function PrizeCard({ prize }: { prize: Prize }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
-    if (!navigator.clipboard) return;
     void navigator.clipboard.writeText(prize.code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {
-      // Clipboard API not available (e.g. HTTP context) — silent fail
     });
   }
 
@@ -512,12 +531,12 @@ function PrizeCard({ prize }: { prize: Prize }) {
       className={`rounded-2xl border p-4 shadow-subtle ${
         isRedeemed || isExpired
           ? 'border-cup-stroke bg-cup-paper opacity-60'
-          : 'border-cup-orange-500/30 bg-white'
+          : 'border-cup-orange-600/30 bg-white'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cup-orange-500/10">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cup-orange-600/10">
             <Trophy className="h-5 w-5 text-cup-orange-600" />
           </span>
           <div>

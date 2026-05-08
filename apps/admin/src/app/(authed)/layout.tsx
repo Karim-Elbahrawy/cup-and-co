@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/Sidebar';
+import { AdminShell } from '@/components/AdminShell';
 import { ToastHost } from '@/components/Toast';
+import { CampusProvider } from '@/components/CampusProvider';
 import { getSession, type AdminSession } from '@/lib/session';
 
 /**
@@ -42,12 +43,9 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
 
   return (
     <ToastHost>
-      <div className="flex min-h-screen bg-cup-paper">
-        <Sidebar session={session} />
-        <main className="flex-1 overflow-x-hidden">
-          <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8 md:py-8">{children}</div>
-        </main>
-      </div>
+      <CampusProvider>
+        <AdminShell session={session}>{children}</AdminShell>
+      </CampusProvider>
     </ToastHost>
   );
 }

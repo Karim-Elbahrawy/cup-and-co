@@ -30,9 +30,13 @@ targets:
         CFBundleLocalizations:
           - en
           - ar
+        API_BASE_URL: $(API_BASE_URL)
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
     settings:
       base:
         CODE_SIGN_STYLE: Automatic
+        XCCONFIG_FILE: LocalConfig.xcconfig
   CupAndCoTests:
     type: bundle.unit-test
     platform: iOS

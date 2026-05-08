@@ -1,29 +1,51 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bell } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PromoCard } from '@/components/PromoCard';
 import { ProductCard } from '@/components/ProductCard';
 import { CategoryChip } from '@/components/CategoryChip';
 import { DailyOrderBar } from '@/components/DailyOrderBar';
+import { OffersCarousel } from '@/components/OffersCarousel';
+import { StreakWidget } from '@/components/StreakWidget';
+import { SuggestionCard } from '@/components/SuggestionCard';
 import { PageTransition } from '@/components/PageTransition';
 import { SkeletonProductGrid } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
 import { UserAvatar } from '@/components/UserAvatar';
+import { WelcomeBackBanner } from '@/components/WelcomeBackBanner';
+import { ActiveOrderBanner } from '@/components/ActiveOrderBanner';
 import { DrinkConcierge } from '@/components/DrinkConcierge';
 import { api } from '@/lib/api';
+import { useFeatureFlag } from '@/lib/featureFlags';
+import { useActiveOrder } from '@/lib/useActiveOrder';
 import { useSession } from '@/lib/session';
 import { useT } from '@/lib/i18n';
 import type { CatalogResponse } from '@/lib/types';
 
 
 
+function greetingKey(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'home.goodMorning';
+  if (h < 17) return 'home.goodAfternoon';
+  return 'home.goodEvening';
+}
+
 export default function HomePage() {
   const { t, language } = useT();
   const user = useSession((s) => s.user);
   const reduce = useReducedMotion();
+
+  // Feature flags — see apps/api/src/services/featureFlags.ts for definitions.
+  const welcomeBannerVariant = useFeatureFlag('welcome_banner');
+  const offersVisibility = useFeatureFlag('home_offers_visible', 'enabled');
+
+  // Surfaces any in-flight order at the top of the page. Polls every 30s
+  // while active; stops once terminal. See useActiveOrder for the
+  // SSE-vs-polling rationale.
+  const { order: activeOrder } = useActiveOrder();
 
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,18 +120,21 @@ export default function HomePage() {
     return [...products].sort((a, b) => b.rating_avg * (b.rating_count + 1) - a.rating_avg * (a.rating_count + 1));
   }, [catalog, search, language, activeCategory, favoriteIds]);
 
-  const handleFavoriteChange = useCallback((productId: string, isFavorited: boolean) => {
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (isFavorited) next.add(productId);
-      else next.delete(productId);
-      return next;
-    });
-  }, []);
-
   return (
     <PageTransition>
-      <main className="flex flex-1 flex-col gap-6 px-5 pt-6">
+      <main className="mx-auto flex w-full max-w-[1080px] flex-1 flex-col gap-6 px-5 pt-6">
+        {/* Active-order banner — shown only while a non-terminal order exists.
+            Sits above the greeting so a returning user sees their pickup code
+            and ETA before anything else on the home screen. */}
+        {activeOrder && (
+          <ActiveOrderBanner order={activeOrder} language={language} />
+        )}
+
+        {/* Welcome-back pill — gated by `welcome_banner` flag (50/50 demo) */}
+        {welcomeBannerVariant === 'variant_a' && (
+          <WelcomeBackBanner name={firstName} language={language} />
+        )}
+
         {/* Greeting + bell */}
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -123,25 +148,17 @@ export default function HomePage() {
             />
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--cup-muted)]">
-                {t('common.goodMorning')}
+                {t(greetingKey())}
               </p>
               <h1 className="font-heading text-lg font-bold leading-tight text-[var(--cup-espresso)]">
                 {firstName}
               </h1>
             </div>
           </div>
-          <button
-            type="button"
-            aria-label={t('common.notifications')}
-            className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-subtle text-[var(--cup-cocoa)] transition-colors hover:text-[var(--cup-primary)]"
-          >
-            <Bell size={18} aria-hidden="true" />
-            <span
-              aria-hidden="true"
-              className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--cup-primary)] ring-2 ring-white"
-            />
-          </button>
         </header>
+
+        {/* Phase 6.4 smart suggestion — silently hides when none / dismissed */}
+        <SuggestionCard />
 
         {/* Daily habit / quick-order bar */}
         <DailyOrderBar
@@ -150,36 +167,26 @@ export default function HomePage() {
           searchPlaceholder={t('common.search')}
         />
 
+        {/* Phase 6.2 streak widget — renders nothing for current_streak === 0 */}
+        <StreakWidget />
+
         {/* Hero promo */}
         <PromoCard
           ctaLabel={t('common.orderNow')}
           featuredImageUrl={featuredPromoCutout}
           posterImageUrl={promoPosterImage}
           theme={promoTheme}
+          onCtaClick={() => document.getElementById('popular-heading')?.scrollIntoView({ behavior: 'smooth' })}
         />
 
-        {/* Active offers */}
-        {catalog && catalog.offers.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--cup-muted)]">
-              {t('common.activeOffers')}
-            </p>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {catalog.offers.map((offer) => (
-                <div
-                  key={offer.id}
-                  className="shrink-0 rounded-pill bg-gradient-to-r from-[#F4A261] to-[#C2410C] px-4 py-2 text-xs font-bold text-white shadow-warm-glow"
-                >
-                  {language === 'ar' ? offer.name_ar : offer.name_en}
-                  {offer.code && (
-                    <span className="ms-2 rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px]">
-                      {offer.code}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Active offers — outstanding swipe carousel.
+            Gated by `home_offers_visible` kill-switch flag. */}
+        {offersVisibility !== 'disabled' && catalog && catalog.offers.length > 0 && (
+          <OffersCarousel
+            offers={catalog.offers}
+            language={language}
+            label={t('common.activeOffers')}
+          />
         )}
 
         {/* Category tabs */}
@@ -253,7 +260,7 @@ export default function HomePage() {
                 },
               }}
             >
-              {filteredProducts.slice(0, 8).map((product) => (
+              {filteredProducts.slice(0, 12).map((product) => (
                 <motion.div
                   key={product.id}
                   variants={{
@@ -262,7 +269,7 @@ export default function HomePage() {
                   }}
                   transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <ProductCard product={product} initiallyFavorited={favoriteIds.has(product.id)} onFavoriteChange={handleFavoriteChange} />
+                  <ProductCard product={product} initiallyFavorited={favoriteIds.has(product.id)} />
                 </motion.div>
               ))}
             </motion.div>

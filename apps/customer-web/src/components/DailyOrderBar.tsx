@@ -1,13 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Repeat2, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Repeat2, Search, Sparkles } from 'lucide-react';
 
 interface DailyOrderBarProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
-  onFilterClick?: () => void;
 }
 
 /**
@@ -19,7 +18,6 @@ export function DailyOrderBar({
   searchValue,
   onSearchChange,
   searchPlaceholder = 'Search',
-  onFilterClick,
 }: DailyOrderBarProps) {
   return (
     <div className="flex flex-col gap-3">
@@ -73,29 +71,19 @@ export function DailyOrderBar({
       </div>
 
       {/* Search input */}
-      <div className="flex items-center gap-3">
-        <label className="relative flex flex-1 items-center">
-          <span className="pointer-events-none absolute start-4 text-[var(--cup-muted)]">
-            <Search size={17} aria-hidden="true" />
-          </span>
-          <input
-            type="search"
-            value={searchValue}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={searchPlaceholder}
-            aria-label={searchPlaceholder}
-            className="h-11 w-full rounded-pill border border-[var(--cup-stroke)] bg-white ps-11 pe-4 text-sm font-medium text-[var(--cup-espresso)] placeholder:text-[var(--cup-muted)] outline-none transition-all focus:border-[var(--cup-primary)] focus:shadow-[0_0_0_4px_rgba(194,65,12,0.09)]"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={onFilterClick}
-          aria-label="Filters"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--cup-primary)] text-white shadow-[0_6px_18px_rgba(194,65,12,0.18)] transition-transform active:scale-95 hover:bg-[var(--cup-primary-hover)]"
-        >
-          <SlidersHorizontal size={17} aria-hidden="true" />
-        </button>
-      </div>
+      <label className="relative flex items-center">
+        <span className="pointer-events-none absolute start-4 text-[var(--cup-muted)]">
+          <Search size={17} aria-hidden="true" />
+        </span>
+        <input
+          type="search"
+          value={searchValue}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder={searchPlaceholder}
+          aria-label={searchPlaceholder}
+          className="h-11 w-full rounded-pill border border-[var(--cup-stroke)] bg-white ps-11 pe-4 text-sm font-medium text-[var(--cup-espresso)] placeholder:text-[var(--cup-muted)] outline-none transition-all focus:border-[var(--cup-primary)] focus:shadow-[0_0_0_4px_rgba(194,65,12,0.09)]"
+        />
+      </label>
     </div>
   );
 }

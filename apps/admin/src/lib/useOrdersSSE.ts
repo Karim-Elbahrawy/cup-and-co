@@ -131,6 +131,7 @@ export function useOrdersSSE() {
         scheduleReconnect(controller);
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Reconnect after exponential backoff. */
@@ -300,6 +301,7 @@ export function useOrderSSE(orderId: string) {
         }
       })();
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [orderId],
   );
 

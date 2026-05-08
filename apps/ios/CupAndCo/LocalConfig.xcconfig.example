@@ -1,0 +1,4 @@
+// Copy this file to LocalConfig.xcconfig and set your machine's local WiFi IP.
+// Find your IP: open terminal → run `ipconfig` → look for "IPv4 Address" under Wi-Fi.
+// Your iPad must be on the same WiFi network as your PC.
+API_BASE_URL = http://YOUR_LOCAL_IP:4000

@@ -9,6 +9,10 @@ struct RewardsView: View {
     @State private var scanResult: String?
     @State private var showGame = false
 
+    // Dynamic Type
+    @ScaledMetric(relativeTo: .largeTitle) private var balanceSize: CGFloat = 48
+    @ScaledMetric(relativeTo: .body) private var balanceLabelSize = CupTypography.bodyMd
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -74,10 +78,10 @@ struct RewardsView: View {
                         )
                     VStack(spacing: 8) {
                         Text("Your Points")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .font(.system(size: balanceLabelSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white.opacity(0.85))
                         Text("\(loyalty.balance)")
-                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .font(.system(size: balanceSize, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                         if loyalty.discountAvailableEgp > 0 {
                             Text("= \(Int(loyalty.discountAvailableEgp)) EGP discount available")

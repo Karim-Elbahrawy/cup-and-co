@@ -1,9 +1,12 @@
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
+import * as Sentry from '@sentry/node';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { errorHandler } from './http/errors.js';
+import { track as trackAnalytics } from './services/analytics.js';
 import { config } from './config.js';
 import { requireAuth, requireAdmin, getRequestUser, getAdminRole, signSession } from './http/auth.js';
 import { assertAdminPermission } from './services/permissions.js';
@@ -17,26 +20,84 @@ import {
   trackingTimelineFor,
   type Order,
 } from './services/orders.js';
+import { computePrepEta, type PrepEta } from './services/prepEta.js';
 import { createPushService, statusNotificationCopy } from './services/push.js';
+import {
+  issueDeleteOtp,
+  verifyDeleteOtp,
+  markDeletionConfirmed,
+  cancelDeletion,
+  getDeletionState,
+  isAccountDeleted,
+  deletionGraceUntil,
+  ACCOUNT_GRACE_DAYS,
+  canRequestExport,
+  createExportJob,
+  completeExportJob,
+  getExportJob,
+  type ExportJob,
+} from './services/accountLifecycle.js';
+import {
+  listOrderFavorites,
+  getOrderFavorite,
+  createOrderFavorite,
+  updateOrderFavorite,
+  deleteOrderFavorite,
+  type TimeOfDay,
+} from './db/orderFavoritesRepo.js';
+import { getStreakState, recordOrderForStreak } from './db/streakRepo.js';
+import {
+  applyTierMultiplier,
+  recalculateOnEarn,
+  getTierState,
+  getTierHistory,
+  TIER_BENEFITS,
+  TIER_THRESHOLDS_OUT,
+  type LoyaltyTier,
+} from './services/tierEngine.js';
+import { suggestForUser } from './services/suggestionEngine.js';
+import { getCatalog } from './db/catalogRepo.js';
+import {
+  ensureReferralCode,
+  trackReferralClick,
+  linkRefereeOnSignup,
+  tryConvertReferralOnFirstPaidOrder,
+  listReferralsByReferrer,
+  getReferralStats,
+  REFERRER_REWARD,
+  REFEREE_REWARD,
+  MIN_CONVERSION_ORDER_EGP,
+} from './db/referralRepo.js';
+import { evaluateAllFlags } from './services/featureFlags.js';
 import { catalogRouter } from './routes/catalog.js';
 import {
-  getCatalog,
+  listCampuses,
+  getCampus,
+  listKiosksForCampus,
+  getDefaultCampusId,
+  isValidCampusId,
+} from './db/campusRepo.js';
+import {
   getProductDetail,
+  addProduct,
+  updateExtraProduct,
+  deleteExtraProduct,
+  isExtraProduct,
   setProductReviewMode,
-  setProductStock,
-  decrementStock,
-  createProduct,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-  getAdminOptions,
-  addProductOption,
-  updateProductOption,
-  deleteProductOption,
+  // Legacy numeric stock_count API (Phase 3.2 stage-1).
+  getProductStock as getProductStockCount,
+  setProductStock as setProductStockCount,
+  // Cup AI concierge attribute overlay
   setProductAttrs,
   getProductAttrs,
 } from './db/catalogRepo.js';
 import { inferAttributes } from './services/inferAttributes.js';
+import {
+  // New staff-toggle out-of-stock API (Phase 3.2 stage-2).
+  isProductOutOfStock,
+  getProductStock,
+  setProductStock,
+} from './db/productStockRepo.js';
 import { adminOffers } from './db/offersStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
@@ -54,26 +115,16 @@ const loyaltyHistory = new Map<string, Array<{ id: string; source: string; order
 // Phase 5: users registry for admin user management, and mutable offers store
 const usersRegistry = new Map<string, { id: string; phone: string; full_name: string | null; role: string; verification_status: string; blocked: boolean; created_at: string }>();
 
-// Audit log — owner-visible record of admin actions
-interface AuditEntry {
-  id: string;
-  adminId: string;
-  adminRole: string;
-  action: string;
-  target: string;
-  detail: string;
-  createdAt: string;
-}
-const auditLog: AuditEntry[] = [];
-
-// Per-order estimated prep time in minutes (max prep_minutes across items)
-const orderPrepMinutes = new Map<string, number>();
-
-// Low-stock threshold (warn when stock_count <= this value)
-const LOW_STOCK_THRESHOLD = 5;
-
 // Reverse-lookup: phone → userId (so returning users keep their data across verify calls)
 const phoneToUserId = new Map<string, string>();
+
+// OTP store: phone → { code, expiresAt }
+const otpStore = new Map<string, { code: string; expiresAt: number }>();
+const OTP_TTL_MS = 5 * 60 * 1000;
+
+function generateOtp(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
 
 // Phase 4: prizes store keyed by userId
 interface Prize {
@@ -164,46 +215,23 @@ const submitScoreSchema = z.object({
   durationSeconds: z.number().positive(),
 });
 
+// Account lifecycle (Phase 1.3 of UPGRADE-PLAN.md)
+const deleteConfirmSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
+});
+
 // -------------- Helpers --------------
 
-// ── Audit log helper ─────────────────────────────────────────────────────────
-
-function recordAudit(
-  req: import('express').Request,
-  action: string,
-  target: string,
-  detail: string,
-): void {
-  const user = req.user;
-  if (!user) return;
-  auditLog.unshift({
-    id: randomUUID(),
-    adminId: user.id,
-    adminRole: user.role,
-    action,
-    target,
-    detail,
-    createdAt: new Date().toISOString(),
-  });
-  if (auditLog.length > 1000) auditLog.splice(1000);
-}
-
-// ── Date-range filter helpers ─────────────────────────────────────────────────
-
-function parseRange(query: Record<string, unknown>): { from: string | null; to: string | null } {
-  const from = typeof query.from === 'string' && query.from ? query.from : null;
-  const to = typeof query.to === 'string' && query.to ? query.to : null;
-  return { from, to };
-}
-
-function inRange(isoString: string, from: string | null, to: string | null): boolean {
-  const day = isoString.slice(0, 10);
-  if (from && day < from) return false;
-  if (to && day > to) return false;
-  return true;
-}
-
-// ── Loyalty helper ─────────────────────────────────────────────────────────────
+// Maps internal loyalty source strings → PostHog `points_earned.source` enum.
+// Sources not in this map (refund, redeemed) fire a different analytics event
+// or none at all. Phase 1.2 of UPGRADE-PLAN.md.
+const LOYALTY_SOURCE_TO_ANALYTICS: Record<string, 'order' | 'scan' | 'game' | 'referral'> = {
+  online_paid: 'order',
+  cash_in_app: 'order',
+  qr_receipt: 'scan',
+  game_reward: 'game',
+  referral: 'referral',
+};
 
 function recordLoyaltyEvent(userId: string, source: string, points: number, orderId: string | null = null) {
   const balance = userPoints.get(userId) ?? 0;
@@ -217,11 +245,56 @@ function recordLoyaltyEvent(userId: string, source: string, points: number, orde
     createdAt: new Date().toISOString(),
   });
   loyaltyHistory.set(userId, history);
+
+  // Mirror to PostHog. Earn vs redeem differentiated by sign + known source.
+  const analyticsSource = LOYALTY_SOURCE_TO_ANALYTICS[source];
+  if (points > 0 && analyticsSource) {
+    trackAnalytics(userId, {
+      name: 'points_earned',
+      props: { source: analyticsSource, amount: points, new_balance: balance },
+    });
+  } else if (source === 'redeemed' && points < 0) {
+    trackAnalytics(userId, {
+      name: 'points_redeemed',
+      props: { discount_amount: Math.abs(points), points_spent: Math.abs(points), new_balance: balance },
+    });
+  }
+}
+
+/**
+ * Phase 6.3 — sum positive points entries from the last 365 days for
+ * tier calculation. Closes over `loyaltyHistory` (in-memory). Production
+ * reads from `loyalty_points` table directly.
+ */
+function getTrailing12mPoints(userId: string): number {
+  const cutoffMs = Date.now() - 365 * 86_400_000;
+  const history = loyaltyHistory.get(userId) ?? [];
+  let total = 0;
+  for (const entry of history) {
+    if (entry.points <= 0) continue;
+    if (new Date(entry.createdAt).getTime() < cutoffMs) continue;
+    total += entry.points;
+  }
+  return total;
+}
+
+/**
+ * Compute the prep ETA for an order using the current snapshot of all
+ * active orders for queue-position lookups. Pure projection — does not
+ * persist the value (it changes every time we look at it).
+ */
+function prepEtaFor(order: Order): PrepEta {
+  return computePrepEta(order, Array.from(orders.values()));
 }
 
 function emitOrderUpdate(order: Order) {
-  orderEvents.emit(`order:${order.id}`, { order, timeline: trackingTimelineFor(order) });
-  orderEvents.emit('orders:all', { order, timeline: trackingTimelineFor(order) });
+  const payload = {
+    order,
+    timeline: trackingTimelineFor(order),
+    prepEta: prepEtaFor(order),
+  };
+  orderEvents.emit(`order:${order.id}`, payload);
+  orderEvents.emit('orders:all', payload);
 }
 
 async function notifyOrderStatus(order: Order, status: Parameters<typeof statusNotificationCopy>[0]['status']) {
@@ -245,7 +318,26 @@ async function notifyOrderStatus(order: Order, status: Parameters<typeof statusN
 
 export function createApp(): express.Express {
   const app = express();
-  app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*' }));
+
+  // Security hardening: Helmet headers (CSP off — API responses are JSON,
+  // and CSP would only fire if a browser were misled into rendering them),
+  // HSTS forced on, x-powered-by disabled.
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1); // honor X-Forwarded-* from a single hop (load balancer)
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  }));
+
+  app.use(cors({
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-user-id', 'x-user-role', 'x-user-phone', 'x-verification-status'],
+    exposedHeaders: ['ETag'],
+    credentials: false,
+    maxAge: 86400,
+  }));
 
   // Simple sliding-window rate limiter for OTP endpoints (per source IP)
   const otpHits = new Map<string, number[]>();
@@ -264,6 +356,27 @@ export function createApp(): express.Express {
     next();
   }
 
+  // Generic per-IP rate limit on every request — defends against accidental
+  // floods. Skipped in tests so they can hammer endpoints. Production should
+  // swap this for a Redis-backed limiter behind a load balancer.
+  if (config.nodeEnv !== 'test') {
+    const REQ_WINDOW_MS = 60_000;
+    const REQ_MAX = 300; // 5 req/sec sustained
+    const reqHits = new Map<string, number[]>();
+    app.use((req, res, next) => {
+      const ip = req.ip ?? 'unknown';
+      const now = Date.now();
+      const hits = (reqHits.get(ip) ?? []).filter((t) => now - t < REQ_WINDOW_MS);
+      if (hits.length >= REQ_MAX) {
+        res.status(429).json({ error: 'Too many requests. Please slow down.' });
+        return;
+      }
+      hits.push(now);
+      reqHits.set(ip, hits);
+      next();
+    });
+  }
+
   /** requireAuth + blocked-account check in one step. */
   function requireActiveUser(req: express.Request, res: express.Response, next: express.NextFunction): void {
     requireAuth(req, res, () => {
@@ -279,8 +392,73 @@ export function createApp(): express.Express {
   }
   app.use(express.json({ limit: '1mb' }));
 
+  // Minimal request log: method, path, status, duration. Skipped during tests
+  // to keep their output clean. Pino-http would be the next-pass upgrade.
+  if (config.nodeEnv !== 'test') {
+    app.use((req, res, next) => {
+      const start = Date.now();
+      res.on('finish', () => {
+        const ms = Date.now() - start;
+        // eslint-disable-next-line no-console
+        console.log(`[api] ${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`);
+      });
+      next();
+    });
+  }
+
   app.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'cup-and-co-api', time: new Date().toISOString() });
+  });
+
+  // -------- Campuses (Phase 2.2 of UPGRADE-PLAN.md) --------
+  // Public — used by the customer-web campus picker before sign-in.
+  app.get('/campuses', (_req, res) => {
+    const all = listCampuses();
+    res.json({ campuses: all });
+  });
+
+  app.get('/campuses/:id', (req, res, next) => {
+    try {
+      const campus = getCampus(req.params.id as string);
+      if (!campus) {
+        const err = new Error('Campus not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      const kiosks = listKiosksForCampus(campus.id);
+      res.json({ campus, kiosks });
+    } catch (e) { next(e); }
+  });
+
+  // The current user's campus.
+  app.get('/me/campus', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    const profile = userProfiles.get(u.id) ?? {};
+    const campusId = (profile.current_campus_id as string | undefined) ?? getDefaultCampusId();
+    const campus = getCampus(campusId);
+    if (!campus) {
+      // Fallback: profile pointed at a removed campus; reset to default.
+      const fallback = getCampus(getDefaultCampusId());
+      res.json({ campus: fallback });
+      return;
+    }
+    res.json({ campus });
+  });
+
+  app.patch('/me/campus', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const input = z.object({ campus_id: z.string().uuid() }).parse(req.body);
+      if (!isValidCampusId(input.campus_id)) {
+        const err = new Error('Unknown or inactive campus.') as Error & { status?: number };
+        err.status = 400;
+        throw err;
+      }
+      const profile = userProfiles.get(u.id) ?? {};
+      userProfiles.set(u.id, { ...profile, current_campus_id: input.campus_id });
+      const campus = getCampus(input.campus_id);
+      res.json({ campus });
+    } catch (e) { next(e); }
   });
 
   // Catalog (public)
@@ -295,8 +473,11 @@ export function createApp(): express.Express {
         throw e;
       }
       const { phone } = otpSendSchema.parse(req.body);
-      // TODO: replace with supabase.auth.signInWithOtp({ phone }) when Supabase phone auth is enabled
-      res.json({ ok: true, phone, devCode: '000000', message: 'OTP sent (dev stub).' });
+      const code = process.env.DEV_OTP_OVERRIDE ?? generateOtp();
+      otpStore.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS });
+      const response: Record<string, unknown> = { ok: true, phone, message: 'OTP sent.' };
+      if (process.env.DEV_OTP_OVERRIDE) response.devCode = code;
+      res.json(response);
     } catch (e) { next(e); }
   });
 
@@ -307,16 +488,27 @@ export function createApp(): express.Express {
         e.status = 503;
         throw e;
       }
-      const { phone, code } = otpVerifySchema.parse(req.body);
-      if (code !== '000000') {
-        const e = new Error('Invalid OTP') as Error & { status?: number };
-        e.status = 401;
-        throw e;
+      // Phase 7.1: optional referralCode forwarded by the client when
+      // the user came in via a /r/<code> deep link
+      const verifyInput = otpVerifySchema.extend({
+        referralCode: z.string().min(5).max(10).optional(),
+      }).parse(req.body);
+      const { phone, code } = verifyInput;
+      const stored = otpStore.get(phone);
+      const validOverride = process.env.DEV_OTP_OVERRIDE && code === process.env.DEV_OTP_OVERRIDE;
+      if (!validOverride) {
+        if (!stored || stored.code !== code || Date.now() > stored.expiresAt) {
+          const e = new Error('Invalid OTP') as Error & { status?: number };
+          e.status = 401;
+          throw e;
+        }
       }
+      otpStore.delete(phone);
       // Reuse existing userId for this phone so returning users keep their data
       const existingId = phoneToUserId.get(phone);
       const userId = existingId ?? randomUUID();
-      if (!existingId) phoneToUserId.set(phone, userId);
+      const isNewUser = !existingId;
+      if (isNewUser) phoneToUserId.set(phone, userId);
 
       const user = {
         id: userId,
@@ -336,6 +528,26 @@ export function createApp(): express.Express {
           created_at: new Date().toISOString(),
         });
       }
+      // Phase 7.1: ensure user has a referral code (idempotent)
+      ensureReferralCode(userId);
+
+      // Phase 7.1: link referee to referrer if a code was provided AND this is
+      // a new signup. The repo enforces same-device + age anti-fraud.
+      if (isNewUser && verifyInput.referralCode) {
+        const reg = usersRegistry.get(userId)!;
+        linkRefereeOnSignup({
+          code: verifyInput.referralCode,
+          refereeId: userId,
+          ip: req.ip ?? null,
+          userAgent: req.header('user-agent') ?? null,
+          referrerSignedUpAt: (referrerId) => {
+            const r = usersRegistry.get(referrerId);
+            return r ? new Date(r.created_at) : null;
+          },
+          refereeSignedUpAt: new Date(reg.created_at),
+        });
+      }
+
       const token = signSession(user);
       res.json({ token, user });
     } catch (e) { next(e); }
@@ -348,7 +560,136 @@ export function createApp(): express.Express {
     res.json({
       user: { ...u, ...profile },
       points: userPoints.get(u.id) ?? 0,
+      tier: getTierState(u.id).currentTier,
     });
+  });
+
+  // Phase 6.3 — tier read endpoint with progress to next tier.
+  app.get('/me/tier', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    const state = getTierState(u.id);
+    const trailing = getTrailing12mPoints(u.id);
+    const benefits = TIER_BENEFITS[state.currentTier];
+
+    let nextTier: LoyaltyTier | null = null;
+    let pointsToNext: number | null = null;
+    if (state.currentTier === 'bronze') {
+      nextTier = 'silver';
+      pointsToNext = TIER_THRESHOLDS_OUT.silver - trailing;
+    } else if (state.currentTier === 'silver') {
+      nextTier = 'gold';
+      pointsToNext = TIER_THRESHOLDS_OUT.gold - trailing;
+    }
+
+    res.json({
+      tier: state.currentTier,
+      tierCalculatedAt: state.tierCalculatedAt,
+      trailing12mPoints: trailing,
+      benefits,
+      nextTier,
+      pointsToNext: pointsToNext !== null ? Math.max(0, pointsToNext) : null,
+      history: getTierHistory(u.id).slice(0, 10),
+    });
+  });
+
+  // Phase 6.2 — streak read endpoint. Public shape so the home widget
+  // can render with one fetch.
+  app.get('/me/streak', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    res.json({ streak: getStreakState(u.id) });
+  });
+
+  // Phase 6.4 — smart suggestion for the home card.
+  app.get('/me/suggestion', requireAuth, async (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      // Build flat history from this user's orders.
+      const history: Array<{ productId: string; createdAt: string }> = [];
+      for (const o of orders.values()) {
+        if (o.userId !== u.id) continue;
+        for (const it of o.items) {
+          history.push({ productId: it.productId, createdAt: o.createdAt });
+        }
+      }
+      const catalog = await getCatalog();
+      const suggestion = suggestForUser({
+        history,
+        products: catalog.products.map((p) => ({
+          id: p.id,
+          name_en: p.name_en,
+          name_ar: p.name_ar,
+          image_url: p.image_url,
+          base_price_egp: p.base_price_egp,
+          is_available: p.is_available,
+          is_out_of_stock: false,
+          category_id: p.category_id,
+        })),
+      });
+      if (!suggestion) {
+        res.json({ suggestion: null });
+        return;
+      }
+      res.json({ suggestion });
+    } catch (e) { next(e); }
+  });
+
+  // -------- Phase 7.1 referrals --------
+
+  // Public click tracking. Called from the /r/<code> landing page
+  // (also accepts via authenticated context — no harm). Returns the
+  // referral id so the client can persist a cookie / localStorage
+  // entry to forward at signup.
+  app.post('/referrals/track-click', (req, res, next) => {
+    try {
+      const { code } = z.object({ code: z.string().min(5).max(10) }).parse(req.body);
+      const referral = trackReferralClick({
+        code,
+        ip: req.ip ?? null,
+        userAgent: req.header('user-agent') ?? null,
+      });
+      if (!referral) {
+        const err = new Error('Unknown referral code.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      res.status(201).json({ referralId: referral.id, code });
+    } catch (e) { next(e); }
+  });
+
+  // Authenticated user's own code + stats + recent referrals.
+  app.get('/me/referral', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    const code = ensureReferralCode(u.id);
+    const stats = getReferralStats(u.id);
+    const recent = listReferralsByReferrer(u.id).slice(0, 20).map((r) => ({
+      id: r.id,
+      status: r.status,
+      refClickedAt: r.refClickedAt,
+      signedUpAt: r.signedUpAt,
+      convertedAt: r.convertedAt,
+      referrerReward: r.referrerReward,
+    }));
+    res.json({
+      code,
+      stats,
+      recent,
+      shareLinkPath: `/r/${code}`,
+      rewards: {
+        referrer: REFERRER_REWARD,
+        referee: REFEREE_REWARD,
+        minOrderEgp: MIN_CONVERSION_ORDER_EGP,
+      },
+    });
+  });
+
+  /**
+   * Returns this user's variant assignments for every known feature flag.
+   * Bucketing is deterministic (SHA-256 over `userId:flagName`), so the
+   * client may cache the response per session without risk of drift.
+   */
+  app.get('/me/feature-flags', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    res.json({ flags: evaluateAllFlags(u.id) });
   });
 
   app.patch('/me', requireAuth, (req, res, next) => {
@@ -382,6 +723,224 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  /**
+   * Reject an action if the caller's account is in the deletion-pending
+   * state. Use on every endpoint that should NOT work during the grace
+   * period (place order, scan QR, redeem points, etc.). Skip on:
+   *   - /me/account/cancel-deletion (the one path back)
+   *   - /me/account/status
+   *   - /me/data/exports/:jobId      (download what's already prepared)
+   *   - /auth/*                      (login is what brings them back)
+   */
+  function assertAccountActive(req: express.Request): void {
+    const u = req.user;
+    if (!u) return;
+    if (isAccountDeleted(u.id)) {
+      const err = new Error(
+        'Your account is scheduled for deletion. Sign in to cancel within 30 days, or contact support.',
+      ) as Error & { status?: number };
+      err.status = 403;
+      throw err;
+    }
+  }
+
+  // -------- Account lifecycle (Phase 1.3 of UPGRADE-PLAN.md) --------
+  /**
+   * Step 1 — request deletion. Generates a 6-digit code and (in prod)
+   * sends it via SMS. The code is keyed to the user, separate from the
+   * login OTP, so it can never be intercepted and reused as a login.
+   * Rate-limited via the same IP-based limiter as auth.
+   */
+  app.post('/me/account/delete-request', requireAuth, otpRateLimit, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      // Already in the middle of deletion? Just re-issue a fresh code.
+      const { code, expiresAt } = issueDeleteOtp(u.id);
+      // TODO (Phase 4.x): swap for real SMS via Vonage/Twilio integration.
+      // For dev/test, return the code in the response so e2e tests can
+      // exercise the flow without an SMS gateway. NOTE the comparison —
+      // production envs MUST never expose the code.
+      const exposeDevCode = config.nodeEnv !== 'production';
+      const responseBody: Record<string, unknown> = {
+        ok: true,
+        expiresAt: new Date(expiresAt).toISOString(),
+      };
+      if (exposeDevCode) responseBody.devCode = code;
+      res.json(responseBody);
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Step 2 — confirm deletion with the OTP. Sets `deleted_at` and starts
+   * the 30-day grace window. The user's existing JWT remains valid (so
+   * they can call cancel-deletion), but `assertAccountActive` blocks
+   * other endpoints.
+   */
+  app.post('/me/account/delete-confirm', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const { code } = deleteConfirmSchema.parse(req.body);
+      if (!verifyDeleteOtp(u.id, code)) {
+        const err = new Error('Invalid or expired confirmation code.') as Error & { status?: number };
+        err.status = 401;
+        throw err;
+      }
+      const state = markDeletionConfirmed(u.id);
+      // TODO when Supabase is wired in prod: also UPDATE users SET deleted_at,
+      // deletion_requested_at via service-role client, and INSERT audit_log.
+      res.json({
+        ok: true,
+        deletedAt: state.deletedAt,
+        deletionRequestedAt: state.deletionRequestedAt,
+        graceUntil: deletionGraceUntil(state),
+        graceDays: ACCOUNT_GRACE_DAYS,
+        message: `Your account will be permanently anonymized in ${ACCOUNT_GRACE_DAYS} days. Sign in before then to cancel.`,
+      });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Cancel deletion within grace window. Idempotent — calling on an
+   * already-active account just confirms the state.
+   */
+  app.post('/me/account/cancel-deletion', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      cancelDeletion(u.id);
+      // TODO when Supabase is wired: UPDATE users SET deleted_at=NULL,
+      // deletion_requested_at=NULL.
+      res.json({ ok: true, message: 'Account deletion cancelled. Welcome back.' });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Read deletion state for the current user. Used by the client to
+   * show a "your account is scheduled for deletion" banner.
+   */
+  app.get('/me/account/status', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    const state = getDeletionState(u.id);
+    if (!state) {
+      res.json({ status: 'active' });
+      return;
+    }
+    res.json({
+      status: state.deletedAt ? 'deletion_pending' : 'deletion_requested',
+      deletionRequestedAt: state.deletionRequestedAt,
+      deletedAt: state.deletedAt,
+      graceUntil: deletionGraceUntil(state),
+      graceDays: ACCOUNT_GRACE_DAYS,
+    });
+  });
+
+  /**
+   * Request a data export. Rate-limited to one per 7 days. In prod the
+   * actual export is generated by an Edge Function; in dev we generate
+   * inline so the flow can be tested without Supabase Storage.
+   */
+  app.post('/me/data/export', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      if (!canRequestExport(u.id)) {
+        const err = new Error(
+          'Data export already requested in the last 7 days. Please wait before requesting another.',
+        ) as Error & { status?: number };
+        err.status = 429;
+        throw err;
+      }
+      const job = createExportJob(u.id);
+
+      // Synchronously assemble the payload from in-memory state. Each
+      // section corresponds to one PII surface in the data model.
+      const profile = userProfiles.get(u.id) ?? {};
+      const ownedOrders = Array.from(orders.values()).filter((o) => o.userId === u.id);
+      const ownedReviews = (reviews.get(u.id) ?? []).map((r) => ({ ...r }));
+      const ownedFavorites = Array.from(favorites.get(u.id) ?? new Set<string>());
+      const ownedLoyalty = (loyaltyHistory.get(u.id) ?? []).map((e) => ({ ...e }));
+      const ownedPushDevices = pushDevices.get(u.id) ?? [];
+      const ownedPrizes = prizes.get(u.id) ?? [];
+
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        exportFormat: 'cup-and-co.export.v1',
+        notice: 'This is a complete copy of your personal data held by Cup & Co. Phone numbers, names, and university details are included. Treat this file as sensitive — store it securely and delete after use.',
+        profile: { id: u.id, phone: u.phone, role: u.role, ...profile },
+        points_balance: userPoints.get(u.id) ?? 0,
+        orders: ownedOrders,
+        reviews: ownedReviews,
+        favorites: ownedFavorites,
+        loyalty_history: ownedLoyalty,
+        push_devices: ownedPushDevices,
+        prizes: ownedPrizes,
+        contact: {
+          questions: 'For questions about this data export, contact support@cupandco.app',
+          rights: 'Under Egypt PDPL Law 151 of 2020, you have the right to access, correct, and erase your personal data.',
+        },
+      };
+
+      const completed = completeExportJob(job.id, payload);
+      if (!completed) {
+        const err = new Error('Export job lost during processing.') as Error & { status?: number };
+        err.status = 500;
+        throw err;
+      }
+      res.status(201).json({
+        jobId: completed.id,
+        status: completed.status,
+        downloadUrl: `/me/data/exports/${completed.id}/download`,
+        expiresAt: completed.expiresAt,
+      });
+    } catch (e) { next(e); }
+  });
+
+  app.get('/me/data/exports/:jobId', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const job = getExportJob(req.params.jobId as string, u.id);
+      if (!job) {
+        const err = new Error('Export not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      const payload: Record<string, unknown> = {
+        jobId: job.id,
+        status: job.status,
+        createdAt: job.createdAt,
+        doneAt: job.doneAt,
+        expiresAt: job.expiresAt,
+        error: job.error,
+      };
+      if (job.status === 'done') {
+        payload.downloadUrl = `/me/data/exports/${job.id}/download`;
+      }
+      res.json(payload);
+    } catch (e) { next(e); }
+  });
+
+  app.get('/me/data/exports/:jobId/download', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const job = getExportJob(req.params.jobId as string, u.id);
+      if (!job || job.status !== 'done' || !job.payload) {
+        const err = new Error('Export not ready or expired.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      // Expiry check
+      if (job.expiresAt && new Date(job.expiresAt) < new Date()) {
+        const err = new Error('Export has expired. Please request a new one.') as Error & { status?: number };
+        err.status = 410;
+        throw err;
+      }
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="cup-and-co-data-${job.id}.json"`,
+      );
+      res.send(JSON.stringify(job.payload, null, 2));
+    } catch (e) { next(e); }
+  });
+
   app.post('/me/verification', requireAuth, (req, res, next) => {
     try {
       const u = getRequestUser(req);
@@ -407,6 +966,119 @@ export function createApp(): express.Express {
         ok: true,
         status: 'pending',
         message: 'Submitted for review. You will be notified once approved.',
+      });
+    } catch (e) { next(e); }
+  });
+
+  // -------- Order favorites (Phase 6.1 of UPGRADE-PLAN.md) --------
+  // Distinct from product `/favorites/:id` (heart icon). These are entire
+  // saved order shapes — "my usual" — that one-tap reorder into the cart.
+
+  const favoriteItemSchema = z.object({
+    productId: z.string().min(1),
+    productNameEn: z.string().min(1).max(120),
+    productNameAr: z.string().min(1).max(120),
+    imageUrl: z.string().max(2048),
+    quantity: z.number().int().positive().max(20),
+    options: z.record(z.string()).default({}),
+    unitPriceEgp: z.number().nonnegative(),
+  });
+
+  const createFavoriteSchema = z.object({
+    name: z.string().min(1).max(80),
+    items: z.array(favoriteItemSchema).min(1).max(20),
+    timeOfDay: z.enum(['morning', 'midday', 'evening']).nullable().optional(),
+    isDefault: z.boolean().optional(),
+  });
+
+  const updateFavoriteSchema = z.object({
+    name: z.string().min(1).max(80).optional(),
+    items: z.array(favoriteItemSchema).min(1).max(20).optional(),
+    timeOfDay: z.enum(['morning', 'midday', 'evening']).nullable().optional(),
+    isDefault: z.boolean().optional(),
+  });
+
+  app.get('/me/favorites/orders', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    res.json({ favorites: listOrderFavorites(u.id) });
+  });
+
+  app.post('/me/favorites/orders', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const input = createFavoriteSchema.parse(req.body);
+      const fav = createOrderFavorite(u.id, {
+        name: input.name,
+        items: input.items.map((i) => ({ ...i })),
+        timeOfDay: (input.timeOfDay ?? null) as TimeOfDay | null,
+        isDefault: input.isDefault ?? false,
+      });
+      res.status(201).json({ favorite: fav });
+    } catch (e) { next(e); }
+  });
+
+  app.get('/me/favorites/orders/:id', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const fav = getOrderFavorite(u.id, req.params.id as string);
+      if (!fav) {
+        const err = new Error('Favorite not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      res.json({ favorite: fav });
+    } catch (e) { next(e); }
+  });
+
+  app.patch('/me/favorites/orders/:id', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const input = updateFavoriteSchema.parse(req.body);
+      const fav = updateOrderFavorite(u.id, req.params.id as string, {
+        ...input,
+        items: input.items?.map((i) => ({ ...i })),
+        timeOfDay: input.timeOfDay as TimeOfDay | null | undefined,
+      });
+      if (!fav) {
+        const err = new Error('Favorite not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      res.json({ favorite: fav });
+    } catch (e) { next(e); }
+  });
+
+  app.delete('/me/favorites/orders/:id', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const ok = deleteOrderFavorite(u.id, req.params.id as string);
+      if (!ok) {
+        const err = new Error('Favorite not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Reorder helper — returns the cart payload the client should
+   * populate. Stateless: the client adds items to its own cart;
+   * server-side cart isn't a thing in v1.5.
+   */
+  app.post('/me/favorites/orders/:id/reorder', requireAuth, (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const fav = getOrderFavorite(u.id, req.params.id as string);
+      if (!fav) {
+        const err = new Error('Favorite not found.') as Error & { status?: number };
+        err.status = 404;
+        throw err;
+      }
+      res.json({
+        items: fav.items,
+        favoriteId: fav.id,
+        favoriteName: fav.name,
       });
     } catch (e) { next(e); }
   });
@@ -439,9 +1111,24 @@ export function createApp(): express.Express {
   });
 
   // -------- Orders (customer) --------
+  // Idempotency cache for POST /orders — keyed by user + Idempotency-Key header.
+  // 5-min TTL is plenty for a flaky network retry without holding state forever.
+  const orderIdempotency = new Map<string, { at: number; response: unknown }>();
+  const IDEMPOTENCY_TTL_MS = 5 * 60_000;
+
   app.post('/orders', requireAuth, async (req, res, next) => {
     try {
+      assertAccountActive(req);
       const user = getRequestUser(req);
+      const idempotencyKey = req.header('Idempotency-Key')?.trim();
+      if (idempotencyKey) {
+        const cacheKey = `${user.id}::${idempotencyKey}`;
+        const hit = orderIdempotency.get(cacheKey);
+        if (hit && Date.now() - hit.at < IDEMPOTENCY_TTL_MS) {
+          res.status(201).json(hit.response);
+          return;
+        }
+      }
       const input = createOrderSchema.parse(req.body);
       if (!kioskState.is_open) {
         const e = new Error('Kiosk ordering is closed.') as Error & { status?: number };
@@ -465,10 +1152,20 @@ export function createApp(): express.Express {
           e.status = 409;
           throw e;
         }
-        // Stock check — null stock_count means unlimited
-        const stock = detail.product.stock_count;
-        if (stock !== null && stock < item.quantity) {
-          const e = new Error(`${detail.product.name_en} is out of stock.`) as Error & { status?: number };
+        // Stock count check — null means unlimited, 0 means out of stock
+        const currentStock = getProductStockCount(item.productId);
+        if (currentStock !== null && currentStock < item.quantity) {
+          const available = currentStock <= 0 ? 'out of stock' : `only ${currentStock} left`;
+          const e = new Error(`${detail.product.name_en} is ${available}.`) as Error & { status?: number };
+          e.status = 409;
+          throw e;
+        }
+        // Phase 3.2: also reject if barista flipped the staff toggle. Catches
+        // the race where a customer added to cart then the toggle moved
+        // before checkout. The customer-web cart guard hides add-to-cart
+        // proactively.
+        if (isProductOutOfStock(item.productId)) {
+          const e = new Error(`Out of stock: ${detail.product.name_en}`) as Error & { status?: number };
           e.status = 409;
           throw e;
         }
@@ -486,7 +1183,6 @@ export function createApp(): express.Express {
           quantity: item.quantity,
           options: item.options,
           unitPriceEgp: unitPrice,
-          prepMinutes: detail.product.prep_minutes,
         });
       }
 
@@ -513,13 +1209,12 @@ export function createApp(): express.Express {
       );
       orders.set(order.id, order);
 
-      // Store estimated prep time (max single-item prep across all lines)
-      const prepEst = Math.max(...enriched.map((i) => (i.prepMinutes ?? 5) * i.quantity));
-      orderPrepMinutes.set(order.id, prepEst);
-
-      // Decrement stock for each ordered item
+      // Decrement tracked stock counts for each item ordered
       for (const item of enriched) {
-        decrementStock(item.productId, item.quantity);
+        const stock = getProductStockCount(item.productId);
+        if (stock !== null) {
+          setProductStockCount(item.productId, Math.max(0, stock - item.quantity));
+        }
       }
 
       // Decrement points when redeemed
@@ -535,11 +1230,31 @@ export function createApp(): express.Express {
       }
 
       emitOrderUpdate(order);
-      res.status(201).json({
-        order,
-        timeline: trackingTimelineFor(order),
-        prepMinutesEst: orderPrepMinutes.get(order.id) ?? null,
+
+      // Analytics: order_placed (Phase 1.2 of UPGRADE-PLAN.md). Fired after
+      // emitOrderUpdate so the customer-facing SSE update isn't blocked by a
+      // potential network call to PostHog (which is queued anyway).
+      trackAnalytics(user.id, {
+        name: 'order_placed',
+        props: {
+          order_id: order.id,
+          total: order.totalEgp,
+          payment_method: order.paymentMethod,
+          fulfillment: order.fulfillmentType,
+          item_count: order.items.length,
+          points_earned: order.paymentMethod === 'cash' ? 0 : pointsAwarded, // cash points credit later on completion
+          currency: 'EGP',
+        },
       });
+
+      const responseBody = { order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) };
+      if (idempotencyKey) {
+        orderIdempotency.set(`${user.id}::${idempotencyKey}`, {
+          at: Date.now(),
+          response: responseBody,
+        });
+      }
+      res.status(201).json(responseBody);
     } catch (e) { next(e); }
   });
 
@@ -557,18 +1272,25 @@ export function createApp(): express.Express {
         e.status = 404;
         throw e;
       }
-      res.json({
-        order,
-        timeline: trackingTimelineFor(order),
-        prepMinutesEst: orderPrepMinutes.get(order.id) ?? null,
-      });
+      res.json({ order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) });
     } catch (e) { next(e); }
   });
 
   app.get('/orders', requireAuth, (req, res) => {
     const user = getRequestUser(req);
-    const own = Array.from(orders.values()).filter((o) => o.userId === user.id);
-    res.json({ orders: own.sort((a, b) => b.createdAt.localeCompare(a.createdAt)) });
+    const all = Array.from(orders.values())
+      .filter((o) => o.userId === user.id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    const page = all.slice(offset, offset + limit);
+    // Snapshot active orders ONCE so we don't rebuild the array per row.
+    const activeOrders = Array.from(orders.values());
+    const ordersWithEta = page.map((o) => ({
+      ...o,
+      prepEta: computePrepEta(o, activeOrders),
+    }));
+    res.json({ orders: ordersWithEta, total: all.length, limit, offset });
   });
 
   // Phase 3: SSE stream for a single order (replaces 5s polling on customer tracking)
@@ -585,7 +1307,7 @@ export function createApp(): express.Express {
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     });
-    res.write(`data: ${JSON.stringify({ order, timeline: trackingTimelineFor(order) })}\n\n`);
+    res.write(`data: ${JSON.stringify({ order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) })}\n\n`);
     const handler = (data: unknown) => { res.write(`data: ${JSON.stringify(data)}\n\n`); };
     orderEvents.on(`order:${order.id}`, handler);
     const heartbeat = setInterval(() => { res.write(': ping\n\n'); }, 25_000);
@@ -608,7 +1330,7 @@ export function createApp(): express.Express {
         recordLoyaltyEvent(order.userId, 'refund', order.pointsRedeemed, order.id);
       }
       emitOrderUpdate(order);
-      res.json({ order, timeline: trackingTimelineFor(order) });
+      res.json({ order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) });
     } catch (e) { next(e); }
   });
 
@@ -637,19 +1359,27 @@ export function createApp(): express.Express {
   // Phase 3: reviews
   app.post('/reviews', requireAuth, (req, res, next) => {
     try {
+      assertAccountActive(req);
       const user = getRequestUser(req);
       const input = z.object({
         productId: z.string().min(1),
-        orderId: z.string().min(1).nullable().optional(),
+        orderId: z.string().min(1),
         rating: z.number().int().min(1).max(5),
         comment: z.string().max(500).default(''),
       }).parse(req.body);
+      const order = orders.get(input.orderId);
+      if (!order || order.userId !== user.id || order.status !== 'completed' ||
+          !order.items.some((i) => i.productId === input.productId)) {
+        const e = new Error('You can only review products from your completed orders.') as Error & { status?: number };
+        e.status = 403;
+        throw e;
+      }
       const productReviews = reviews.get(input.productId) ?? [];
       const review = {
         id: randomUUID(),
         userId: user.id,
         productId: input.productId,
-        orderId: input.orderId ?? null,
+        orderId: input.orderId,
         rating: input.rating,
         comment: input.comment,
         hidden: false,
@@ -661,12 +1391,43 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  // -------- Coupons --------
+  interface CouponDefinition {
+    code: string;
+    type: 'percentage' | 'fixed';
+    value: number;
+    descriptionEn: string;
+    descriptionAr: string;
+  }
+  const couponStore = new Map<string, CouponDefinition>([
+    ['WELCOME10', { code: 'WELCOME10', type: 'percentage', value: 10, descriptionEn: '10% off your first order', descriptionAr: '١٠٪ خصم على أول طلب' }],
+    ['STUDENT15', { code: 'STUDENT15', type: 'percentage', value: 15, descriptionEn: '15% student discount', descriptionAr: '١٥٪ خصم الطلاب' }],
+    ['COFFEE20', { code: 'COFFEE20', type: 'fixed', value: 20, descriptionEn: 'EGP 20 off', descriptionAr: '٢٠ جنيه خصم' }],
+  ]);
+
+  app.post('/coupons/validate', requireAuth, (req, res, next) => {
+    try {
+      const { code } = z.object({ code: z.string().min(1).max(40) }).parse(req.body);
+      const coupon = couponStore.get(code.toUpperCase());
+      if (!coupon) {
+        res.json({ ok: false, reason: 'Invalid or expired coupon code.' });
+        return;
+      }
+      res.json({ ok: true, type: coupon.type, value: coupon.value, descriptionEn: coupon.descriptionEn, descriptionAr: coupon.descriptionAr });
+    } catch (e) { next(e); }
+  });
+
   // -------- Payments --------
   app.post('/payments/paymob/intention', requireAuth, (req, res, next) => {
     try {
+      const user = getRequestUser(req);
       const input = paymobIntentionSchema.parse(req.body);
       const order = orders.get(input.orderId);
-      if (!order) throw new Error('Order not found.');
+      if (!order || order.userId !== user.id) {
+        const e = new Error('Order not found.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
       const intention = paymob.createIntention({
         orderId: order.id,
         userId: order.userId,
@@ -684,9 +1445,12 @@ export function createApp(): express.Express {
       const result = paymob.handleCallback(payload, hmac);
       const order = orders.get(result.orderId);
       if (order) {
-        // Idempotency: skip if already processed
         if (order.paymentStatus === 'paid') {
           res.json({ already_processed: true });
+          return;
+        }
+        if (Number(payload.amountEgp) !== order.totalEgp) {
+          res.status(422).json({ error: 'Amount mismatch.' });
           return;
         }
         order.paymentStatus = result.paymentStatus;
@@ -695,8 +1459,35 @@ export function createApp(): express.Express {
             amountEgp: order.totalEgp,
             source: 'online_paid',
           });
-          userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
-          recordLoyaltyEvent(order.userId, 'online_paid', earned, order.id);
+          // Phase 6.3 — apply tier multiplier (Bronze 1.0×, Silver 1.25×, Gold 1.5×)
+          const tieredEarned = applyTierMultiplier(order.userId, earned);
+          userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + tieredEarned);
+          recordLoyaltyEvent(order.userId, 'online_paid', tieredEarned, order.id);
+          // Recalculate tier after credit so a customer who just crossed
+          // the threshold sees the new tier on next refresh.
+          recalculateOnEarn(order.userId, getTrailing12mPoints);
+          // Phase 6.2 — record the paid order against the user's streak.
+          // Day-7 multiples grant a +50 pt bonus.
+          {
+            const streakResult = recordOrderForStreak(order.userId);
+            if (streakResult.bonusEarned) {
+              userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + 50);
+              recordLoyaltyEvent(order.userId, 'streak_bonus', 50, order.id);
+            }
+          }
+          // Phase 7.1: try referral conversion on this paid order.
+          {
+            const ref = tryConvertReferralOnFirstPaidOrder({
+              refereeId: order.userId,
+              orderTotalEgp: order.totalEgp,
+            });
+            if (ref && ref.status === 'converted' && ref.referrerReward && ref.refereeReward) {
+              userPoints.set(ref.referrerId, (userPoints.get(ref.referrerId) ?? 0) + ref.referrerReward);
+              recordLoyaltyEvent(ref.referrerId, 'referral', ref.referrerReward, order.id);
+              userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + ref.refereeReward);
+              recordLoyaltyEvent(order.userId, 'referral_signup_bonus', ref.refereeReward, order.id);
+            }
+          }
           if (order.status === 'received') {
             applyStatusTransition(order, 'accepted', 'auto-accept on payment');
             await notifyOrderStatus(order, 'accepted');
@@ -712,8 +1503,18 @@ export function createApp(): express.Express {
   app.get('/loyalty', requireAuth, (req, res) => {
     const user = getRequestUser(req);
     const balance = userPoints.get(user.id) ?? 0;
-    const history = (loyaltyHistory.get(user.id) ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    res.json({ balance, discountAvailableEgp: calculateDiscountEgp(balance), history });
+    const all = (loyaltyHistory.get(user.id) ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    const history = all.slice(offset, offset + limit);
+    res.json({
+      balance,
+      discountAvailableEgp: calculateDiscountEgp(balance),
+      history,
+      total: all.length,
+      limit,
+      offset,
+    });
   });
 
   app.post('/loyalty/redeem-qr', requireAuth, (req, res, next) => {
@@ -735,6 +1536,7 @@ export function createApp(): express.Express {
   // -------- Games --------
   app.post('/games/sessions', requireAuth, (req, res, next) => {
     try {
+      assertAccountActive(req);
       const user = getRequestUser(req);
       const session = games.startSession({
         userId: user.id,
@@ -745,8 +1547,14 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  app.get('/games/sessions/me', requireAuth, (req, res) => {
+    const user = getRequestUser(req);
+    res.json(games.getDailyStatus(user.id));
+  });
+
   app.post('/games/scores', requireAuth, (req, res, next) => {
     try {
+      assertAccountActive(req);
       const user = getRequestUser(req);
       const input = submitScoreSchema.parse(req.body);
       const result = games.submitScore({ ...input, userId: user.id });
@@ -760,7 +1568,16 @@ export function createApp(): express.Express {
   });
 
   app.get('/leaderboard/current', (_req, res) => {
-    res.json({ entries: games.getCurrentLeaderboard() });
+    const entries = games.getCurrentLeaderboard().map((e) => {
+      const user = usersRegistry.get(e.userId);
+      const fullName = user?.full_name ?? '';
+      // Initials from full name, or last-4 of userId as a privacy-preserving fallback.
+      const displayName = fullName
+        ? fullName.split(' ').slice(0, 2).map((p) => p[0] ?? '').join('').toUpperCase() || `…${e.userId.slice(-4)}`
+        : `…${e.userId.slice(-4)}`;
+      return { ...e, displayName };
+    });
+    res.json({ entries });
   });
 
   app.get('/leaderboard/me', requireAuth, (req, res) => {
@@ -816,7 +1633,7 @@ export function createApp(): express.Express {
 
   app.post('/admin/leaderboard/settle', requireAuth, requireAdmin, (req, res, next) => {
     try {
-      assertAdminPermission(getAdminRole(req), 'orders:update_status'); // owner check via permission matrix
+      assertAdminPermission(getAdminRole(req), 'leaderboard:settle');
       const { weekKey } = z.object({ weekKey: z.string().min(1).optional() }).parse(req.body);
       const targetWeek = weekKey ?? games.getCurrentLeaderboard()[0]?.weekKey ?? new Date().toISOString().slice(0, 10);
       const result = settleLeaderboard(targetWeek);
@@ -860,7 +1677,7 @@ export function createApp(): express.Express {
         e.status = 404;
         throw e;
       }
-      res.json({ order, timeline: trackingTimelineFor(order) });
+      res.json({ order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) });
     } catch (e) { next(e); }
   });
 
@@ -883,9 +1700,29 @@ export function createApp(): express.Express {
       // On cash 'completed', mark paid + award cash points
       if (status === 'completed' && order.paymentMethod === 'cash' && order.paymentStatus !== 'paid') {
         order.paymentStatus = 'paid';
-        const earned = calculateEarnedPoints({ amountEgp: order.totalEgp, source: 'cash_in_app' });
+        const baseEarned = calculateEarnedPoints({ amountEgp: order.totalEgp, source: 'cash_in_app' });
+        // Phase 6.3 — apply tier multiplier
+        const earned = applyTierMultiplier(order.userId, baseEarned);
         userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
         recordLoyaltyEvent(order.userId, 'cash_in_app', earned, order.id);
+        recalculateOnEarn(order.userId, getTrailing12mPoints);
+        // Phase 6.2 — streak update on cash completion.
+        const streakResult = recordOrderForStreak(order.userId);
+        if (streakResult.bonusEarned) {
+          userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + 50);
+          recordLoyaltyEvent(order.userId, 'streak_bonus', 50, order.id);
+        }
+        // Phase 7.1: try referral conversion on this paid order.
+        const ref = tryConvertReferralOnFirstPaidOrder({
+          refereeId: order.userId,
+          orderTotalEgp: order.totalEgp,
+        });
+        if (ref && ref.status === 'converted' && ref.referrerReward && ref.refereeReward) {
+          userPoints.set(ref.referrerId, (userPoints.get(ref.referrerId) ?? 0) + ref.referrerReward);
+          recordLoyaltyEvent(ref.referrerId, 'referral', ref.referrerReward, order.id);
+          userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + ref.refereeReward);
+          recordLoyaltyEvent(order.userId, 'referral_signup_bonus', ref.refereeReward, order.id);
+        }
       }
       // On cancel/refund: refund redeemed points and reverse any awarded points
       if (status === 'cancelled' || status === 'refunded') {
@@ -898,9 +1735,24 @@ export function createApp(): express.Express {
       if (['accepted', 'preparing', 'ready', 'out_for_delivery', 'completed', 'cancelled'].includes(status)) {
         await notifyOrderStatus(order, status as Parameters<typeof statusNotificationCopy>[0]['status']);
       }
-      recordAudit(req, 'order.status_changed', `order:${order.id}`, `→ ${status}${note ? ` (${note})` : ''}`);
       emitOrderUpdate(order);
-      res.json({ order, timeline: trackingTimelineFor(order) });
+
+      // Analytics: order_status_changed + order_completed (Phase 1.2).
+      const previousStatus = order.statusHistory[order.statusHistory.length - 2]?.status ?? 'received';
+      trackAnalytics(order.userId, {
+        name: 'order_status_changed',
+        props: { order_id: order.id, from_status: previousStatus, to_status: status },
+      });
+      if (status === 'completed') {
+        const created = new Date(order.createdAt).getTime();
+        const completed = Date.now();
+        const minutes = Math.max(0, Math.round((completed - created) / 60_000));
+        trackAnalytics(order.userId, {
+          name: 'order_completed',
+          props: { order_id: order.id, time_to_completion_min: minutes },
+        });
+      }
+      res.json({ order, timeline: trackingTimelineFor(order), prepEta: prepEtaFor(order) });
     } catch (e) { next(e); }
   });
 
@@ -916,26 +1768,17 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
-  app.get('/admin/summary', requireAuth, requireAdmin, async (req, res, next) => {
+  app.get('/admin/summary', requireAuth, requireAdmin, (req, res, next) => {
     try {
       const role = getAdminRole(req);
       assertAdminPermission(role, 'reports:view_today');
       const all = Array.from(orders.values());
-      const today = new Date().toISOString().slice(0, 10);
-      const todayRevenue = all
-        .filter((o) => o.paymentStatus === 'paid' && o.createdAt.startsWith(today))
-        .reduce((s, o) => s + o.totalEgp, 0);
-      // Count products with low / zero stock
-      const catalog = await getCatalog();
-      const lowStockCount = catalog.products.filter(
-        (p) => p.stock_count !== null && p.stock_count <= LOW_STOCK_THRESHOLD,
-      ).length;
+      const todayRevenue = all.reduce((s, o) => (o.paymentStatus === 'paid' ? s + o.totalEgp : s), 0);
       res.json({
         todayRevenueEgp: todayRevenue,
         activeOrders: all.filter((o) => !['completed', 'cancelled', 'refunded'].includes(o.status)).length,
         kioskOpen: kioskState.is_open,
         fullReportsVisible: role === 'owner',
-        lowStockCount,
       });
     } catch (e) { next(e); }
   });
@@ -983,48 +1826,108 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
-  // Controls what customers see in the Reviews section (stars, list, write form)
-  app.patch('/admin/menu/products/:id/review-mode', requireAuth, requireAdmin, (req, res, next) => {
+  // Phase 3.2: stock toggle (separate from availability — staff use this
+  // for "ran out of beans" while leaving the product on the menu for
+  // tomorrow). Optional `until` auto-clears at that timestamp.
+  app.patch('/admin/menu/products/:id/stock', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'menu:update_availability');
-      const { mode } = z.object({
-        mode: z.enum(['full', 'write_only', 'hidden']),
-      }).parse(req.body);
-      setProductReviewMode(req.params.id as string, mode);
-      res.json({ id: req.params.id, review_mode: mode });
+      const input = z
+        .object({
+          is_out_of_stock: z.boolean(),
+          out_of_stock_until: z.string().datetime().nullable().optional(),
+        })
+        .parse(req.body);
+      const next = setProductStock(req.params.id as string, {
+        is_out_of_stock: input.is_out_of_stock,
+        out_of_stock_until: input.out_of_stock_until ?? null,
+      });
+      res.json({ id: req.params.id, ...next });
     } catch (e) { next(e); }
   });
 
-  // Creates a new product and adds it to the catalog
-  app.post('/admin/menu/products', requireAuth, requireAdmin, async (req, res, next) => {
+  app.get('/admin/menu/products/:id/stock', requireAuth, requireAdmin, (req, res) => {
+    res.json({ id: req.params.id, ...getProductStock(req.params.id as string) });
+  });
+
+  app.post('/admin/menu/products', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'menu:manage');
       const input = z.object({
         category_id: z.string().min(1),
-        name_en: z.string().min(1).max(120),
-        name_ar: z.string().max(120).default(''),
-        description_en: z.string().max(500).default(''),
-        description_ar: z.string().max(500).default(''),
-        base_price_egp: z.number().positive(),
-        image_url: z.string().min(1).max(2000).default('/images/products/hot_coffee.png'),
-        prep_minutes: z.number().int().positive().max(120).default(5),
-        sort_order: z.number().int().nonnegative().default(0),
-        is_available: z.boolean().default(true),
+        name_en: z.string().min(1).max(80),
+        name_ar: z.string().min(1).max(80),
+        description_en: z.string().max(500).optional().nullable(),
+        description_ar: z.string().max(500).optional().nullable(),
+        base_price_egp: z.number().positive().max(10_000),
+        image_url: z.string().max(500).optional().nullable(),
+        prep_minutes: z.number().int().min(1).max(60).optional().nullable(),
       }).parse(req.body);
-      const product = await createProduct(input);
+      const product = addProduct(input);
       res.status(201).json({ product });
     } catch (e) { next(e); }
   });
 
-  // Sets the stock count for a product (null = unlimited; 0 = sold out)
+  app.patch('/admin/menu/products/:id', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const id = req.params.id as string;
+      if (!isExtraProduct(id)) {
+        res.status(400).json({ error: 'Seed products are read-only. Toggle availability instead.' });
+        return;
+      }
+      const input = z.object({
+        category_id: z.string().min(1).optional(),
+        name_en: z.string().min(1).max(80).optional(),
+        name_ar: z.string().min(1).max(80).optional(),
+        description_en: z.string().max(500).optional().nullable(),
+        description_ar: z.string().max(500).optional().nullable(),
+        base_price_egp: z.number().positive().max(10_000).optional(),
+        image_url: z.string().max(500).optional().nullable(),
+        prep_minutes: z.number().int().min(1).max(60).optional().nullable(),
+        is_available: z.boolean().optional(),
+      }).parse(req.body);
+      const product = updateExtraProduct(id, input);
+      if (!product) { res.status(404).json({ error: 'Product not found.' }); return; }
+      res.json({ product });
+    } catch (e) { next(e); }
+  });
+
+  app.delete('/admin/menu/products/:id', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:manage');
+      const id = req.params.id as string;
+      if (!isExtraProduct(id)) {
+        res.status(400).json({ error: 'Seed products cannot be deleted. Mark them out of stock instead.' });
+        return;
+      }
+      const ok = deleteExtraProduct(id);
+      if (!ok) { res.status(404).json({ error: 'Product not found.' }); return; }
+      res.status(204).end();
+    } catch (e) { next(e); }
+  });
+
+  // Set the review display mode for a product ('full' | 'write_only' | 'hidden').
+  app.patch('/admin/menu/products/:id/review-mode', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reviews:manage');
+      const input = z.object({
+        review_mode: z.enum(['full', 'write_only', 'hidden']),
+      }).parse(req.body);
+      setProductReviewMode(req.params.id as string, input.review_mode);
+      res.json({ id: req.params.id, review_mode: input.review_mode });
+    } catch (e) { next(e); }
+  });
+
+  // Set the stock count for a product. null = unlimited; 0 = out of stock.
   app.patch('/admin/menu/products/:id/stock', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'menu:update_availability');
-      const { stock_count } = z.object({
+      const input = z.object({
         stock_count: z.number().int().nonnegative().nullable(),
       }).parse(req.body);
-      setProductStock(req.params.id as string, stock_count);
-      res.json({ id: req.params.id, stock_count });
+      setProductStockCount(req.params.id as string, input.stock_count);
+      res.json({ id: req.params.id, stock_count: input.stock_count });
     } catch (e) { next(e); }
   });
 
@@ -1043,7 +1946,6 @@ export function createApp(): express.Express {
   });
 
   // ── Cup AI: persist admin-edited concierge attributes ─────────────────
-  // Pass any subset of fields. Pass `null` for any field to clear it.
   app.patch('/admin/menu/products/:id/attrs', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'menu:update_availability');
@@ -1061,7 +1963,6 @@ export function createApp(): express.Express {
   });
 
   // ── Cup AI: auto-detect attributes from product name + description ────
-  // Returns inferred values without persisting — admin reviews + saves.
   app.post('/admin/menu/products/:id/auto-detect-attrs', requireAuth, requireAdmin, async (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'menu:update_availability');
@@ -1123,7 +2024,6 @@ export function createApp(): express.Express {
         e.status = 404;
         throw e;
       }
-      recordAudit(req, 'review.visibility_changed', `review:${req.params.id}`, hidden ? 'hidden' : 'shown');
       res.json({ id: req.params.id, hidden });
     } catch (e) { next(e); }
   });
@@ -1152,7 +2052,6 @@ export function createApp(): express.Express {
         throw e;
       }
       user.verification_status = status;
-      recordAudit(req, 'user.verified', `user:${user.id}`, status);
       res.json({ id: user.id, verification_status: status });
     } catch (e) { next(e); }
   });
@@ -1168,7 +2067,6 @@ export function createApp(): express.Express {
         throw e;
       }
       user.blocked = blocked;
-      recordAudit(req, 'user.blocked', `user:${user.id}`, blocked ? 'blocked' : 'unblocked');
       res.json({ id: user.id, blocked });
     } catch (e) { next(e); }
   });
@@ -1246,9 +2144,8 @@ export function createApp(): express.Express {
   app.get('/admin/reports/revenue', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reports:view_full');
-      const { from, to } = parseRange(req.query as Record<string, unknown>);
       const all = Array.from(orders.values());
-      const paid = all.filter((o) => o.paymentStatus === 'paid' && inRange(o.createdAt, from, to));
+      const paid = all.filter((o) => o.paymentStatus === 'paid');
       const today = new Date().toISOString().slice(0, 10);
       const todayRevenue = paid
         .filter((o) => o.createdAt.startsWith(today))
@@ -1261,10 +2158,8 @@ export function createApp(): express.Express {
   app.get('/admin/reports/top-items', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reports:view_full');
-      const { from, to } = parseRange(req.query as Record<string, unknown>);
       const counts = new Map<string, { name_en: string; count: number; revenue: number }>();
       for (const order of orders.values()) {
-        if (!inRange(order.createdAt, from, to)) continue;
         for (const item of order.items) {
           const existing = counts.get(item.productId) ?? { name_en: item.productNameEn, count: 0, revenue: 0 };
           existing.count += item.quantity;
@@ -1274,76 +2169,16 @@ export function createApp(): express.Express {
       }
       const top = Array.from(counts.values())
         .sort((a, b) => b.count - a.count)
-        .slice(0, 20);
+        .slice(0, 10);
       res.json({ topItems: top });
-    } catch (e) { next(e); }
-  });
-
-  app.get('/admin/reports/reviews', requireAuth, requireAdmin, async (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'reports:view_full');
-
-      // Flatten all reviews from the in-memory map
-      const allReviews: Array<{ productId: string; rating: number; hidden: boolean }> = [];
-      for (const [, list] of reviews) {
-        for (const r of list) allReviews.push(r);
-      }
-
-      // Product name lookup
-      const catalog = await getCatalog();
-      const productNameMap = new Map(catalog.products.map((p) => [p.id, p.name_en]));
-
-      const total = allReviews.length;
-      const hiddenCount = allReviews.filter((r) => r.hidden).length;
-      const avgRating = total > 0
-        ? Math.round((allReviews.reduce((s, r) => s + r.rating, 0) / total) * 10) / 10
-        : 0;
-
-      // Overall rating distribution
-      const ratingDistribution: Record<string, number> = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
-      for (const r of allReviews) {
-        ratingDistribution[String(r.rating)] = (ratingDistribution[String(r.rating)] ?? 0) + 1;
-      }
-
-      // Per-product stats
-      const productMap = new Map<string, {
-        reviewCount: number; totalRating: number; hiddenCount: number;
-        ratingDistribution: Record<string, number>;
-      }>();
-      for (const r of allReviews) {
-        const existing = productMap.get(r.productId) ?? {
-          reviewCount: 0, totalRating: 0, hiddenCount: 0,
-          ratingDistribution: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
-        };
-        existing.reviewCount += 1;
-        existing.totalRating += r.rating;
-        if (r.hidden) existing.hiddenCount += 1;
-        existing.ratingDistribution[String(r.rating)] = (existing.ratingDistribution[String(r.rating)] ?? 0) + 1;
-        productMap.set(r.productId, existing);
-      }
-
-      const byProduct = Array.from(productMap.entries())
-        .map(([productId, data]) => ({
-          productId,
-          name_en: productNameMap.get(productId) ?? productId,
-          reviewCount: data.reviewCount,
-          avgRating: Math.round((data.totalRating / data.reviewCount) * 10) / 10,
-          hiddenCount: data.hiddenCount,
-          ratingDistribution: data.ratingDistribution,
-        }))
-        .sort((a, b) => b.reviewCount - a.reviewCount);
-
-      res.json({ total, avgRating, hiddenCount, ratingDistribution, byProduct });
     } catch (e) { next(e); }
   });
 
   app.get('/admin/reports/role-breakdown', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reports:view_full');
-      const { from, to } = parseRange(req.query as Record<string, unknown>);
       const roleCounts = new Map<string, { orders: number; revenue: number }>();
       for (const order of orders.values()) {
-        if (!inRange(order.createdAt, from, to)) continue;
         const profile = userProfiles.get(order.userId);
         const role = (profile?.role as string) ?? 'student';
         const existing = roleCounts.get(role) ?? { orders: 0, revenue: 0 };
@@ -1355,193 +2190,11 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
-  // Revenue trend — daily revenue over a date window (default last 30 days)
-  app.get('/admin/reports/revenue-trend', requireAuth, requireAdmin, (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'reports:view_full');
-      const { from, to } = parseRange(req.query as Record<string, unknown>);
-      const effectiveTo = to ?? new Date().toISOString().slice(0, 10);
-      const effectiveFrom = from ?? (() => {
-        const d = new Date();
-        d.setDate(d.getDate() - 29);
-        return d.toISOString().slice(0, 10);
-      })();
-      // Build a map day → { revenue, orders }
-      const dayMap = new Map<string, { revenue: number; orders: number }>();
-      for (const order of orders.values()) {
-        const day = order.createdAt.slice(0, 10);
-        if (day < effectiveFrom || day > effectiveTo) continue;
-        const slot = dayMap.get(day) ?? { revenue: 0, orders: 0 };
-        slot.orders += 1;
-        if (order.paymentStatus === 'paid') slot.revenue += order.totalEgp;
-        dayMap.set(day, slot);
-      }
-      // Fill every day in range even if no orders
-      const days: { date: string; revenue: number; orders: number }[] = [];
-      const cur = new Date(effectiveFrom + 'T00:00:00Z');
-      const end = new Date(effectiveTo + 'T00:00:00Z');
-      while (cur <= end) {
-        const key = cur.toISOString().slice(0, 10);
-        const slot = dayMap.get(key) ?? { revenue: 0, orders: 0 };
-        days.push({ date: key, ...slot });
-        cur.setUTCDate(cur.getUTCDate() + 1);
-      }
-      res.json({ days });
-    } catch (e) { next(e); }
-  });
-
-  // Peak hours — order counts grouped by hour-of-day (0–23)
-  app.get('/admin/reports/peak-hours', requireAuth, requireAdmin, (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'reports:view_full');
-      const { from, to } = parseRange(req.query as Record<string, unknown>);
-      const hourCounts = new Array<number>(24).fill(0);
-      for (const order of orders.values()) {
-        if (!inRange(order.createdAt, from, to)) continue;
-        const hour = new Date(order.createdAt).getHours();
-        hourCounts[hour] += 1;
-      }
-      const hours = hourCounts.map((count, hour) => ({ hour, count }));
-      res.json({ hours });
-    } catch (e) { next(e); }
-  });
-
-  // Audit log
-  app.get('/admin/audit-log', requireAuth, requireAdmin, (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'reports:view_full');
-      const limit = Math.min(Number(req.query.limit) || 100, 500);
-      const offset = Number(req.query.offset) || 0;
-      const action = typeof req.query.action === 'string' ? req.query.action : null;
-      let entries = auditLog;
-      if (action) entries = entries.filter((e) => e.action.startsWith(action));
-      res.json({ entries: entries.slice(offset, offset + limit), total: entries.length });
-    } catch (e) { next(e); }
-  });
-
-  // Product options CRUD
-  app.get('/admin/menu/products/:id/options', requireAuth, requireAdmin, async (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'menu:manage');
-      const productId = req.params.id as string;
-      const detail = await getProductDetail(productId);
-      if (!detail) { res.status(404).json({ error: 'Product not found.' }); return; }
-      const overridden = getAdminOptions(productId);
-      res.json({ options: overridden ?? detail.options });
-    } catch (e) { next(e); }
-  });
-
-  app.post('/admin/menu/products/:id/options', requireAuth, requireAdmin, (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'menu:manage');
-      const productId = req.params.id as string;
-      const input = z.object({
-        group_name: z.enum(['size', 'sugar', 'ice', 'milk', 'extras', 'shots']),
-        name_en: z.string().min(1).max(80),
-        name_ar: z.string().max(80).default(''),
-        price_delta_egp: z.number().default(0),
-      }).parse(req.body);
-      const option = addProductOption(productId, input);
-      recordAudit(req, 'product.option_added', `product:${productId}`, `${input.group_name}: ${input.name_en}`);
-      res.status(201).json(option);
-    } catch (e) { next(e); }
-  });
-
-  app.patch('/admin/menu/products/:id/options/:optionId', requireAuth, requireAdmin, (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'menu:manage');
-      const { id: productId, optionId } = req.params as { id: string; optionId: string };
-      const input = z.object({
-        group_name: z.enum(['size', 'sugar', 'ice', 'milk', 'extras', 'shots']).optional(),
-        name_en: z.string().min(1).max(80).optional(),
-        name_ar: z.string().max(80).optional(),
-        price_delta_egp: z.number().optional(),
-      }).parse(req.body);
-      const updated = updateProductOption(productId, optionId, input);
-      if (!updated) { res.status(404).json({ error: 'Option not found.' }); return; }
-      res.json(updated);
-    } catch (e) { next(e); }
-  });
-
-  app.delete('/admin/menu/products/:id/options/:optionId', requireAuth, requireAdmin, (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'menu:manage');
-      const { id: productId, optionId } = req.params as { id: string; optionId: string };
-      const deleted = deleteProductOption(productId, optionId);
-      if (!deleted) { res.status(404).json({ error: 'Option not found.' }); return; }
-      recordAudit(req, 'product.option_deleted', `product:${productId}`, optionId);
-      res.status(204).end();
-    } catch (e) { next(e); }
-  });
-
-  // Category CRUD
-  app.post('/admin/menu/categories', requireAuth, requireAdmin, async (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'menu:manage');
-      const input = z.object({
-        name_en: z.string().min(1).max(80),
-        name_ar: z.string().max(80).default(''),
-        slug: z.string().min(1).max(80).optional(),
-        sort_order: z.number().int().nonnegative().default(99),
-      }).parse(req.body);
-      const slug = input.slug ?? input.name_en.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-      const category = await createCategory({ ...input, slug });
-      recordAudit(req, 'category.created', `category:${category.id}`, category.name_en);
-      res.status(201).json({ category });
-    } catch (e) { next(e); }
-  });
-
-  app.patch('/admin/menu/categories/:id', requireAuth, requireAdmin, (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'menu:manage');
-      const input = z.object({
-        name_en: z.string().min(1).max(80).optional(),
-        name_ar: z.string().max(80).optional(),
-        sort_order: z.number().int().nonnegative().optional(),
-      }).parse(req.body);
-      const updated = updateCategory(req.params.id as string, input);
-      if (!updated) { res.status(404).json({ error: 'Category not found.' }); return; }
-      recordAudit(req, 'category.updated', `category:${updated.id}`, updated.name_en);
-      res.json({ category: updated });
-    } catch (e) { next(e); }
-  });
-
-  app.delete('/admin/menu/categories/:id', requireAuth, requireAdmin, (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'menu:manage');
-      const deleted = deleteCategory(req.params.id as string);
-      if (!deleted) { res.status(404).json({ error: 'Category not found.' }); return; }
-      recordAudit(req, 'category.deleted', `category:${req.params.id}`, '');
-      res.status(204).end();
-    } catch (e) { next(e); }
-  });
-
-  // -------- Dev-only payment simulation --------
-  // When PAYMOB_API_KEY is absent, createIntention() returns a URL pointing here.
-  // This route marks the order paid and redirects back to the customer order page.
-  if (config.nodeEnv !== 'production') {
-    app.get('/dev/payment-sim', async (req, res, next) => {
-      try {
-        const { orderId } = z.object({ orderId: z.string().min(1) }).parse(req.query);
-        const order = orders.get(orderId);
-        if (!order) { res.status(404).send('Order not found in dev payment sim.'); return; }
-
-        if (order.paymentStatus !== 'paid') {
-          order.paymentStatus = 'paid';
-          const earned = calculateEarnedPoints({ amountEgp: order.totalEgp, source: 'online_paid' });
-          userPoints.set(order.userId, (userPoints.get(order.userId) ?? 0) + earned);
-          recordLoyaltyEvent(order.userId, 'online_paid', earned, order.id);
-          if (order.status === 'received') {
-            applyStatusTransition(order, 'accepted', 'auto-accept on payment');
-            await notifyOrderStatus(order, 'accepted');
-          }
-          emitOrderUpdate(order);
-        }
-
-        res.redirect(`${config.customerWebUrl}/orders/${orderId}`);
-      } catch (e) { next(e); }
-    });
-  }
+  // Sentry's Express error handler must run BEFORE our own errorHandler so
+  // the exception is captured and tagged with the request scope. It only
+  // forwards 5xx errors by default; 4xx (validation) stay in our handler.
+  // See docs/UPGRADE-PLAN.md task 1.1.
+  Sentry.setupExpressErrorHandler(app);
 
   app.use(errorHandler);
   return app;

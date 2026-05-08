@@ -6,6 +6,8 @@ import { Plus, Tag, Calendar, Users } from 'lucide-react';
 import { useToast } from '@/components/Toast';
 import { useSession } from '@/lib/useSession';
 import { adminApi, type AdminOffer } from '@/lib/api';
+import { Skeleton } from '@/components/Skeleton';
+import { EmptyState } from '@/components/EmptyState';
 
 const ROLES = ['student', 'faculty', 'office'] as const;
 
@@ -47,14 +49,10 @@ export default function OffersPage() {
     adminApi
       .listOffers()
       .then((res) => {
-        if (!cancelled) setOffers(res.offers ?? []);
+        if (!cancelled) setOffers(res.offers);
       })
-      .catch((err) => {
-        if (!cancelled) toast('error', err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .catch((err) => toast('error', err.message))
+      .finally(() => setLoading(false));
     return () => { cancelled = true; };
   }, [toast]);
 
@@ -95,41 +93,32 @@ export default function OffersPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="h-8 w-32 animate-pulse rounded bg-cup-stroke" />
-          <div className="h-10 w-28 animate-pulse rounded-pill bg-cup-stroke" />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-card border border-cup-stroke bg-white p-4">
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 rounded bg-cup-stroke" />
-                <div className="h-4 w-16 rounded-pill bg-cup-stroke" />
-              </div>
-              <div className="mt-3 h-4 w-24 rounded bg-cup-stroke" />
-              <div className="mt-2 space-y-1.5">
-                <div className="h-3 w-full rounded bg-cup-stroke" />
-                <div className="h-3 w-3/4 rounded bg-cup-stroke" />
-                <div className="h-3 w-1/2 rounded bg-cup-stroke" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-cup-brown-900">Offers</h1>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cup-muted">
+            Promotions
+          </p>
+          <h1 className="font-heading text-3xl font-bold text-cup-brown-900">Offers</h1>
+          <p className="mt-1 text-sm text-cup-muted">
+            Discounts, free items, and student-only deals — schedule and track usage.
+          </p>
+        </div>
         <button
           onClick={() => setShowForm((s) => !s)}
-          className="flex items-center gap-2 rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-warm-glow transition hover:bg-cup-orange-700"
+          className="inline-flex items-center gap-2 rounded-pill bg-cup-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-subtle transition hover:bg-cup-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cup-orange-600"
         >
-          <Plus className="h-4 w-4" /> {showForm ? 'Cancel' : 'New Offer'}
+          <Plus className="h-4 w-4" /> {showForm ? 'Cancel' : 'New offer'}
         </button>
-      </div>
+      </header>
 
       {showForm && (
         <form
@@ -251,17 +240,17 @@ export default function OffersPage() {
       )}
 
       {offers.length === 0 ? (
-        <div className="rounded-card border border-cup-stroke bg-white p-12 text-center text-cup-muted">
-          No offers yet. Create your first offer above.
-        </div>
+        <EmptyState
+          icon={Tag}
+          title="No offers yet."
+          description="Create discounts, free items, or coupon codes to drive repeat visits."
+          action={{ label: 'New offer', onClick: () => setShowForm(true) }}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {offers.map((offer) => {
-            const now = Date.now();
-            const startsAt = new Date(offer.starts_at).getTime();
-            const endsAt = new Date(offer.ends_at).getTime();
-            const isActive = startsAt <= now && endsAt >= now;
-            const isUpcoming = startsAt > now;
+            const isActive = new Date(offer.starts_at) <= new Date() && new Date(offer.ends_at) >= new Date();
+            const isUpcoming = new Date(offer.starts_at) > new Date();
             return (
               <div
                 key={offer.id}
@@ -298,33 +287,6 @@ export default function OffersPage() {
                   </p>
                   {offer.code && (
                     <p className="font-mono text-cup-orange-700">Code: {offer.code}</p>
-                  )}
-                </div>
-
-                {/* Usage progress bar */}
-                <div className="mt-3">
-                  {offer.usage_limit != null ? (
-                    <>
-                      <div className="mb-1 flex items-center justify-between text-[10px] text-cup-muted">
-                        <span>Usage</span>
-                        <span className="font-semibold text-cup-brown-900">
-                          {offer.usage_count} / {offer.usage_limit}
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-cup-cream-100">
-                        <div
-                          className="h-full rounded-full bg-cup-orange-600 transition-all duration-500"
-                          style={{ width: `${offer.usage_limit > 0 ? Math.min(100, Math.round((offer.usage_count / offer.usage_limit) * 100)) : 100}%` }}
-                        />
-                      </div>
-                      {offer.usage_count >= offer.usage_limit && (
-                        <p className="mt-1 text-[10px] font-semibold text-rose-600">Limit reached</p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-[10px] text-cup-muted">
-                      Used <span className="font-semibold text-cup-brown-900">{offer.usage_count}</span> times · no limit
-                    </p>
                   )}
                 </div>
               </div>

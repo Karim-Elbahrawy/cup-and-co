@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { getCatalog, getProductDetail } from '../db/catalogRepo.js';
+import { getProductStock } from '../db/productStockRepo.js';
 import { adminOffers } from '../db/offersStore.js';
 import { match, type Language } from '../services/concierge.js';
 
 export function catalogRouter(): Router {
   const router = Router();
 
-  router.get('/catalog', async (_req, res, next) => {
+  router.get('/catalog', async (req, res, next) => {
     try {
       const catalog = await getCatalog();
       // Merge admin-managed offers, filtering out expired ones
@@ -15,6 +16,24 @@ export function catalogRouter(): Router {
         (o) => o.starts_at <= now && o.ends_at >= now,
       );
       catalog.offers = [...catalog.offers, ...activeAdmin];
+
+      const q = (req.query.q as string | undefined)?.trim().toLowerCase();
+      if (q) {
+        catalog.products = catalog.products.filter(
+          (p) =>
+            p.name_en.toLowerCase().includes(q) ||
+            p.name_ar.includes(q) ||
+            (p.description_en?.toLowerCase().includes(q) ?? false),
+        );
+      }
+
+      // Phase 3.2: merge stock state onto each product so the customer-web
+      // catalog can render an out-of-stock pill without a second roundtrip.
+      catalog.products = catalog.products.map((p) => {
+        const stock = getProductStock(p.id);
+        return { ...p, is_out_of_stock: stock.is_out_of_stock, out_of_stock_until: stock.out_of_stock_until };
+      });
+
       res.json(catalog);
     } catch (e) { next(e); }
   });
@@ -27,6 +46,13 @@ export function catalogRouter(): Router {
         res.status(404).json({ error: 'Product not found.' });
         return;
       }
+      // Phase 3.2: surface stock state.
+      const stock = getProductStock(detail.product.id);
+      detail.product = {
+        ...detail.product,
+        is_out_of_stock: stock.is_out_of_stock,
+        out_of_stock_until: stock.out_of_stock_until,
+      };
       res.json(detail);
     } catch (e) { next(e); }
   });
