@@ -16,6 +16,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { UserAvatar } from '@/components/UserAvatar';
 import { WelcomeBackBanner } from '@/components/WelcomeBackBanner';
 import { ActiveOrderBanner } from '@/components/ActiveOrderBanner';
+import { DrinkConcierge } from '@/components/DrinkConcierge';
 import { api } from '@/lib/api';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { useActiveOrder } from '@/lib/useActiveOrder';
@@ -263,6 +264,8 @@ export default function HomePage() {
           )}
         </section>
       </main>
+      {/* Cup AI floating sparkle button — opens the bilingual concierge sheet */}
+      <DrinkConcierge />
     </PageTransition>
   );
 }

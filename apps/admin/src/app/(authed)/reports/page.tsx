@@ -18,6 +18,7 @@ import { DollarSign, TrendingUp, Users, BarChart3, FileText } from 'lucide-react
 import { useToast } from '@/components/Toast';
 import { Skeleton, SkeletonCard } from '@/components/Skeleton';
 import { EmptyState } from '@/components/EmptyState';
+import { CupAiUsageTile } from '@/components/CupAiUsageTile';
 import { useSession } from '@/lib/useSession';
 import { formatEgp } from '@/lib/format';
 import {
@@ -153,6 +154,10 @@ export default function ReportsPage() {
           accent="brown"
         />
       </div>
+
+      {/* Cup AI usage analytics — sandwiched between KPI cards and the
+          top-items chart so it's visible without scrolling. */}
+      <CupAiUsageTile />
 
       {/* Top items chart */}
       <section className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card">
