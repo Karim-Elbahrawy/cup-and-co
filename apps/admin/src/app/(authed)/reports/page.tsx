@@ -18,6 +18,7 @@ import {
   type AdminRevenueTrendEntry,
   type AdminPeakHourEntry,
 } from '@/lib/api';
+import { KioskBreakdownSection } from '@/components/KioskBreakdownSection';
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 
@@ -635,6 +636,11 @@ export default function ReportsPage() {
               </div>
             )}
           </section>
+
+          {/* Phase K6.4 — by-kiosk daily breakdown. Self-fetching so the
+              rest of the Reports page can keep its single-shot Promise.all
+              pattern without growing here. */}
+          <KioskBreakdownSection />
         </>
       )}
     </div>

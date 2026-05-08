@@ -477,6 +477,10 @@ export const adminApi = {
       method: 'PATCH',
       body: patch,
     }),
+
+  // Phase K6.4 — by-kiosk daily report.
+  getKioskReport: (signal?: AbortSignal) =>
+    api<AdminKioskReport>('/admin/reports/by-kiosk', { signal }),
 };
 
 export interface CupAiStatsResponse {
@@ -500,6 +504,26 @@ export interface ConciergeAttrs {
   caffeine_mg: number | null;
   tags_en: string[];
   tags_ar: string[];
+}
+
+/** Phase K6.4 — by-kiosk daily report shape. */
+export interface AdminKioskReport {
+  rows: Array<{
+    kiosk: {
+      id: string;
+      name: string;
+      active: boolean;
+      lastSeenAt: number;
+      lastState: AdminKiosk['lastState'];
+    };
+    today: {
+      orderCount: number;
+      revenueEgp: number;
+      topItems: { name_en: string; name_ar: string; count: number }[];
+    };
+  }>;
+  /** YYYY-MM-DD in server's UTC clock. */
+  dateIso: string;
 }
 
 /** Phase K6 — admin view of a registered kiosk. */
