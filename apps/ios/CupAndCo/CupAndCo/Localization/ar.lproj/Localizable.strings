@@ -77,7 +77,7 @@
 "home.open_profile" = "فتح الملف الشخصي";
 
 /* Tabs */
-"tab.home" = "الرئيسية";
+"tab.home" = "الطلبات";
 "tab.search" = "البحث";
 "tab.cart" = "السلة";
 "tab.rewards" = "المكافآت";

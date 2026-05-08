@@ -49,7 +49,7 @@ export const ar: Translations = {
     },
   },
   nav: {
-    home: 'الرئيسية',
+    home: 'الطلبات',
     usual: 'كالعادة',
     cart: 'السلة',
     rewards: 'المكافآت',

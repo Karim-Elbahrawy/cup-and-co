@@ -49,7 +49,7 @@ export const en: Translations = {
     },
   },
   nav: {
-    home: 'Home',
+    home: 'Orders',
     usual: 'Usual',
     cart: 'Cart',
     rewards: 'Rewards',
