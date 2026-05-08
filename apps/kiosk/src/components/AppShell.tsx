@@ -3,6 +3,7 @@
 import { useLangDocSync } from '@/lib/useLang';
 import { useOfflineQueueAutoFlush } from '@/lib/useOfflineQueue';
 import { useApiHealthAutoPoll } from '@/lib/useApiHealth';
+import { useKioskHeartbeat } from '@/lib/useKioskHeartbeat';
 import { api } from '@/lib/api';
 import { NetStatusPill } from './NetStatusPill';
 import { OfflineQueuePill } from './OfflineQueuePill';
@@ -38,6 +39,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useOfflineQueueAutoFlush(async (row) => {
     await api.postOrder(row.body, row.userJwt);
   });
+  // K6.3 — heartbeat to /kiosks/heartbeat every 60s so the admin's
+  // multi-kiosk dashboard sees this iPad's last-seen + current screen
+  // state. Auto-creates the kiosk record on first contact.
+  useKioskHeartbeat();
 
   return (
     <>

@@ -376,4 +376,32 @@ export const adminApi = {
   // Phase 2.3 — multi-campus
   listCampuses: (signal?: AbortSignal) =>
     api<{ campuses: Campus[] }>('/campuses', { signal, anonymous: true }),
+
+  // Phase K6.1 / K6.3 — kiosk registry + heartbeat-driven health.
+  listKiosks: (signal?: AbortSignal) =>
+    api<{ kiosks: AdminKiosk[] }>('/admin/kiosks', { signal }),
+  updateKiosk: (id: string, patch: { name?: string; active?: boolean }) =>
+    api<{ kiosk: AdminKiosk }>(`/admin/kiosks/${id}`, {
+      method: 'PATCH',
+      body: patch,
+    }),
 };
+
+/** Phase K6 — admin view of a registered kiosk. */
+export interface AdminKiosk {
+  id: string;
+  name: string;
+  active: boolean;
+  /** ms since epoch. 0 means the row exists but has never heartbeat. */
+  lastSeenAt: number;
+  lastState:
+    | 'attract'
+    | 'browsing'
+    | 'customizing'
+    | 'checkout'
+    | 'confirmation'
+    | 'cleaning'
+    | 'unknown';
+  version: string | null;
+  createdAt: number;
+}
