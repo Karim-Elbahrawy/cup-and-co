@@ -71,3 +71,47 @@ jobs:
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_ADMIN }}
+
+  deploy-kiosk:
+    name: Deploy kiosk to Vercel
+    runs-on: ubuntu-latest
+    # No-ops cleanly until VERCEL_PROJECT_ID_KIOSK is set in repo secrets,
+    # so the rest of the workflow keeps deploying while the kiosk Vercel
+    # project is still being provisioned. See docs/KIOSK-PLAN.md K0.2.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if kiosk project not configured
+        id: gate
+        run: |
+          if [ -z "${{ secrets.VERCEL_PROJECT_ID_KIOSK }}" ]; then
+            echo "VERCEL_PROJECT_ID_KIOSK not set — skipping kiosk deploy."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup pnpm
+        if: steps.gate.outputs.skip != 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy to Vercel
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: apps/kiosk
+        run: npx vercel --token "${{ secrets.VERCEL_TOKEN }}" --prod --yes
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_KIOSK }}

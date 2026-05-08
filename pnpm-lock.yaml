@@ -215,6 +215,64 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  apps/kiosk:
+    dependencies:
+      '@cup-and-co/design-tokens':
+        specifier: workspace:*
+        version: link:../../packages/design-tokens
+      '@cup-and-co/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
+      '@cup-and-co/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      framer-motion:
+        specifier: ^11.11.0
+        version: 11.18.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      lucide-react:
+        specifier: ^0.460.0
+        version: 0.460.0(react@19.2.5)
+      next:
+        specifier: ^15.0.0
+        version: 15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.5
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.5(react@19.2.5)
+      zustand:
+        specifier: ^5.0.0
+        version: 5.0.12(@types/react@19.2.14)(immer@11.1.6)(react@19.2.5)(use-sync-external-store@1.6.0(react@19.2.5))
+    devDependencies:
+      '@types/node':
+        specifier: ^22.7.0
+        version: 22.19.17
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.14)
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.5.0(postcss@8.5.13)
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@1.21.7)
+      eslint-config-next:
+        specifier: ^15.0.0
+        version: 15.5.15(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3)
+      postcss:
+        specifier: ^8.4.0
+        version: 8.5.13
+      tailwindcss:
+        specifier: ^3.4.0
+        version: 3.4.19(tsx@4.21.0)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/design-tokens:
     devDependencies:
       typescript:

@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Cup & Co Kiosk — Espresso Sunrise palette
+ *
+ * The kiosk locks to light mode forever. iPads in a cafe live under bright
+ * spotlights, so dark mode would just hurt readability. We don't even define
+ * the dark palette here — keeping the surface intentionally minimal.
+ */
+:root {
+  --cup-primary: #C2410C;
+  --cup-primary-hover: #9A3412;
+  --cup-primary-tint: #FED7AA;
+  --cup-accent: #0F766E;
+  --cup-accent-hover: #115E59;
+  --cup-accent-tint: #CCFBF1;
+  --cup-sunrise-from: #F4A261;
+  --cup-sunrise-to: #C2410C;
+  --cup-cream: #FEF3C7;
+  --cup-paper: #FAF6F0;
+  --cup-surface: #FFFFFF;
+  --cup-espresso: #1C1917;
+  --cup-cocoa: #44403C;
+  --cup-muted: #78716C;
+  --cup-stroke: #E7E5E4;
+  --cup-success: #15803D;
+  --cup-error: #B91C1C;
+  --cup-warning: #D97706;
+  --cup-star: #F59E0B;
+
+  color-scheme: light;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--cup-paper);
+  color: var(--cup-espresso);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+
+  /* Kiosk-specific lockdown — disable bouncy overscroll, swipe-to-go-back,
+   * pull-to-refresh, and the iOS context menu/magnifier. The iPad is a
+   * dedicated appliance; we don't want any browser-level affordance leaking
+   * through. Guided Access already handles most of this, but defending in
+   * depth means a Safari fallback (e.g. before Guided Access enables) still
+   * feels right. */
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+html[dir="rtl"] body {
+  font-family: 'Cairo', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+button {
+  cursor: pointer;
+  /* Kill iOS tap-flash highlight — we render our own press feedback. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Accessibility — keep keyboard focus rings even though primary input is
+ * touch (a barista may plug a Bluetooth keyboard for diagnostics). */
+:focus-visible {
+  outline: 3px solid var(--cup-primary);
+  outline-offset: 3px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+::selection { background: var(--cup-primary-tint); color: var(--cup-espresso); }
+
+/* Sunrise gradient — used by attract loop, hero promo, splash. */
+.cup-sunrise {
+  background: linear-gradient(135deg, var(--cup-sunrise-from) 0%, var(--cup-sunrise-to) 100%);
+}
+
+/* Reduced motion — Apple's Accessibility setting. Our animations all respect
+ * this via Framer Motion's reducedMotion='user' default, but this CSS-side
+ * fallback covers anything that animates via class transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
