@@ -19,6 +19,7 @@ import { useIdleReset } from '@/lib/useIdleReset';
 import { api, ApiError } from '@/lib/api';
 import { useCart, type CartLineOption } from '@/lib/cart';
 import { useLang } from '@/lib/useLang';
+import { DrinkBuilder } from '@/components/DrinkBuilder';
 
 /**
  * /products/[id] — "CUSTOMIZE YOUR DRINK" detail screen (K1.3).
@@ -209,14 +210,20 @@ export default function ProductDetailPage({ params }: PageProps) {
               aria-hidden="true"
               className="absolute inset-12 rounded-[64px] cup-sunrise opacity-10 blur-3xl"
             />
-            <div className="relative aspect-square w-full max-w-[560px]">
-              <Image
-                src={detail.product.image_url}
-                alt={detail.product.name_en}
-                fill
-                priority
-                sizes="(min-width: 1024px) 50vw, 90vw"
-                className="object-contain drop-shadow-[0_30px_60px_rgba(28,25,23,0.18)]"
+            <div className="relative aspect-square w-full max-w-[560px] drop-shadow-[0_30px_60px_rgba(28,25,23,0.18)]">
+              {/* K2.1 — live drink-builder visual. Picks a layered SVG
+                  per drink class and animates layers as options change.
+                  Falls back to the static product image for desserts /
+                  breakfast / anything we don't have art for. */}
+              <DrinkBuilder
+                product={detail.product}
+                selectionsByGroup={Object.fromEntries(
+                  Object.entries(selections).map(([group, optionId]) => [
+                    group,
+                    detail.options.find((o) => o.id === optionId),
+                  ]),
+                )}
+                categories={[]}
               />
             </div>
           </section>
