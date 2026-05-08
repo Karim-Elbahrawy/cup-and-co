@@ -1946,7 +1946,7 @@ export function createApp(): express.Express {
   });
 
   // ── Cup AI: persist admin-edited concierge attributes ─────────────────
-  app.patch('/admin/menu/products/:id/attrs', requireAuth, requireAdmin, (req, res, next) => {
+  app.patch('/admin/menu/products/:id/attrs', requireAuth, requireAdmin, async (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'menu:update_availability');
       const input = z.object({
@@ -1957,7 +1957,7 @@ export function createApp(): express.Express {
         tags_en: z.array(z.string().min(1).max(40)).max(20).optional(),
         tags_ar: z.array(z.string().min(1).max(40)).max(20).optional(),
       }).parse(req.body);
-      setProductAttrs(req.params.id as string, input);
+      await setProductAttrs(req.params.id as string, input);
       res.json({ id: req.params.id, attrs: input });
     } catch (e) { next(e); }
   });

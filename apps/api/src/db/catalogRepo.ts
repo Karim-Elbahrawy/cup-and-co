@@ -259,8 +259,29 @@ export function getProductAttrs(product: Product): ConciergeAttrs {
  * Replaces (merges) the admin overlay for a product. Pass `null` for any
  * individual field to clear it (and fall back to whatever the product itself
  * has).
+ *
+ * When Supabase is configured, writes go straight to the products table so
+ * admin edits survive a server restart. In fallback/dev mode, writes land in
+ * the in-memory overlay (cleared on process restart). The two paths are
+ * isomorphic from the matcher's perspective: both end up reflected in the
+ * next `getCatalog()` read.
  */
-export function setProductAttrs(id: string, attrs: Partial<ConciergeAttrs>): void {
+export async function setProductAttrs(id: string, attrs: Partial<ConciergeAttrs>): Promise<void> {
+  if (isSupabaseReady()) {
+    // Build a partial update — Supabase only writes the columns we send.
+    const update: Record<string, unknown> = {};
+    if ('energy_level' in attrs) update.energy_level = attrs.energy_level;
+    if ('sweetness'    in attrs) update.sweetness    = attrs.sweetness;
+    if ('temperature'  in attrs) update.temperature  = attrs.temperature;
+    if ('caffeine_mg'  in attrs) update.caffeine_mg  = attrs.caffeine_mg;
+    if ('tags_en'      in attrs) update.tags_en      = attrs.tags_en;
+    if ('tags_ar'      in attrs) update.tags_ar      = attrs.tags_ar;
+    if (Object.keys(update).length === 0) return;
+    const sb = getServiceClient();
+    const { error } = await sb.from('products').update(update).eq('id', id);
+    if (error) throw new Error(`Failed to persist concierge attributes: ${error.message}`);
+    return;
+  }
   productAttrsMap.set(id, { ...productAttrsMap.get(id), ...attrs });
 }
 
