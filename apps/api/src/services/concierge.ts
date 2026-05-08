@@ -318,6 +318,88 @@ export interface MatchOptions {
   limit?: number;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Soft attribute fallback — when a product has null concierge fields (most
+// real-world rows until the admin runs Auto-detect on them), infer them from
+// the product's own name + description. Admin-set values always win.
+//
+// This is what makes the matcher actually differentiate products in
+// production: without it, every product scores the same (0 signal hits +
+// rating tie-breaker) and the matcher just returns the highest-rated 3.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CAFFEINE_HINTS: Array<{ patterns: RegExp; mg: number }> = [
+  { patterns: /espresso|إسبريسو|اسبريسو|ristretto|ريستريتو/i, mg: 120 },
+  { patterns: /cold\s*brew|كولد\s*برو/i,                       mg: 100 },
+  { patterns: /americano|أمريكانو|امريكانو/i,                    mg: 100 },
+  { patterns: /matcha|ماتشا/i,                                  mg: 70 },
+  { patterns: /macchiato|ماكياتو|cappuccino|كابتشينو|latte|لاتيه|mocha|موكا|flat\s*white|فلات\s*وايت/i, mg: 80 },
+  { patterns: /coffee|قهوة|كافيه/i,                              mg: 80 },
+  { patterns: /chai|شاي\s*ماسالا/i,                              mg: 50 },
+  { patterns: /tea|شاي/i,                                       mg: 40 },
+  { patterns: /decaf|بدون\s*كافيين|من\s*غير\s*كافيين/i,           mg: 5 },
+  { patterns: /chocolate|شوكولا/i,                              mg: 20 },
+];
+
+function inferCaffeine(text: string): number {
+  for (const { patterns, mg } of CAFFEINE_HINTS) if (patterns.test(text)) return mg;
+  return 0;
+}
+
+function inferEnergy(caffeine: number, sweetnessHint: 'none' | 'low' | 'high' | null): 'low' | 'medium' | 'high' {
+  if (caffeine >= 80) return 'high';
+  if (caffeine >= 40) return 'medium';
+  if (sweetnessHint === 'high') return 'low';
+  return 'medium';
+}
+
+function inferSweetness(text: string, signal: 'none' | 'low' | 'high' | null): number {
+  if (signal === 'none') return 0;
+  if (signal === 'high') {
+    if (/dessert|cake|brownie|tiramisu|cheesecake|tart|cinnamon|حلوي|تيراميسو|تشيز\s*كيك|براوني|كيك|تارت|سينامون/i.test(text)) return 5;
+    return 4;
+  }
+  if (signal === 'low') return 2;
+  // Heuristic from drink class
+  if (/dessert|cake|brownie|tiramisu|cheesecake|tart|cinnamon|chocolate|caramel|honey|vanilla|mocha|كيك|تارت|سينامون|شوكولاتة|كراميل|عسل|فانيليا|موكا|تيراميسو|براوني/i.test(text)) return 4;
+  if (/espresso|americano|cold\s*brew|إسبريسو|أمريكانو|كولد\s*برو/i.test(text)) return 0;
+  return 2; // sensible middle for everything else
+}
+
+/** Returns a copy of the product with any null concierge fields filled in by
+ *  inference from name + description. Cheap (regex on a short string). */
+function fillAttributesFromText(p: Product): Product {
+  // Fast path: product already has the attributes set explicitly.
+  if (
+    p.temperature != null &&
+    p.energy_level != null &&
+    p.caffeine_mg != null &&
+    p.sweetness != null &&
+    (p.tags_en?.length ?? 0) > 0
+  ) {
+    return p;
+  }
+
+  const enText = `${p.name_en ?? ''} ${p.description_en ?? ''}`.trim();
+  const arText = `${p.name_ar ?? ''} ${p.description_ar ?? ''}`.trim();
+  const enSignals = extractSignals(enText);
+  const arSignals = extractSignals(arText);
+  const combined = `${enText} ${arText}`;
+
+  const sweetnessSig = enSignals.sweetness ?? arSignals.sweetness ?? null;
+  const caffeineFromText = inferCaffeine(combined);
+
+  return {
+    ...p,
+    temperature:  p.temperature  ?? enSignals.temperature ?? arSignals.temperature ?? null,
+    sweetness:    p.sweetness    ?? inferSweetness(combined, sweetnessSig),
+    caffeine_mg:  p.caffeine_mg  ?? caffeineFromText,
+    energy_level: p.energy_level ?? inferEnergy(caffeineFromText, sweetnessSig),
+    tags_en: (p.tags_en && p.tags_en.length) ? p.tags_en : Array.from(new Set([...enSignals.tags, ...arSignals.tags])),
+    tags_ar: (p.tags_ar && p.tags_ar.length) ? p.tags_ar : [],
+  };
+}
+
 export function match(query: ConciergeQuery, opts: MatchOptions): ConciergeResult {
   const signals = extractSignals(query.text);
   const categoryMap = opts.categorySlugById ?? {};
@@ -331,8 +413,12 @@ export function match(query: ConciergeQuery, opts: MatchOptions): ConciergeResul
         en: slug ? [`category:${slug}`] : [],
         ar: [],
       };
-      const score = scoreProduct(p, signals, normalisedTags);
-      const { reason, reasonEn } = buildReason(p, signals, query.language);
+      // Fill in any null concierge attributes from the product's own
+      // name/description so the matcher works on un-tagged products too.
+      // Admin-set values always win; this is a soft fallback.
+      const enriched = fillAttributesFromText(p);
+      const score = scoreProduct(enriched, signals, normalisedTags);
+      const { reason, reasonEn } = buildReason(enriched, signals, query.language);
       return { product: p, score, reason, reasonEn } satisfies ConciergeMatch;
     })
     .sort((a, b) => b.score - a.score)
