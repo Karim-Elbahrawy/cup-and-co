@@ -123,3 +123,63 @@ describe('Phase K4.7 — featured today', () => {
       .expect(403);
   });
 });
+
+// ── Phase K4.9 — pairs_well_with ────────────────────────────────────────
+
+describe('Phase K4.9 — pairs_well_with', () => {
+  const baristaHeaders = {
+    'x-user-id': 'barista-pairs',
+    'x-user-role': 'barista',
+    'x-verification-status': 'approved',
+    'x-user-phone': '+201000000010',
+  };
+  const VELVET_CAPPUCCINO = '22222222-0000-0000-0000-000000000001'; // milk_coffee
+  const VANILLA_COLD_BREW = '22222222-0000-0000-0000-000000000004'; // cold_coffee
+  const BROWNIE = '22222222-0000-0000-0000-00000000000C';
+  const CROISSANT = '22222222-0000-0000-0000-00000000000D';
+  const ACAI = '22222222-0000-0000-0000-000000000015';
+
+  it('GET /catalog returns curated defaults by category', async () => {
+    const app = createApp();
+    const res = await request(app).get('/catalog').expect(200);
+    const cappuccino = res.body.products.find((p: { id: string }) => p.id === VELVET_CAPPUCCINO);
+    // Milk-coffee defaults: Brownie + Almond Croissant.
+    expect(cappuccino?.pairs_well_with).toEqual(expect.arrayContaining([BROWNIE, CROISSANT]));
+
+    const coldBrew = res.body.products.find((p: { id: string }) => p.id === VANILLA_COLD_BREW);
+    // Cold-coffee defaults include Acai Bowl.
+    expect(coldBrew?.pairs_well_with).toEqual(expect.arrayContaining([ACAI]));
+  });
+
+  it('admin override replaces the default list', async () => {
+    const app = createApp();
+    await request(app)
+      .put(`/admin/menu/products/${VELVET_CAPPUCCINO}/pairs`)
+      .set(baristaHeaders)
+      .send({ pairs: [ACAI] })
+      .expect(200);
+
+    const res = await request(app).get('/catalog').expect(200);
+    const cappuccino = res.body.products.find((p: { id: string }) => p.id === VELVET_CAPPUCCINO);
+    expect(cappuccino?.pairs_well_with).toEqual([ACAI]);
+    // Reset for sibling tests.
+    await request(app)
+      .put(`/admin/menu/products/${VELVET_CAPPUCCINO}/pairs`)
+      .set(baristaHeaders)
+      .send({ pairs: [BROWNIE, CROISSANT] });
+  });
+
+  it('rejects pairs override without admin role', async () => {
+    const app = createApp();
+    await request(app)
+      .put(`/admin/menu/products/${VELVET_CAPPUCCINO}/pairs`)
+      .set({
+        'x-user-id': 'random-cust',
+        'x-user-role': 'student',
+        'x-verification-status': 'approved',
+        'x-user-phone': '+201000000011',
+      })
+      .send({ pairs: [BROWNIE] })
+      .expect(403);
+  });
+});

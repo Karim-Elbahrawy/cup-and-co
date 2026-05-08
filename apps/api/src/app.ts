@@ -96,6 +96,7 @@ import {
 } from './db/productStockRepo.js';
 import { adminOffers } from './db/offersStore.js';
 import { setFeatured as setFeaturedProduct } from './db/featuredProductsStore.js';
+import { setPairs as setProductPairs } from './db/productPairsStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
 // if configured, fixture otherwise).
@@ -1940,6 +1941,20 @@ export function createApp(): express.Express {
       const input = z.object({ featured: z.boolean() }).parse(req.body);
       setFeaturedProduct(req.params.id as string, input.featured);
       res.json({ id: req.params.id, featured: input.featured });
+    } catch (e) { next(e); }
+  });
+
+  // Phase K4.9 — admin override for "Complete the combo" pairings.
+  // Body: { pairs: string[] } where each entry is a productId. Empty
+  // array is a valid override that means "no pairings for this product".
+  app.put('/admin/menu/products/:id/pairs', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
+      const input = z.object({
+        pairs: z.array(z.string().min(1)).max(8),
+      }).parse(req.body);
+      setProductPairs(req.params.id as string, input.pairs);
+      res.json({ id: req.params.id, pairs: input.pairs });
     } catch (e) { next(e); }
   });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import type { CatalogResponse, Product } from '@cup-and-co/types';
@@ -69,6 +69,7 @@ export default function CatalogPage() {
   const lang = useLang((s) => s.lang);
   const resetLang = useLang((s) => s.reset);
   const clearCart = useCart((s) => s.clear);
+  const lines = useCart((s) => s.lines);
   const showDrawer = useCartDrawer((s) => s.show);
   const hideDrawer = useCartDrawer((s) => s.hide);
   const identified = useIdentified((s) => s.customer);
@@ -147,6 +148,87 @@ export default function CatalogPage() {
       cancelled = true;
     };
   }, [identified?.jwt]);
+
+  /**
+   * K4.9 — derive combo suggestions from in-cart products. Union the
+   * `pairs_well_with` arrays across all current cart lines, drop products
+   * already in cart, drop unavailable / out-of-stock, take the first 2.
+   */
+  const comboSuggestions: Product[] = useMemo(() => {
+    if (!catalog || lines.length === 0) return [];
+    const inCart = new Set(lines.map((l) => l.product.id));
+    const seen = new Set<string>();
+    const suggestionIds: string[] = [];
+    for (const line of lines) {
+      const cartedProduct = catalog.products.find((p) => p.id === line.product.id);
+      const pairIds = cartedProduct?.pairs_well_with ?? [];
+      for (const id of pairIds) {
+        if (inCart.has(id) || seen.has(id)) continue;
+        seen.add(id);
+        suggestionIds.push(id);
+      }
+    }
+    const products: Product[] = [];
+    for (const id of suggestionIds) {
+      const p = catalog.products.find((c) => c.id === id);
+      if (!p || !p.is_available || p.is_out_of_stock || p.stock_count === 0) continue;
+      products.push(p);
+      if (products.length >= 2) break;
+    }
+    return products;
+  }, [catalog, lines]);
+
+  /**
+   * K4.9 — combo add. Fetches detail to resolve default options (zero-
+   * price-delta per group), then drops the line. Falls back to
+   * /products/:id if anything goes wrong, so the customer can complete
+   * the customize flow manually instead of dropping a malformed line.
+   */
+  async function handleAddCombo(product: Product) {
+    try {
+      const detail = await api.getProductDetail(product.id);
+      // Pick the zero-delta option per group as the "default" — that's
+      // typically Medium / Normal sugar / Normal ice. If a group has no
+      // zero-delta option, fall back to the first option.
+      const defaults = new Map<string, (typeof detail.options)[number]>();
+      for (const opt of detail.options) {
+        if (defaults.has(opt.group_name)) continue;
+        defaults.set(opt.group_name, opt);
+      }
+      // Override defaults with zero-delta picks where they exist.
+      for (const opt of detail.options) {
+        if (opt.price_delta_egp === 0) {
+          defaults.set(opt.group_name, opt);
+        }
+      }
+      const optionLines = Array.from(defaults.values()).map((o) => ({
+        group: o.group_name,
+        optionId: o.id,
+        nameEn: o.name_en,
+        nameAr: o.name_ar,
+        priceDeltaEgp: o.price_delta_egp,
+      }));
+      addLine({
+        product: {
+          id: detail.product.id,
+          name_en: detail.product.name_en,
+          name_ar: detail.product.name_ar,
+          image_url: detail.product.image_url,
+          base_price_egp: detail.product.base_price_egp,
+          prep_minutes: detail.product.prep_minutes,
+        },
+        quantity: 1,
+        options: optionLines,
+      });
+      toastRef.current?.show(
+        lang === 'ar'
+          ? `تمت إضافة ${product.name_ar} للطلب`
+          : `Added ${product.name_en} to your order`,
+      );
+    } catch {
+      router.push(`/products/${encodeURIComponent(product.id)}`);
+    }
+  }
 
   /**
    * K4.10 one-tap reorder. Refetches the product detail to resolve the
@@ -298,7 +380,11 @@ export default function CatalogPage() {
       )}
 
       <CartPill onClick={showDrawer} />
-      <CartDrawer lang={lang} />
+      <CartDrawer
+        lang={lang}
+        comboSuggestions={comboSuggestions}
+        onAddCombo={handleAddCombo}
+      />
       <StillThereModal
         open={showStillThere}
         onAck={() => setShowStillThere(false)}
