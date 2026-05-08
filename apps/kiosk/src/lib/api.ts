@@ -11,7 +11,7 @@
  * see a real second consumer of this module.
  */
 
-import type { CatalogResponse } from '@cup-and-co/types';
+import type { CatalogResponse, ProductDetailResponse } from '@cup-and-co/types';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -69,5 +69,15 @@ export const api = {
   getCatalog(q?: string): Promise<CatalogResponse> {
     const qs = q ? `?q=${encodeURIComponent(q)}` : '';
     return fetchJson<CatalogResponse>(`/catalog${qs}`);
+  },
+
+  /**
+   * GET /products/:id — full detail (product + options + reviews + flags).
+   * The kiosk uses options to render the customization screen (K1.3); the
+   * `reviews` and `is_favorited` fields are ignored by the kiosk because
+   * we render anonymous-by-default.
+   */
+  getProductDetail(productId: string): Promise<ProductDetailResponse> {
+    return fetchJson<ProductDetailResponse>(`/products/${encodeURIComponent(productId)}`);
   },
 };

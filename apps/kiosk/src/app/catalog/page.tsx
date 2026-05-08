@@ -79,11 +79,7 @@ export default function CatalogPage() {
   }
 
   function handleSelectProduct(p: Product) {
-    // Detail screen lands in K1.3. Until then keep the customer in /catalog
-    // with a clear "we hear you" toast so the tap doesn't feel dead.
-    toastRef.current?.show(
-      lang === 'ar' ? `قريباً: ${p.name_ar}` : `Customizing soon: ${p.name_en}`,
-    );
+    router.push(`/products/${encodeURIComponent(p.id)}`);
   }
 
   function handleOutOfStockTap(p: Product) {
