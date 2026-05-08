@@ -447,3 +447,48 @@ describe('Phase K1.12 — kiosk bearer auth on POST /orders', () => {
     expect(res.status).toBe(401);
   });
 });
+
+// ── Phase K4 — identified kiosk customer ──────────────────────────────────
+
+describe('Phase K4 — identified kiosk customer (JWT + x-kiosk-id)', () => {
+  const KIOSK_ID = 'cccccccc-dddd-eeee-ffff-000000000000';
+
+  it('tags the order placement_source=kiosk when a JWT user sends x-kiosk-id', async () => {
+    const app = createApp();
+    // A real user identified at the kiosk via phone/OTP.
+    // We simulate the "post-OTP-verify" state with the dev header bypass
+    // since the test env enables ALLOW_HEADER_AUTH_BYPASS=1.
+    const res = await request(app)
+      .post('/orders')
+      .set(customerHeaders('k4-identified-1'))
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [cappuccinoMedium],
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.order.placementSource).toBe('kiosk');
+    expect(res.body.order.kioskId).toBe(KIOSK_ID);
+    // Crucially the order is attributed to the IDENTIFIED user, not the
+    // synthetic kiosk:<id> — so points, streaks, history all work.
+    expect(res.body.order.userId).toBe('k4-identified-1');
+  });
+
+  it('still tags placement_source=customer_app when no x-kiosk-id is present', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .post('/orders')
+      .set(customerHeaders('k4-not-kiosk-1'))
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [cappuccinoMedium],
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.order.placementSource).toBe('customer_app');
+    expect(res.body.order.kioskId).toBeNull();
+  });
+});
