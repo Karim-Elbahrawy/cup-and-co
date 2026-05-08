@@ -146,6 +146,44 @@ export const api = {
    * Either way the API stamps placement_source='kiosk' because we send
    * x-kiosk-id (handled in fetchJson).
    */
+  /**
+   * Build the POST /orders body without sending. Exported so the offline
+   * queue can stash the exact same shape we'd otherwise transmit, and
+   * later replay it verbatim on reconnect.
+   */
+  buildOrderBody(args: {
+    lines: CartLine[];
+    paymentMethod: 'cash';
+    notes?: string;
+    redeemPoints?: number;
+  }): Record<string, unknown> {
+    const items = args.lines.map((line) => ({
+      productId: line.product.id,
+      quantity: line.quantity,
+      options: Object.fromEntries(line.options.map((o) => [o.group, o.nameEn])),
+    }));
+    return {
+      fulfillmentType: 'pickup',
+      paymentMethod: args.paymentMethod,
+      redeemPoints: args.redeemPoints ?? 0,
+      items,
+      notes: args.notes,
+    };
+  },
+
+  /**
+   * Send a pre-built order body to /orders. Lets the offline-queue
+   * flush replay an identical body across retries without re-deriving
+   * from a possibly-mutated cart store.
+   */
+  postOrder(body: Record<string, unknown>, userJwt?: string): Promise<PlaceOrderResponse> {
+    return fetchJson<PlaceOrderResponse>('/orders', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      userJwt,
+    });
+  },
+
   placeOrder(args: {
     lines: CartLine[];
     paymentMethod: 'cash';
@@ -153,21 +191,9 @@ export const api = {
     userJwt?: string;
     redeemPoints?: number;
   }): Promise<PlaceOrderResponse> {
-    const items = args.lines.map((line) => ({
-      productId: line.product.id,
-      quantity: line.quantity,
-      options: Object.fromEntries(line.options.map((o) => [o.group, o.nameEn])),
-    }));
-
     return fetchJson<PlaceOrderResponse>('/orders', {
       method: 'POST',
-      body: JSON.stringify({
-        fulfillmentType: 'pickup',
-        paymentMethod: args.paymentMethod,
-        redeemPoints: args.redeemPoints ?? 0,
-        items,
-        notes: args.notes,
-      }),
+      body: JSON.stringify(this.buildOrderBody(args)),
       userJwt: args.userJwt,
     });
   },
@@ -213,5 +239,41 @@ export const api = {
     tier: 'bronze' | 'silver' | 'gold';
   }> {
     return fetchJson('/me', { userJwt });
+  },
+
+  /**
+   * GET /me/usual — most-ordered product over the last 60 days with the
+   * customer's most common options pre-applied. Returns null if there's
+   * no clear "usual" yet (need ≥ 2 orders of the same product).
+   */
+  getMyUsual(userJwt: string): Promise<{
+    usual: {
+      productId: string;
+      productNameEn: string;
+      productNameAr: string;
+      imageUrl: string;
+      basePriceEgp: number;
+      orderCount: number;
+      preferredOptions: Record<string, string>;
+    } | null;
+  }> {
+    return fetchJson('/me/usual', { userJwt });
+  },
+
+  /**
+   * GET /me/suggestion — fallback when /me/usual returns null. Picks a
+   * smart product based on history + time-of-day + season.
+   */
+  getMySuggestion(userJwt: string): Promise<{
+    suggestion: {
+      productId: string;
+      productNameEn: string;
+      productNameAr: string;
+      imageUrl: string;
+      basePriceEgp: number;
+      reason: 'history' | 'season' | 'bestseller';
+    } | null;
+  }> {
+    return fetchJson('/me/suggestion', { userJwt });
   },
 };

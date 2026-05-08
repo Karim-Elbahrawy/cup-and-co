@@ -16,6 +16,7 @@ import { useLastOrder } from '@/lib/useLastOrder';
 import { useIdleReset } from '@/lib/useIdleReset';
 import { useLang } from '@/lib/useLang';
 import { useIdentified } from '@/lib/useIdentified';
+import { useOfflineQueue } from '@/lib/useOfflineQueue';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { StillThereModal } from '@/components/StillThereModal';
 import { api, ApiError } from '@/lib/api';
@@ -77,27 +78,64 @@ export default function CheckoutPage() {
     if (submitting) return;
     setSubmitting(true);
     setError(null);
+    // K5.1 — build the order body once. We send it through the network
+    // first; if the network fails (TypeError = no connection, or 5xx),
+    // we enqueue the SAME body to IndexedDB and return a synthetic
+    // response so the customer still gets a pickup code immediately.
+    const body = api.buildOrderBody({
+      lines,
+      paymentMethod: 'cash',
+      // server stamps placement_source via x-kiosk-id header
+    });
     try {
-      const response = await api.placeOrder({
-        lines,
-        paymentMethod: 'cash',
-        // K4.4 — pass identified JWT if the customer chose to identify
-        // themselves; otherwise the kiosk-bearer auth handles it.
-        userJwt: identified?.jwt,
-      });
-      setLastOrder(response);
-      // Empty the cart only AFTER the response is stashed — if we
-      // cleared first and somehow the store write lost, the customer
-      // would land on /confirmation with no order to render.
+      const response = await api.postOrder(body, identified?.jwt);
+      setLastOrder({ ...response, queued: false });
       clearCart();
       router.replace('/confirmation');
+      return;
     } catch (e: unknown) {
-      setError(
-        e instanceof ApiError
-          ? e.message
-          : 'Could not place your order. Try again.',
-      );
-      setSubmitting(false);
+      // 4xx is a real validation failure — let the customer fix the
+      // issue (e.g. product went out of stock mid-checkout). Do NOT
+      // queue 4xx orders, they will keep failing the same way.
+      const isClientError =
+        e instanceof ApiError && e.status >= 400 && e.status < 500;
+      if (isClientError) {
+        setError(e.message);
+        setSubmitting(false);
+        return;
+      }
+      // Network failure or 5xx — enqueue and tell the customer their
+      // order is in the queue with a temporary pickup code.
+      try {
+        const queued = await useOfflineQueue.getState().enqueue({
+          body,
+          userJwt: identified?.jwt,
+        });
+        setLastOrder({
+          order: {
+            id: `temp:${queued.tempId}`,
+            pickupCode: queued.tempPickupCode,
+            totalEgp: total,
+            paymentMethod: 'cash',
+            placementSource: 'kiosk',
+            kioskId: null,
+            createdAt: new Date().toISOString(),
+          },
+          prepEta: { minutes: 0, basis: 'queued' },
+          queued: true,
+        });
+        clearCart();
+        router.replace('/confirmation');
+      } catch {
+        // Even IDB failed (private mode? full disk?). Tell the customer
+        // to retry — we have nowhere to stash the order safely.
+        setError(
+          lang === 'ar'
+            ? 'تعذر إرسال الطلب. حاول تاني.'
+            : 'Could not place your order. Try again.',
+        );
+        setSubmitting(false);
+      }
     }
   }
 
@@ -126,47 +164,54 @@ export default function CheckoutPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-10 px-12 pt-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        {/* ── Order summary ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-8 px-12 pt-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        {/* ── Order summary (left rail, narrower) ───────────────────── */}
         <section
           aria-label={lang === 'ar' ? 'ملخص الطلب' : 'Order summary'}
-          className="rounded-card bg-white p-8 shadow-card"
+          className="rounded-card bg-white p-7 shadow-card lg:sticky lg:top-8 lg:self-start"
         >
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-[var(--cup-muted)]">
-            {lang === 'ar' ? 'الطلب' : 'Your order'}
-          </p>
-          <h2 className="mt-1 font-heading text-k-card text-[var(--cup-espresso)]">
-            {itemCount} {itemCount === 1 ? 'item' : 'items'}
-          </h2>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[var(--cup-muted)]">
+              {lang === 'ar' ? 'الطلب' : 'Your order'}
+            </p>
+            <span className="rounded-pill bg-[var(--cup-paper)] px-3 py-1 text-sm font-bold tabular-nums text-[var(--cup-cocoa)]">
+              {itemCount}
+            </span>
+          </div>
 
-          <ul className="mt-6 divide-y divide-[var(--cup-stroke)]">
+          <ul className="mt-4 divide-y divide-[var(--cup-stroke)]">
             {lines.map((line) => (
               <SummaryRow key={line.lineId} line={line} lang={lang} />
             ))}
           </ul>
 
-          <div className="mt-6 flex items-baseline justify-between border-t border-[var(--cup-stroke)] pt-6">
-            <span className="font-heading text-k-card text-[var(--cup-cocoa)]">
+          <div className="mt-5 flex items-baseline justify-between gap-4 border-t-2 border-[var(--cup-stroke)] pt-5">
+            <span className="font-heading text-[16px] font-bold uppercase tracking-[0.18em] text-[var(--cup-muted)]">
               {lang === 'ar' ? 'الإجمالي' : 'Total'}
             </span>
-            <span className="font-heading text-[44px] font-extrabold text-[var(--cup-espresso)]">
-              {total} EGP
+            <span className="font-heading text-[38px] font-extrabold leading-none tabular-nums text-[var(--cup-primary)]">
+              {total}
+              <span className="ms-1 text-base font-bold tracking-wider text-[var(--cup-muted)]">EGP</span>
             </span>
           </div>
         </section>
 
-        {/* ── Payment method ────────────────────────────────────────── */}
+        {/* ── Payment method (right, wider — the action zone) ───────── */}
         <section
           aria-label={lang === 'ar' ? 'طريقة الدفع' : 'Payment method'}
           className="space-y-4"
         >
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-[var(--cup-muted)]">
+            {lang === 'ar' ? 'طريقة الدفع' : 'Pick a payment method'}
+          </p>
+
           <PaymentCard
             icon={<Wallet className="h-10 w-10" />}
             title={lang === 'ar' ? 'الدفع عند الكاشير' : 'Pay at counter'}
             description={
               lang === 'ar'
-                ? 'كاش — هات الإيصال للكاشير'
-                : 'Cash — show the pickup code at the counter'
+                ? 'كاش. هات الإيصال للكاشير'
+                : 'Cash. Show the pickup code at the counter.'
             }
             primary
             disabled={submitting}
@@ -180,7 +225,7 @@ export default function CheckoutPage() {
             description={
               lang === 'ar'
                 ? 'تاب أو إدخال البطاقة'
-                : 'Tap-to-pay or insert your card'
+                : 'Tap-to-pay or insert your card.'
             }
             disabled
             badge={lang === 'ar' ? 'قريباً' : 'Coming soon'}

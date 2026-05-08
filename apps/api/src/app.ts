@@ -101,6 +101,7 @@ import {
 } from './db/productStockRepo.js';
 import { adminOffers } from './db/offersStore.js';
 import { setFeatured as setFeaturedProduct } from './db/featuredProductsStore.js';
+import { setPairs as setProductPairs } from './db/productPairsStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
 // if configured, fixture otherwise).
@@ -341,7 +342,7 @@ export function createApp(): express.Express {
   app.use(cors({
     origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-user-id', 'x-user-role', 'x-user-phone', 'x-verification-status'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-user-id', 'x-user-role', 'x-user-phone', 'x-verification-status', 'x-placement-source', 'x-kiosk-id', 'x-admin-campus-id'],
     exposedHeaders: ['ETag'],
     credentials: false,
     maxAge: 86400,
@@ -605,6 +606,88 @@ export function createApp(): express.Express {
   app.get('/me/streak', requireAuth, (req, res) => {
     const u = getRequestUser(req);
     res.json({ streak: getStreakState(u.id) });
+  });
+
+  // Phase K4.10 — "Your usual" — most-ordered product over the last 60
+  // days, with the customer's most-common option selections. Powers the
+  // kiosk's one-tap reorder card on /catalog. Returns null if there's
+  // not enough history (need at least 2 orders of the same product) so
+  // the kiosk can fall back to the smart-suggestion endpoint.
+  app.get('/me/usual', requireAuth, async (req, res, next) => {
+    try {
+      const u = getRequestUser(req);
+      const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
+      const recent: Array<{ productId: string; options: Record<string, string> }> = [];
+      for (const o of orders.values()) {
+        if (o.userId !== u.id) continue;
+        if (new Date(o.createdAt).getTime() < sixtyDaysAgo) continue;
+        for (const it of o.items) {
+          recent.push({ productId: it.productId, options: it.options });
+        }
+      }
+      if (recent.length === 0) {
+        res.json({ usual: null });
+        return;
+      }
+      // Tally orders per product.
+      const counts = new Map<string, number>();
+      for (const r of recent) counts.set(r.productId, (counts.get(r.productId) ?? 0) + 1);
+      // Need at least 2 orders to call something a "usual".
+      const ranked = Array.from(counts.entries())
+        .filter(([, n]) => n >= 2)
+        .sort((a, b) => b[1] - a[1]);
+      if (ranked.length === 0) {
+        res.json({ usual: null });
+        return;
+      }
+      const [topProductId, orderCount] = ranked[0];
+
+      // Most common option per group across the customer's orders of this
+      // product. Lets the one-tap reorder match what they always pick
+      // (Large + Oat + Less ice, say).
+      const groupCounts = new Map<string, Map<string, number>>();
+      for (const r of recent) {
+        if (r.productId !== topProductId) continue;
+        for (const [group, val] of Object.entries(r.options)) {
+          if (!groupCounts.has(group)) groupCounts.set(group, new Map());
+          const inner = groupCounts.get(group)!;
+          inner.set(val, (inner.get(val) ?? 0) + 1);
+        }
+      }
+      const preferredOptions: Record<string, string> = {};
+      for (const [group, inner] of groupCounts) {
+        let bestVal: string | null = null;
+        let bestCount = 0;
+        for (const [val, count] of inner) {
+          if (count > bestCount) {
+            bestVal = val;
+            bestCount = count;
+          }
+        }
+        if (bestVal) preferredOptions[group] = bestVal;
+      }
+
+      // Hydrate from catalog so the client can render image + name.
+      const catalog = await getCatalog();
+      const product = catalog.products.find((p) => p.id === topProductId);
+      if (!product || !product.is_available) {
+        // Don't surface unavailable products as "your usual".
+        res.json({ usual: null });
+        return;
+      }
+
+      res.json({
+        usual: {
+          productId: product.id,
+          productNameEn: product.name_en,
+          productNameAr: product.name_ar,
+          imageUrl: product.image_url,
+          basePriceEgp: product.base_price_egp,
+          orderCount,
+          preferredOptions,
+        },
+      });
+    } catch (e) { next(e); }
   });
 
   // Phase 6.4 — smart suggestion for the home card.
@@ -1863,6 +1946,20 @@ export function createApp(): express.Express {
       const input = z.object({ featured: z.boolean() }).parse(req.body);
       setFeaturedProduct(req.params.id as string, input.featured);
       res.json({ id: req.params.id, featured: input.featured });
+    } catch (e) { next(e); }
+  });
+
+  // Phase K4.9 — admin override for "Complete the combo" pairings.
+  // Body: { pairs: string[] } where each entry is a productId. Empty
+  // array is a valid override that means "no pairings for this product".
+  app.put('/admin/menu/products/:id/pairs', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
+      const input = z.object({
+        pairs: z.array(z.string().min(1)).max(8),
+      }).parse(req.body);
+      setProductPairs(req.params.id as string, input.pairs);
+      res.json({ id: req.params.id, pairs: input.pairs });
     } catch (e) { next(e); }
   });
 

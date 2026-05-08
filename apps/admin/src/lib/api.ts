@@ -131,6 +131,13 @@ export interface AdminOrder {
   /** Phase 2: API now returns full line items on every order list response. */
   items: AdminOrderItem[];
   statusHistory: AdminStatusEvent[];
+  /** Phase K1.11 — channel that placed the order. The kiosk surface
+   *  badges these so baristas know an in-cafe self-served order is
+   *  ready for cash-at-counter pickup. Older rows from before the
+   *  migration default to 'customer_app'. */
+  placementSource?: 'customer_app' | 'kiosk' | 'admin_phone';
+  /** Phase K1.11 — kiosk that placed the order (null for non-kiosk channels). */
+  kioskId?: string | null;
 }
 
 export interface AdminTimelineStep {

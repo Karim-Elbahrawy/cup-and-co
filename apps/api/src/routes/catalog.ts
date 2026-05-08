@@ -5,6 +5,7 @@ import { adminOffers } from '../db/offersStore.js';
 import { match, type Language } from '../services/concierge.js';
 import { recordSuggestion } from '../services/conciergeMetrics.js';
 import { isFeatured } from '../db/featuredProductsStore.js';
+import { defaultsForProduct } from '../db/productPairsStore.js';
 
 export function catalogRouter(): Router {
   const router = Router();
@@ -42,6 +43,25 @@ export function catalogRouter(): Router {
           is_featured_today: isFeatured(p.id),
         };
       });
+
+      // Phase K4.9: layer "complete the combo" pairings. Computed AFTER
+      // the stock/feature merge so the candidate list passed to
+      // defaultsForProduct already reflects today's availability — pairs
+      // never reference an out-of-stock or unavailable product.
+      const candidates = catalog.products.map((p) => ({
+        id: p.id,
+        name_en: p.name_en,
+        is_available: p.is_available && !p.is_out_of_stock,
+      }));
+      const categoryById = new Map(catalog.categories.map((c) => [c.id, c.slug]));
+      catalog.products = catalog.products.map((p) => ({
+        ...p,
+        pairs_well_with: defaultsForProduct(
+          p.id,
+          categoryById.get(p.category_id) ?? null,
+          candidates,
+        ),
+      }));
 
       res.json(catalog);
     } catch (e) { next(e); }

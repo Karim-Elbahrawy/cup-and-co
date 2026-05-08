@@ -14,10 +14,19 @@ import type { PlaceOrderResponse } from './api';
  *
  * If a customer somehow lands on /confirmation cold (refresh, deep link),
  * the page redirects to / since the store is empty.
+ *
+ * K5.1 — extended with `queued`: true when the order couldn't reach the
+ * server and was saved to the offline IDB queue instead. The
+ * confirmation page swaps in a softer "Offline — will sync" pill and
+ * uses the temp pickup code stamped at queue time.
  */
+export interface LastOrderPayload extends PlaceOrderResponse {
+  queued?: boolean;
+}
+
 interface LastOrderState {
-  order: PlaceOrderResponse | null;
-  set: (order: PlaceOrderResponse) => void;
+  order: LastOrderPayload | null;
+  set: (order: LastOrderPayload) => void;
   clear: () => void;
 }
 

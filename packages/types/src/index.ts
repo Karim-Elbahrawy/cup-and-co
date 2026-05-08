@@ -105,6 +105,13 @@ export interface Product {
    * it as a homepage banner later).
    */
   is_featured_today?: boolean;
+  /**
+   * Phase K4.9 — admin-curated complementary product IDs. The kiosk's
+   * cart drawer surfaces 1–2 of these as "Complete the combo" suggestions
+   * (filtering out anything already in cart). Defaults are computed by
+   * category in the API layer; admin overrides are union-merged on top.
+   */
+  pairs_well_with?: string[];
 }
 
 export interface ProductOption {
