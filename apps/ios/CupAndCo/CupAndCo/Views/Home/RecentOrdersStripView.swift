@@ -5,8 +5,9 @@ import SwiftUI
 /// items summary, total, status, and a one-tap Reorder button that maps
 /// items back onto products in the catalog and adds them to the cart.
 ///
-/// Renders nothing while loading or when the user has no past orders, so
-/// new users never see an empty placeholder on home.
+/// When the user has no past orders (or the API has lost in-memory state on
+/// a server restart), shows a friendly empty state instead of disappearing —
+/// keeps the home page recognisably orders-forward.
 struct RecentOrdersStripView: View {
     @Environment(OrderStore.self) private var orderStore
     @Environment(CatalogStore.self) private var catalog
@@ -26,34 +27,41 @@ struct RecentOrdersStripView: View {
 
     var body: some View {
         Group {
-            if loaded && !recentTerminal.isEmpty {
+            if loaded {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("home.recent_orders")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundStyle(CupColors.espresso)
                         Spacer()
-                        NavigationLink(destination: OrderHistoryView()) {
-                            HStack(spacing: 4) {
-                                Text("home.see_all")
-                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                Image(systemName: "arrow.right")
-                                    .font(.system(size: 11, weight: .bold))
+                        if !recentTerminal.isEmpty {
+                            NavigationLink(destination: OrderHistoryView()) {
+                                HStack(spacing: 4) {
+                                    Text("home.see_all")
+                                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    Image(systemName: "arrow.right")
+                                        .font(.system(size: 11, weight: .bold))
+                                }
+                                .foregroundStyle(CupColors.accent)
                             }
-                            .foregroundStyle(CupColors.accent)
                         }
                     }
                     .padding(.horizontal, 20)
 
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .top, spacing: 12) {
-                            ForEach(recentTerminal, id: \.id) { order in
-                                OrderCard(order: order, language: session.user?.languagePref ?? .en) {
-                                    reorder(order)
+                    if recentTerminal.isEmpty {
+                        emptyState
+                            .padding(.horizontal, 20)
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: 12) {
+                                ForEach(recentTerminal, id: \.id) { order in
+                                    OrderCard(order: order, language: session.user?.languagePref ?? .en) {
+                                        reorder(order)
+                                    }
                                 }
                             }
+                            .padding(.horizontal, 20)
                         }
-                        .padding(.horizontal, 20)
                     }
                 }
             }
@@ -82,6 +90,39 @@ struct RecentOrdersStripView: View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.75), value: toast)
+    }
+
+    /// Empty-state placeholder shown when the user has no past orders. Keeps
+    /// the section visible so the home page remains orders-forward.
+    private var emptyState: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(CupColors.cream)
+                    .frame(width: 40, height: 40)
+                Image(systemName: "bag")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(CupColors.primary)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("orders.empty")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(CupColors.espresso)
+                Text("orders.empty_subtitle")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(CupColors.muted)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(CupColors.stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+        )
     }
 
     /// Maps the past order's items back onto the current catalog and adds
