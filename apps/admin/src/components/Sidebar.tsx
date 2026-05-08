@@ -14,6 +14,7 @@ import {
   Tag,
   BarChart3,
   ChefHat,
+  Tablet,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 import { Logo } from './Logo';
@@ -34,6 +35,7 @@ const NAV: NavItem[] = [
   { label: 'Today', href: '/', icon: LayoutDashboard },
   { label: 'Orders', href: '/orders', icon: ListOrdered },
   { label: 'KDS', href: '/kds', icon: ChefHat },
+  { label: 'Kiosks', href: '/kiosks', icon: Tablet },
   {
     label: 'Menu',
     href: '/menu',
