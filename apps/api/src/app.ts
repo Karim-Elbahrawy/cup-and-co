@@ -1197,15 +1197,22 @@ export function createApp(): express.Express {
           ? calculateEarnedPoints({ amountEgp: total, source: 'cash_in_app' })
           : calculateEarnedPoints({ amountEgp: total, source: 'online_paid' });
 
-      // Phase K1.11 — derive placement_source. Trust the kiosk-auth
-      // middleware (when present) over a body field, so a misconfigured or
-      // malicious customer-web client can't tag itself as a kiosk order.
-      const isKioskAuth = req.user?.id.startsWith('kiosk:');
-      const placementSource = isKioskAuth
+      // Phase K1.11 / K4 — derive placement_source.
+      //
+      // The kiosk-auth path (K1.12) attaches req.kioskId from the
+      // x-kiosk-id header. An IDENTIFIED kiosk customer (K4.4 phone+OTP)
+      // sends a real JWT instead of the kiosk-bearer, but still ships the
+      // x-kiosk-id header — we keep that order tagged as 'kiosk' regardless
+      // of which auth path resolved the user. Trust the middleware over
+      // any body field so a misconfigured customer-web client can't
+      // impersonate a kiosk by self-tagging.
+      const headerKioskId = req.header('x-kiosk-id') ?? null;
+      const isKioskOrigin = Boolean(req.kioskId || headerKioskId);
+      const placementSource = isKioskOrigin
         ? 'kiosk'
         : input.placementSource ?? 'customer_app';
-      const kioskId = isKioskAuth
-        ? (req.kioskId ?? null)
+      const kioskId = isKioskOrigin
+        ? req.kioskId ?? headerKioskId
         : input.kioskId ?? null;
 
       const order = buildOrder(

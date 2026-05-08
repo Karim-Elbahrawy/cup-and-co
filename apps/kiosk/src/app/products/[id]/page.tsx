@@ -19,6 +19,7 @@ import { useIdleReset } from '@/lib/useIdleReset';
 import { api, ApiError } from '@/lib/api';
 import { useCart, type CartLineOption } from '@/lib/cart';
 import { useLang } from '@/lib/useLang';
+import { useIdentified } from '@/lib/useIdentified';
 import { DrinkBuilder } from '@/components/DrinkBuilder';
 
 /**
@@ -65,6 +66,9 @@ export default function ProductDetailPage({ params }: PageProps) {
   function fullReset() {
     useCart.getState().clear();
     useLang.getState().reset();
+    // K4 — clear identity on idle so the next customer can't see the
+    // previous one's name/tier.
+    useIdentified.getState().clear();
     setShowStillThere(false);
     router.replace('/');
   }

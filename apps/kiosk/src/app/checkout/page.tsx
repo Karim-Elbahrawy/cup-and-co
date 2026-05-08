@@ -15,6 +15,7 @@ import {
 import { useLastOrder } from '@/lib/useLastOrder';
 import { useIdleReset } from '@/lib/useIdleReset';
 import { useLang } from '@/lib/useLang';
+import { useIdentified } from '@/lib/useIdentified';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { StillThereModal } from '@/components/StillThereModal';
 import { api, ApiError } from '@/lib/api';
@@ -46,11 +47,14 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lang = useLang((s) => s.lang);
+  const identified = useIdentified((s) => s.customer);
+  const clearIdentified = useIdentified((s) => s.clear);
   const [showStillThere, setShowStillThere] = useState(false);
 
   function fullReset() {
     clearCart();
     useLang.getState().reset();
+    clearIdentified();
     setShowStillThere(false);
     router.replace('/');
   }
@@ -77,6 +81,9 @@ export default function CheckoutPage() {
       const response = await api.placeOrder({
         lines,
         paymentMethod: 'cash',
+        // K4.4 — pass identified JWT if the customer chose to identify
+        // themselves; otherwise the kiosk-bearer auth handles it.
+        userJwt: identified?.jwt,
       });
       setLastOrder(response);
       // Empty the cart only AFTER the response is stashed — if we

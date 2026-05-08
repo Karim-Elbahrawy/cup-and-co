@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, X, ArrowRight } from 'lucide-react';
+import { Trash2, X, ArrowRight, Sparkles, Star } from 'lucide-react';
 import {
   useCart,
   cartTotalEgp,
@@ -13,8 +13,10 @@ import {
   type CartLine,
 } from '@/lib/cart';
 import { useCartDrawer } from '@/lib/useCartDrawer';
+import { useIdentified } from '@/lib/useIdentified';
 import { BigButton } from './BigButton';
 import { QuantityStepper } from './QuantityStepper';
+import { IdentifyModal } from './IdentifyModal';
 import type { KioskLang } from '@/lib/lang';
 
 /**
@@ -50,6 +52,8 @@ export function CartDrawer({ lang = 'en' as KioskLang }: CartDrawerProps) {
   const removeLine = useCart((s) => s.removeLine);
   const total = cartTotalEgp(lines);
   const count = cartItemCount(lines);
+  const identified = useIdentified((s) => s.customer);
+  const [identifyOpen, setIdentifyOpen] = useState(false);
 
   // Auto-hide drawer if the cart drains to empty while it's open — better
   // UX than leaving an empty sheet hovering.
@@ -136,6 +140,35 @@ export function CartDrawer({ lang = 'en' as KioskLang }: CartDrawerProps) {
 
             {/* Footer */}
             <footer className="border-t border-[var(--cup-stroke)] bg-white px-12 pb-8 pt-6">
+              {/* K4.2 — anonymous customers see an opt-in 'Earn points?'
+                  pill; identified customers see a tier badge instead. */}
+              {identified ? (
+                <IdentifiedRow customer={identified} lang={lang} />
+              ) : lines.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setIdentifyOpen(true)}
+                  className="mb-4 flex w-full items-center justify-between gap-3 rounded-pill border-2 border-dashed border-cup-primary/40 bg-[var(--cup-paper)] px-5 py-3 text-left transition active:scale-[0.99]"
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-full bg-cup-primary text-white">
+                      <Sparkles className="h-5 w-5" />
+                    </span>
+                    <span>
+                      <span className="block font-heading text-[20px] font-bold text-[var(--cup-espresso)]">
+                        {lang === 'ar' ? 'جمّع نقاط؟' : 'Earn points?'}
+                      </span>
+                      <span className="block text-sm text-[var(--cup-muted)]">
+                        {lang === 'ar'
+                          ? 'دوس وأكّد رقمك في ٣٠ ثانية'
+                          : 'Tap to identify in 30 seconds'}
+                      </span>
+                    </span>
+                  </span>
+                  <ArrowRight className="h-6 w-6 text-cup-primary" />
+                </button>
+              ) : null}
+
               <div className="mb-4 flex items-baseline justify-between">
                 <span className="font-heading text-k-card text-[var(--cup-cocoa)]">
                   {lang === 'ar' ? 'الإجمالي' : 'Total'}
@@ -155,6 +188,11 @@ export function CartDrawer({ lang = 'en' as KioskLang }: CartDrawerProps) {
               </BigButton>
             </footer>
           </motion.section>
+
+          <IdentifyModal
+            open={identifyOpen}
+            onClose={() => setIdentifyOpen(false)}
+          />
         </motion.div>
       ) : null}
     </AnimatePresence>
@@ -162,6 +200,48 @@ export function CartDrawer({ lang = 'en' as KioskLang }: CartDrawerProps) {
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────
+
+const TIER_LABEL = {
+  bronze: { en: 'Bronze', ar: 'برونزي', from: '#C58A50', to: '#7A5028' },
+  silver: { en: 'Silver', ar: 'فضي', from: '#C0C5CC', to: '#7B838C' },
+  gold: { en: 'Gold', ar: 'ذهبي', from: '#F0C75A', to: '#A37A1A' },
+} as const;
+
+function IdentifiedRow({
+  customer,
+  lang,
+}: {
+  customer: { name: string | null; tier: 'bronze' | 'silver' | 'gold' | null; pointsBalance: number };
+  lang: KioskLang;
+}) {
+  const tier = customer.tier ?? 'bronze';
+  const tierStyle = TIER_LABEL[tier];
+  return (
+    <div className="mb-4 flex items-center gap-3 rounded-pill bg-[var(--cup-accent-tint)] px-5 py-3">
+      <span
+        className="grid h-10 w-10 place-items-center rounded-full text-white shadow-subtle"
+        style={{
+          background: `linear-gradient(135deg, ${tierStyle.from}, ${tierStyle.to})`,
+        }}
+        aria-hidden="true"
+      >
+        <Star className="h-5 w-5" />
+      </span>
+      <span className="flex-1">
+        <span className="block font-heading text-[18px] font-bold text-[var(--cup-espresso)]">
+          {customer.name
+            ? lang === 'ar' ? `أهلاً ${customer.name}` : `Hi, ${customer.name}`
+            : lang === 'ar' ? 'أهلاً بيك' : 'You are signed in'}
+        </span>
+        <span className="block text-sm text-[var(--cup-cocoa)]">
+          {lang === 'ar' ? tierStyle.ar : tierStyle.en} ·{' '}
+          {customer.pointsBalance}{' '}
+          {lang === 'ar' ? 'نقطة' : 'pts'}
+        </span>
+      </span>
+    </div>
+  );
+}
 
 function CartLineRow({
   line,
