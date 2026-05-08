@@ -12,6 +12,26 @@
  */
 
 import type { CatalogResponse, ProductDetailResponse } from '@cup-and-co/types';
+import type { CartLine } from './cart';
+
+/**
+ * Subset of the API's order-create response that the kiosk needs. The API
+ * returns more (timeline, full Order shape) but the kiosk only consumes
+ * what it renders on the confirmation screen — pickupCode + prepEta + a
+ * minimal order object for receipt purposes.
+ */
+export interface PlaceOrderResponse {
+  order: {
+    id: string;
+    pickupCode: string | null;
+    totalEgp: number;
+    paymentMethod: 'cash' | 'paymob_card' | 'paymob_wallet';
+    placementSource: 'customer_app' | 'kiosk' | 'admin_phone';
+    kioskId: string | null;
+    createdAt: string;
+  };
+  prepEta: { minutes: number; basis: string };
+}
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -80,4 +100,45 @@ export const api = {
   getProductDetail(productId: string): Promise<ProductDetailResponse> {
     return fetchJson<ProductDetailResponse>(`/products/${encodeURIComponent(productId)}`);
   },
+
+  /**
+   * POST /orders — places a kiosk order.
+   *
+   * The cart store is mapped down to the API's `{ productId, quantity,
+   * options }` schema. Options are sent as `{ groupName: optionName_en }`;
+   * the API matches against either name_en or name_ar so EN is fine
+   * regardless of customer language.
+   *
+   * Server is the source of truth for placement_source — when the kiosk
+   * bearer is set the API ignores any body field and stamps 'kiosk' itself.
+   * Sending it from the body anyway is belt-and-braces for environments
+   * without KIOSK_BEARER_TOKEN configured (e.g. local dev).
+   */
+  placeOrder(args: {
+    lines: CartLine[];
+    paymentMethod: 'cash';
+    notes?: string;
+  }): Promise<PlaceOrderResponse> {
+    const items = args.lines.map((line) => ({
+      productId: line.product.id,
+      quantity: line.quantity,
+      options: Object.fromEntries(line.options.map((o) => [o.group, o.nameEn])),
+    }));
+
+    return fetchJson<PlaceOrderResponse>('/orders', {
+      method: 'POST',
+      body: JSON.stringify({
+        fulfillmentType: 'pickup',
+        paymentMethod: args.paymentMethod,
+        redeemPoints: 0,
+        items,
+        notes: args.notes,
+        placementSource: 'kiosk',
+      }),
+      headers: KIOSK_ID ? { 'x-kiosk-id': KIOSK_ID } : {},
+    });
+  },
 };
+
+/** Per-device kiosk identity. Provisioned per iPad in K6's admin flow. */
+const KIOSK_ID = process.env.NEXT_PUBLIC_KIOSK_ID ?? '';
