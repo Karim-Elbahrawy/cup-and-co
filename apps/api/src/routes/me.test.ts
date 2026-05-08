@@ -160,3 +160,69 @@ describe('POST /push/register', () => {
     expect(res.body.registered).toBe(1);
   });
 });
+
+// ── Phase K4.10 — /me/usual ──────────────────────────────────────────────
+
+describe('GET /me/usual (one-tap reorder source)', () => {
+  const userHeaders = {
+    'x-user-id': 'usual-test-user',
+    'x-user-role': 'student',
+    'x-verification-status': 'approved',
+    'x-user-phone': '+201000000099',
+  };
+  const VELVET = '22222222-0000-0000-0000-000000000001';
+
+  async function placeOrder(app: ReturnType<typeof createApp>, opts: Record<string, string>) {
+    return request(app)
+      .post('/orders')
+      .set(userHeaders)
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [{ productId: VELVET, quantity: 1, options: opts }],
+      });
+  }
+
+  it('returns null when no orders exist', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .get('/me/usual')
+      .set({ ...userHeaders, 'x-user-id': 'usual-empty-user' })
+      .expect(200);
+    expect(res.body.usual).toBeNull();
+  });
+
+  it('returns null when there is only 1 order (need 2+ to be a usual)', async () => {
+    const app = createApp();
+    await placeOrder(app, { size: 'Medium', sugar: 'Normal' });
+    const res = await request(app).get('/me/usual').set(userHeaders).expect(200);
+    expect(res.body.usual).toBeNull();
+  });
+
+  it('returns the most-ordered product + most-common options after 2+ orders', async () => {
+    const app = createApp();
+    // Fresh user-id so this test doesn't inherit orders from sibling tests
+    // (the orders Map is module-level and persists across `it` blocks).
+    const freshHeaders = { ...userHeaders, 'x-user-id': 'usual-fresh-user' };
+    async function placeFresh(opts: Record<string, string>) {
+      return request(app).post('/orders').set(freshHeaders).send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [{ productId: VELVET, quantity: 1, options: opts }],
+      });
+    }
+    await placeFresh({ size: 'Large', sugar: 'Normal' });
+    await placeFresh({ size: 'Large', sugar: 'Less' });
+    await placeFresh({ size: 'Medium', sugar: 'Less' });
+    const res = await request(app).get('/me/usual').set(freshHeaders).expect(200);
+    expect(res.body.usual).toBeTruthy();
+    expect(res.body.usual.productId).toBe(VELVET);
+    expect(res.body.usual.orderCount).toBeGreaterThanOrEqual(3);
+    // Large appears 2x, Medium 1x → preferred is Large.
+    expect(res.body.usual.preferredOptions.size).toBe('Large');
+    // Less appears 2x, Normal 1x → preferred is Less.
+    expect(res.body.usual.preferredOptions.sugar).toBe('Less');
+  });
+});

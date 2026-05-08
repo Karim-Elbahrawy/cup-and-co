@@ -214,4 +214,40 @@ export const api = {
   }> {
     return fetchJson('/me', { userJwt });
   },
+
+  /**
+   * GET /me/usual — most-ordered product over the last 60 days with the
+   * customer's most common options pre-applied. Returns null if there's
+   * no clear "usual" yet (need ≥ 2 orders of the same product).
+   */
+  getMyUsual(userJwt: string): Promise<{
+    usual: {
+      productId: string;
+      productNameEn: string;
+      productNameAr: string;
+      imageUrl: string;
+      basePriceEgp: number;
+      orderCount: number;
+      preferredOptions: Record<string, string>;
+    } | null;
+  }> {
+    return fetchJson('/me/usual', { userJwt });
+  },
+
+  /**
+   * GET /me/suggestion — fallback when /me/usual returns null. Picks a
+   * smart product based on history + time-of-day + season.
+   */
+  getMySuggestion(userJwt: string): Promise<{
+    suggestion: {
+      productId: string;
+      productNameEn: string;
+      productNameAr: string;
+      imageUrl: string;
+      basePriceEgp: number;
+      reason: 'history' | 'season' | 'bestseller';
+    } | null;
+  }> {
+    return fetchJson('/me/suggestion', { userJwt });
+  },
 };
