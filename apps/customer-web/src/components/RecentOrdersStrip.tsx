@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, ShoppingBag } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useCart } from '@/lib/cart';
 import { useT, formatPrice } from '@/lib/i18n';
@@ -20,7 +20,9 @@ const COMPLETED_STATUSES = new Set(['completed', 'picked_up']);
  * Each card links to /orders/[id] and has a one-tap Reorder button that
  * clones the order's items into the cart and routes to /cart.
  *
- * Renders nothing if the user has no past orders.
+ * When the user has no past orders (or the API has lost in-memory state on
+ * a server restart), shows a friendly empty state instead of hiding —
+ * keeps the page recognisably orders-forward even before the first order.
  */
 export function RecentOrdersStrip() {
   const { t, language } = useT();
@@ -47,7 +49,39 @@ export function RecentOrdersStrip() {
     };
   }, []);
 
-  if (orders === null || orders.length === 0) return null;
+  // While loading: render nothing — avoids flashing skeleton + ghosting.
+  if (orders === null) return null;
+
+  // Empty state: keep the section visible so the home page stays
+  // orders-forward even for new users (or after an API server restart
+  // wipes in-memory state).
+  if (orders.length === 0) {
+    return (
+      <section aria-labelledby="recent-orders-heading">
+        <div className="flex items-end justify-between">
+          <h2
+            id="recent-orders-heading"
+            className="font-heading text-base font-bold text-[var(--cup-espresso)]"
+          >
+            {t('home.recentOrders')}
+          </h2>
+        </div>
+        <div className="mt-3 flex items-center gap-3 rounded-card border border-dashed border-[var(--cup-stroke)] bg-white/60 p-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--cup-cream)] text-[var(--cup-primary)]">
+            <ShoppingBag size={18} aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[var(--cup-espresso)]">
+              {t('orders.noOrders')}
+            </p>
+            <p className="text-xs text-[var(--cup-muted)]">
+              {t('orders.noOrdersMessage')}
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   function handleReorder(order: ApiOrder) {
     clearCart();
