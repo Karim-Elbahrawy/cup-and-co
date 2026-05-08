@@ -14,6 +14,9 @@ import {
 } from '@/lib/cart';
 import { useLastOrder } from '@/lib/useLastOrder';
 import { useIdleReset } from '@/lib/useIdleReset';
+import { useLang } from '@/lib/useLang';
+import { LanguageToggle } from '@/components/LanguageToggle';
+import { StillThereModal } from '@/components/StillThereModal';
 import { api, ApiError } from '@/lib/api';
 import type { KioskLang } from '@/lib/lang';
 
@@ -42,14 +45,21 @@ export default function CheckoutPage() {
   const itemCount = cartItemCount(lines);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lang = 'en' as KioskLang;
+  const lang = useLang((s) => s.lang);
+  const [showStillThere, setShowStillThere] = useState(false);
+
+  function fullReset() {
+    clearCart();
+    useLang.getState().reset();
+    setShowStillThere(false);
+    router.replace('/');
+  }
 
   useIdleReset({
-    onIdle: () => {
-      clearCart();
-      router.replace('/');
-    },
+    onWarn: () => setShowStillThere(true),
+    onIdle: fullReset,
     timeoutMs: 90_000,
+    warnMs: 75_000,
     enabled: !submitting, // Don't bounce mid-submit.
   });
 
@@ -96,13 +106,16 @@ export default function CheckoutPage() {
         >
           {lang === 'ar' ? 'العودة' : 'Back'}
         </BigButton>
-        <div className="text-right">
-          <p className="text-sm font-bold uppercase tracking-[0.4em] text-[var(--cup-muted)]">
-            {lang === 'ar' ? 'إتمام الطلب' : 'Checkout'}
-          </p>
-          <h1 className="font-heading text-k-hero text-[var(--cup-espresso)]">
-            {lang === 'ar' ? 'كيف تحب تدفع؟' : 'How will you pay?'}
-          </h1>
+        <div className="flex items-center gap-4">
+          <LanguageToggle />
+          <div className="text-right">
+            <p className="text-sm font-bold uppercase tracking-[0.4em] text-[var(--cup-muted)]">
+              {lang === 'ar' ? 'إتمام الطلب' : 'Checkout'}
+            </p>
+            <h1 className="font-heading text-k-hero text-[var(--cup-espresso)]">
+              {lang === 'ar' ? 'كيف تحب تدفع؟' : 'How will you pay?'}
+            </h1>
+          </div>
         </div>
       </header>
 
@@ -176,6 +189,13 @@ export default function CheckoutPage() {
           ) : null}
         </section>
       </div>
+
+      <StillThereModal
+        open={showStillThere}
+        onAck={() => setShowStillThere(false)}
+        onTimeout={fullReset}
+        onCancel={fullReset}
+      />
     </main>
   );
 }

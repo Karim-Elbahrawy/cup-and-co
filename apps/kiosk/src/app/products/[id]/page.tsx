@@ -13,10 +13,12 @@ import { BigButton } from '@/components/BigButton';
 import { OptionGroupRow } from '@/components/OptionGroupRow';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { ToastHost, type ToastApi } from '@/components/Toast';
+import { LanguageToggle } from '@/components/LanguageToggle';
+import { StillThereModal } from '@/components/StillThereModal';
 import { useIdleReset } from '@/lib/useIdleReset';
 import { api, ApiError } from '@/lib/api';
 import { useCart, type CartLineOption } from '@/lib/cart';
-import type { KioskLang } from '@/lib/lang';
+import { useLang } from '@/lib/useLang';
 
 /**
  * /products/[id] — "CUSTOMIZE YOUR DRINK" detail screen (K1.3).
@@ -55,15 +57,22 @@ export default function ProductDetailPage({ params }: PageProps) {
   );
   const [quantity, setQuantity] = useState(1);
   const toastRef = useRef<ToastApi | null>(null);
-  const lang = 'en' as KioskLang; // K1.6 swaps for session lang.
+  const lang = useLang((s) => s.lang);
   const addLine = useCart((s) => s.addLine);
+  const [showStillThere, setShowStillThere] = useState(false);
+
+  function fullReset() {
+    useCart.getState().clear();
+    useLang.getState().reset();
+    setShowStillThere(false);
+    router.replace('/');
+  }
 
   useIdleReset({
-    onIdle: () => {
-      useCart.getState().clear();
-      router.replace('/');
-    },
+    onWarn: () => setShowStillThere(true),
+    onIdle: fullReset,
     timeoutMs: 90_000,
+    warnMs: 75_000,
   });
 
   // Fetch detail. Re-runs when `retryNonce` flips (manual retry button).
@@ -167,6 +176,11 @@ export default function ProductDetailPage({ params }: PageProps) {
     <main className="relative h-dvh w-dvw overflow-y-auto bg-[var(--cup-paper)]">
       <ToastHost bind={bindToast} />
 
+      {/* Top-right language toggle — sits above the hero on every screen. */}
+      <div className="absolute right-8 top-8 z-20">
+        <LanguageToggle />
+      </div>
+
       {/* Sticky back chrome — translucent so the hero shows through. */}
       <div className="absolute left-8 top-8 z-20">
         <BigButton
@@ -263,6 +277,13 @@ export default function ProductDetailPage({ params }: PageProps) {
           </div>
         </div>
       ) : null}
+
+      <StillThereModal
+        open={showStillThere}
+        onAck={() => setShowStillThere(false)}
+        onTimeout={fullReset}
+        onCancel={fullReset}
+      />
     </main>
   );
 }

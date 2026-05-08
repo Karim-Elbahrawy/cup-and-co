@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Sora, Cairo } from 'next/font/google';
 import './globals.css';
+import { AppShell } from '@/components/AppShell';
 
 const sora = Sora({ subsets: ['latin'], variable: '--font-heading' });
 const inter = Inter({ subsets: ['latin'], variable: '--font-body' });
@@ -52,7 +53,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
       className={`${sora.variable} ${inter.variable} ${cairo.variable}`}
     >
-      <body className="no-touch-callout">{children}</body>
+      <body className="no-touch-callout">
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

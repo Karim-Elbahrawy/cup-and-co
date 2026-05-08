@@ -9,11 +9,13 @@ import { ProductGrid } from '@/components/ProductGrid';
 import { CartPill } from '@/components/CartPill';
 import { CartDrawer } from '@/components/CartDrawer';
 import { ToastHost, type ToastApi } from '@/components/Toast';
+import { LanguageToggle } from '@/components/LanguageToggle';
+import { StillThereModal } from '@/components/StillThereModal';
 import { useIdleReset } from '@/lib/useIdleReset';
 import { useCart } from '@/lib/cart';
 import { useCartDrawer } from '@/lib/useCartDrawer';
+import { useLang } from '@/lib/useLang';
 import { api, ApiError } from '@/lib/api';
-import type { KioskLang } from '@/lib/lang';
 
 /**
  * /catalog — the customer's first interactive screen after the attract
@@ -38,23 +40,28 @@ export default function CatalogPage() {
   const [error, setError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const toastRef = useRef<ToastApi | null>(null);
-  // Hardcoded EN until K1.6 ships the language store. Cast prevents TS from
-  // narrowing the literal — the K1.6 store will return a real KioskLang.
-  const lang = 'en' as KioskLang;
+  const lang = useLang((s) => s.lang);
+  const resetLang = useLang((s) => s.reset);
   const clearCart = useCart((s) => s.clear);
   const showDrawer = useCartDrawer((s) => s.show);
   const hideDrawer = useCartDrawer((s) => s.hide);
+  const [showStillThere, setShowStillThere] = useState(false);
 
-  // Idle reset returns to attract AND clears the cart, matching the K1.9
-  // contract one phase early — easier to keep than to re-introduce later
-  // when state has accreted.
+  function fullReset() {
+    clearCart();
+    hideDrawer();
+    resetLang();
+    setShowStillThere(false);
+    router.replace('/');
+  }
+
+  // Two-phase idle: warn at 75s, reset at 90s. The "still there?" modal
+  // raises its own visible countdown — see StillThereModal.
   useIdleReset({
-    onIdle: () => {
-      clearCart();
-      hideDrawer();
-      router.replace('/');
-    },
+    onWarn: () => setShowStillThere(true),
+    onIdle: fullReset,
     timeoutMs: 90_000,
+    warnMs: 75_000,
   });
 
   useEffect(() => {
@@ -99,26 +106,26 @@ export default function CatalogPage() {
     <main className="relative h-dvh w-dvw overflow-y-auto bg-[var(--cup-paper)] px-12 pb-24 pt-8">
       <ToastHost bind={bindToast} />
 
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-6 flex items-center justify-between gap-4">
         <BigButton
           variant="secondary"
           leadingIcon={<ChevronLeft className="h-7 w-7" />}
-          onClick={() => {
-            clearCart();
-            router.replace('/');
-          }}
+          onClick={fullReset}
           aria-label={lang === 'ar' ? 'العودة' : 'Back to start'}
         >
           {lang === 'ar' ? 'البداية' : 'Start over'}
         </BigButton>
 
-        <div className="text-right">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[var(--cup-muted)]">
-            Cup &amp; Co
-          </p>
-          <h1 className="font-heading text-k-hero text-[var(--cup-espresso)]">
-            {lang === 'ar' ? 'القائمة' : 'Today’s menu'}
-          </h1>
+        <div className="flex items-center gap-4">
+          <LanguageToggle />
+          <div className="text-right">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[var(--cup-muted)]">
+              Cup &amp; Co
+            </p>
+            <h1 className="font-heading text-k-hero text-[var(--cup-espresso)]">
+              {lang === 'ar' ? 'القائمة' : 'Today’s menu'}
+            </h1>
+          </div>
         </div>
       </header>
 
@@ -137,6 +144,12 @@ export default function CatalogPage() {
 
       <CartPill onClick={showDrawer} />
       <CartDrawer lang={lang} />
+      <StillThereModal
+        open={showStillThere}
+        onAck={() => setShowStillThere(false)}
+        onTimeout={fullReset}
+        onCancel={fullReset}
+      />
     </main>
   );
 }
