@@ -7,6 +7,10 @@ import { api } from '@/lib/api';
 import { NetStatusPill } from './NetStatusPill';
 import { OfflineQueuePill } from './OfflineQueuePill';
 import { KioskUnavailableBanner } from './KioskUnavailableBanner';
+import { StaffTriggerZone } from './StaffTriggerZone';
+import { StaffPinModal } from './StaffPinModal';
+import { StaffOverlay } from './StaffOverlay';
+import { LockScreen } from './LockScreen';
 
 /**
  * Thin client wrapper mounted from the root layout. Owns four cross-page
@@ -40,6 +44,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <NetStatusPill />
       <OfflineQueuePill />
       {children}
+      {/* K5.3 — staff-assist surfaces.
+          The trigger zone is invisible and lives in the bottom-end corner.
+          The PIN modal, action overlay, and lock screen layer above
+          everything (PIN z-70, overlay z-70, banner z-80, lock z-90). */}
+      <StaffTriggerZone />
+      <StaffPinModal />
+      <StaffOverlay />
+      <LockScreen />
       <KioskUnavailableBanner />
     </>
   );
