@@ -226,3 +226,18 @@
 "qr.camera_required" = "Camera Access Required";
 "qr.camera_subtitle" = "Open Settings to allow camera access for scanning QR receipts.";
 "qr.open_settings" = "Open Settings";
+
+/* Recent Orders strip on Home */
+"home.recent_orders" = "Recent Orders";
+"home.order_again" = "Order Again";
+
+/* Order status labels (reused as keys via OrderStatus.rawValue) */
+"orders.received" = "Received";
+"orders.accepted" = "Accepted";
+"orders.preparing" = "Preparing";
+"orders.ready" = "Ready";
+"orders.out_for_delivery" = "On the way";
+"orders.completed" = "Completed";
+"orders.cancelled" = "Cancelled";
+"orders.refunded" = "Refunded";
+"orders.reorder" = "Reorder";

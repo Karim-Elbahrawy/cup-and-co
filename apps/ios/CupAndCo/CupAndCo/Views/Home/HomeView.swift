@@ -62,6 +62,11 @@ struct HomeView: View {
                 PromoBannerView(percent: heroPercent)
                     .padding(.horizontal, 20)
 
+                // Recent orders — horizontal strip of past terminal orders.
+                // Component hides itself entirely when the user has no past
+                // orders, so new users don't see a blank section.
+                RecentOrdersStripView()
+
                 // Active offers pills
                 if !catalog.offers.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {

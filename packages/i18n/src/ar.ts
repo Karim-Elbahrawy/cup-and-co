@@ -62,6 +62,8 @@ export const ar: Translations = {
     todayOnly: 'اليوم فقط',
     superDiscount: 'خصم خاص',
     offPercent: '% خصم',
+    recentOrders: 'الطلبات الأخيرة',
+    orderAgain: 'اطلب مجدداً',
     categories: {
       all: 'الكل',
       coffee: 'قهوة',
