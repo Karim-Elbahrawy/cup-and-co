@@ -8,7 +8,20 @@ export function errorHandler(
   _next: NextFunction,
 ): void {
   if (err instanceof ZodError) {
-    res.status(400).json({ error: 'Validation error', details: err.flatten() });
+    // Build a human-readable summary of which field(s) failed so the
+    // client toast says "orderId is required" instead of just
+    // "Validation error". Falls back to "Validation error" only if
+    // Zod produced no field-level info.
+    const fieldErrors = err.issues
+      .map((issue) => {
+        const path = issue.path.length > 0 ? issue.path.join('.') : null;
+        return path ? `${path}: ${issue.message}` : issue.message;
+      })
+      .filter(Boolean);
+    const summary = fieldErrors.length > 0
+      ? `Invalid input — ${fieldErrors.join('; ')}`
+      : 'Validation error';
+    res.status(400).json({ error: summary, details: err.flatten() });
     return;
   }
   const status = (err as { status?: number })?.status ?? 500;
