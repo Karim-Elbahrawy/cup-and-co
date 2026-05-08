@@ -33,7 +33,10 @@ import {
   addProductOption,
   updateProductOption,
   deleteProductOption,
+  setProductAttrs,
+  getProductAttrs,
 } from './db/catalogRepo.js';
+import { inferAttributes } from './services/inferAttributes.js';
 import { adminOffers } from './db/offersStore.js';
 
 // In-memory demo store. Catalog reads come from `db/catalogRepo.ts` (Supabase
@@ -1022,6 +1025,54 @@ export function createApp(): express.Express {
       }).parse(req.body);
       setProductStock(req.params.id as string, stock_count);
       res.json({ id: req.params.id, stock_count });
+    } catch (e) { next(e); }
+  });
+
+  // ── Cup AI: read current concierge attributes for a product ───────────
+  app.get('/admin/menu/products/:id/attrs', requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
+      const catalog = await getCatalog();
+      const product = catalog.products.find((p) => p.id === req.params.id);
+      if (!product) {
+        res.status(404).json({ error: 'Product not found.' });
+        return;
+      }
+      res.json({ id: product.id, attrs: getProductAttrs(product) });
+    } catch (e) { next(e); }
+  });
+
+  // ── Cup AI: persist admin-edited concierge attributes ─────────────────
+  // Pass any subset of fields. Pass `null` for any field to clear it.
+  app.patch('/admin/menu/products/:id/attrs', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
+      const input = z.object({
+        energy_level: z.enum(['low', 'medium', 'high']).nullable().optional(),
+        sweetness: z.number().int().min(0).max(5).nullable().optional(),
+        temperature: z.enum(['hot', 'cold', 'both']).nullable().optional(),
+        caffeine_mg: z.number().int().nonnegative().max(500).nullable().optional(),
+        tags_en: z.array(z.string().min(1).max(40)).max(20).optional(),
+        tags_ar: z.array(z.string().min(1).max(40)).max(20).optional(),
+      }).parse(req.body);
+      setProductAttrs(req.params.id as string, input);
+      res.json({ id: req.params.id, attrs: input });
+    } catch (e) { next(e); }
+  });
+
+  // ── Cup AI: auto-detect attributes from product name + description ────
+  // Returns inferred values without persisting — admin reviews + saves.
+  app.post('/admin/menu/products/:id/auto-detect-attrs', requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
+      const catalog = await getCatalog();
+      const product = catalog.products.find((p) => p.id === req.params.id);
+      if (!product) {
+        res.status(404).json({ error: 'Product not found.' });
+        return;
+      }
+      const inferred = inferAttributes(product);
+      res.json({ id: product.id, inferred });
     } catch (e) { next(e); }
   });
 

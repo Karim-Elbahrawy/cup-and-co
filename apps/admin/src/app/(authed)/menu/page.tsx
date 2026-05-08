@@ -7,6 +7,7 @@ import { useSession } from '@/lib/useSession';
 import { can } from '@/lib/permissions';
 import { formatEgp } from '@/lib/format';
 import { useToast } from '@/components/Toast';
+import { AttributesEditor } from '@/components/AttributesEditor';
 import type { Product, Category, CatalogResponse, ReviewMode, ProductOption } from '@cup-and-co/types';
 
 /**
@@ -757,9 +758,12 @@ export default function MenuPage() {
                               </div>
                             )}
 
-                            {/* Expandable options editor */}
+                            {/* Expandable editors */}
                             {isOptionsOpen && (
-                              <OptionsEditor product={product} canManage={canManage} />
+                              <>
+                                <OptionsEditor product={product} canManage={canManage} />
+                                {canManage && <AttributesEditor product={product} />}
+                              </>
                             )}
                           </li>
                         );

@@ -361,6 +361,44 @@ export function setProductStock(id: string, count: number | null): void {
   }
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Cup AI concierge attribute overrides — admins set these per product so the
+// matcher knows how to suggest the drink. Stored as a partial overlay so a
+// single `null` field doesn't wipe out the rest. Keyed by product ID.
+// ───────────────────────────────────────────────────────────────────────────
+
+export interface ConciergeAttrs {
+  energy_level: 'low' | 'medium' | 'high' | null;
+  sweetness: number | null;
+  temperature: 'hot' | 'cold' | 'both' | null;
+  caffeine_mg: number | null;
+  tags_en: string[];
+  tags_ar: string[];
+}
+
+const productAttrsMap = new Map<string, Partial<ConciergeAttrs>>();
+
+/** Reads the merged attributes — admin overlay over the product's seeded values. */
+export function getProductAttrs(product: Product): ConciergeAttrs {
+  const overlay = productAttrsMap.get(product.id) ?? {};
+  return {
+    energy_level: overlay.energy_level ?? product.energy_level ?? null,
+    sweetness:    overlay.sweetness    ?? product.sweetness    ?? null,
+    temperature:  overlay.temperature  ?? product.temperature  ?? null,
+    caffeine_mg:  overlay.caffeine_mg  ?? product.caffeine_mg  ?? null,
+    tags_en:      overlay.tags_en      ?? product.tags_en      ?? [],
+    tags_ar:      overlay.tags_ar      ?? product.tags_ar      ?? [],
+  };
+}
+
+/**
+ * Replaces the admin overlay for a product. Pass `null` for any individual
+ * field to clear it (and fall back to whatever the product itself has).
+ */
+export function setProductAttrs(id: string, attrs: Partial<ConciergeAttrs>): void {
+  productAttrsMap.set(id, { ...productAttrsMap.get(id), ...attrs });
+}
+
 /** Returns the live stock count for a product. `null` = unlimited. */
 export function getProductStock(id: string): number | null {
   const v = productStockMap.get(id);
@@ -378,15 +416,23 @@ export function decrementStock(id: string, qty: number): void {
   }
 }
 
-/** Applies in-memory stock and review-mode overlays to a product. */
+/** Applies in-memory stock, review-mode, and concierge-attribute overlays. */
 function withMeta(product: Product): Product {
   const stockVal = productStockMap.get(product.id);
   const modeVal = productReviewModes.get(product.id);
-  if (stockVal === undefined && modeVal === undefined) return product;
+  const attrsVal = productAttrsMap.get(product.id);
+  if (stockVal === undefined && modeVal === undefined && attrsVal === undefined) return product;
   return {
     ...product,
     stock_count: stockVal !== undefined ? stockVal : product.stock_count,
     review_mode: modeVal ?? product.review_mode,
+    // Concierge attribute overlays — admin values win over the seeded defaults
+    energy_level: attrsVal?.energy_level ?? product.energy_level ?? null,
+    sweetness:    attrsVal?.sweetness    ?? product.sweetness    ?? null,
+    temperature:  attrsVal?.temperature  ?? product.temperature  ?? null,
+    caffeine_mg:  attrsVal?.caffeine_mg  ?? product.caffeine_mg  ?? null,
+    tags_en:      attrsVal?.tags_en      ?? product.tags_en      ?? [],
+    tags_ar:      attrsVal?.tags_ar      ?? product.tags_ar      ?? [],
   };
 }
 

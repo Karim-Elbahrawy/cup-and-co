@@ -393,4 +393,22 @@ export const adminApi = {
     api<{ category: AdminCategory }>(`/admin/menu/categories/${id}`, { method: 'PATCH', body }),
   deleteCategory: (id: string) =>
     api<{ ok: boolean }>(`/admin/menu/categories/${id}`, { method: 'DELETE' }),
+
+  // ── Cup AI: per-product concierge attributes ─────────────────────────────
+  getProductAttrs: (productId: string, signal?: AbortSignal) =>
+    api<{ id: string; attrs: ConciergeAttrs }>(`/admin/menu/products/${productId}/attrs`, { signal }),
+  setProductAttrs: (productId: string, body: Partial<ConciergeAttrs>) =>
+    api<{ id: string; attrs: Partial<ConciergeAttrs> }>(`/admin/menu/products/${productId}/attrs`, { method: 'PATCH', body }),
+  autoDetectAttrs: (productId: string) =>
+    api<{ id: string; inferred: ConciergeAttrs }>(`/admin/menu/products/${productId}/auto-detect-attrs`, { method: 'POST' }),
 };
+
+// ── Cup AI types (mirror api/services/concierge ConciergeAttrs) ────────────
+export interface ConciergeAttrs {
+  energy_level: 'low' | 'medium' | 'high' | null;
+  sweetness: number | null;
+  temperature: 'hot' | 'cold' | 'both' | null;
+  caffeine_mg: number | null;
+  tags_en: string[];
+  tags_ar: string[];
+}
