@@ -1,12 +1,12 @@
 # Cup & Co — Working Context
 
-> **For any AI chat resuming work on this project: read this file first, then `docs/MASTER-PLAN.md`, then `docs/PHASES/PHASE-3-COMPLETE.md`. They contain everything you need to continue without re-asking the user.**
+> **For any AI chat resuming work on this project: read this file first, then `docs/SHIP-PLAN.md`. The five prior plan files (`MASTER-PLAN`, `REVIEW-AND-POLISH-PLAN`, `UPGRADE-PLAN`, `KIOSK-PLAN`, `POST-PROD-PLAN`) are now in `docs/_archive/` as historical context only — do not start work from them. The Phase summaries in `docs/PHASES/` document what was already shipped.**
 
 ## What this project is
 
 A campus coffee kiosk ordering ecosystem for an Egyptian university kiosk. Native iOS app, customer web/PWA, admin dashboard, Express API, Supabase. The user (Karim Elbahrawy) commissioned this from a previous Codex session that produced working code with bad branding ("Morning Pass", "Campus Scholar", "Brew Points") and UI that didn't match the Figma reference. This rebuild salvages the backend logic and rebuilds the UI fresh.
 
-**Authoritative plan**: [`docs/MASTER-PLAN.md`](./docs/MASTER-PLAN.md). Source of truth for every architectural decision.
+**Authoritative plan**: [`docs/SHIP-PLAN.md`](./docs/SHIP-PLAN.md). Single source of truth — supersedes the archived `MASTER-PLAN`, `REVIEW-AND-POLISH-PLAN`, `UPGRADE-PLAN`, `KIOSK-PLAN`, and `POST-PROD-PLAN` (all moved to `docs/_archive/`).
 
 ## Locked decisions (don't re-litigate)
 
@@ -139,7 +139,7 @@ These are **not** blocking Phase 1, but get them ASAP:
 
 Tell the next AI:
 
-> "I'm working on the Cup & Co coffee kiosk app at `E:\Kiosk App` (also pushed to GitHub at `Karim-Elbahrawy/cup-and-co`). Read `CONTEXT.md`, then `docs/MASTER-PLAN.md`, then the latest file in `docs/PHASES/`. Continue from where the last phase ended. Do not re-ask locked decisions."
+> "I'm working on the Cup & Co coffee kiosk app at `E:\Kiosk App` (also pushed to GitHub at `Karim-Elbahrawy/cup-and-co`). Read `CONTEXT.md`, then `docs/SHIP-PLAN.md` end-to-end. Continue from the highest-priority `[ ]` item in the lowest-numbered incomplete phase. Do not re-ask locked decisions."
 
 That's it. Every commit message references the phase number. Every phase produces a `docs/PHASES/PHASE-N-COMPLETE.md` summary so the next session knows exactly what shipped and what's next.
 
@@ -153,9 +153,10 @@ That's it. Every commit message references the phase number. Every phase produce
 
 ## Useful pointers
 
-- Master plan: [`docs/MASTER-PLAN.md`](./docs/MASTER-PLAN.md)
+- **Ship plan (active)**: [`docs/SHIP-PLAN.md`](./docs/SHIP-PLAN.md)
 - Brand guide: [`docs/brand-guide.md`](./docs/brand-guide.md)
 - API contract: [`docs/api-contract.md`](./docs/api-contract.md)
 - Figma component mapping: [`docs/figma-mapping.md`](./docs/figma-mapping.md)
-- Phase summaries: [`docs/PHASES/`](./docs/PHASES/)
+- Phase summaries (what shipped): [`docs/PHASES/`](./docs/PHASES/)
+- Archived prior plans (historical context only): [`docs/_archive/`](./docs/_archive/)
 - Original Codex attempt (for reference, do not modify): `C:\Users\LEGION\Documents\Codex\2026-05-03\i-am-creating-a-mobile-app`
