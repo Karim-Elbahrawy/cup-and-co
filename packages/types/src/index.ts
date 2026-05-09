@@ -115,7 +115,7 @@ export interface ProductOption {
 
 /**
  * Phase K1.11 — surface that placed the order. Backed by a Postgres enum
- * (see supabase/migrations/0012_placement_source.sql) and defaults to
+ * (see supabase/migrations/0013_placement_source.sql) and defaults to
  * 'customer_app' for backward compatibility with rows pre-migration.
  */
 export type PlacementSource = 'customer_app' | 'kiosk' | 'admin_phone';

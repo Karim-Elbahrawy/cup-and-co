@@ -18,7 +18,7 @@
  *   - Signup window after click: 14 days
  *
  * In-memory mirror; production points at Supabase via migration
- * `0011_referrals.sql`.
+ * `0012_referrals.sql`.
  */
 import { randomUUID, createHash } from 'node:crypto';
 
