@@ -10,17 +10,21 @@ import {
 import type { KioskLang } from '@/lib/lang';
 
 /**
- * Top-level category landing — 5 big tap targets, customer picks one of:
- * Coffee, Drinks, Breakfast, Dessert, Herbs.
+ * Top-level category landing — refined to match Karim's reference image.
  *
- * Visual reference: warm cream cards, oversized icon at top, label
- * underneath, accent ring on hover. The 5 cards span the full width
- * on a 12.9" iPad (5 columns at xl, 3 columns at md, 2 columns at
- * sm, 1 column tiny — covers the rare DevTools narrow preview).
+ * Visual reference: a single warm cream "tray" containing a small uppercase
+ * title and a tight horizontal row of sticker-style category chips. Each
+ * chip is a rounded square with a soft drop shadow, brand-tinted gradient
+ * fill, white centred icon, and a small uppercase label below.
  *
- * Each card is a real <button> for keyboard/screen-reader semantics.
- * Press feedback is GPU-only (active:scale + active:translate-y) —
- * Framer's stagger-in is the only JS-driven motion, on mount.
+ * Why one tray instead of 5 separate cards: the 5-card grid felt loose and
+ * SaaS-y. The reference is calmer — one composed surface, the eye reads
+ * left-to-right across the chips, picks one, taps. Less visual chrome per
+ * unit of choice.
+ *
+ * Each chip is a real <button> for keyboard / screen-reader semantics.
+ * Press feedback is GPU-only (active:scale + active:translate-y); only
+ * Framer-driven motion is the stagger-in on mount.
  */
 
 interface CategoryLandingProps {
@@ -30,70 +34,88 @@ interface CategoryLandingProps {
 
 export function CategoryLanding({ lang, onSelect }: CategoryLandingProps) {
   return (
-    <div className="space-y-8 pt-2">
-      <div>
-        <p className="text-sm font-bold uppercase tracking-[0.32em] text-[var(--cup-muted)]">
-          {lang === 'ar' ? 'إيه اللي يعجبك؟' : 'What are you in the mood for?'}
-        </p>
-        <h2 className="mt-2 font-heading text-[44px] font-extrabold leading-tight tracking-tight text-[var(--cup-espresso)]">
-          {lang === 'ar' ? 'اختار الفئة' : 'Pick a category'}
-        </h2>
-      </div>
+    <div className="grid place-items-center pt-2">
+      {/* The tray — single cream container holds all 5 chips + the title. */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        aria-label={lang === 'ar' ? 'اختار الفئة' : 'Pick a category'}
+        className="relative w-full max-w-[1280px] overflow-hidden rounded-[44px] border border-[#E9E1CF] px-10 py-12 shadow-[0_18px_60px_rgba(28,25,23,0.08)]"
+        style={{
+          background: 'linear-gradient(180deg, #FFFAF0 0%, #FCF1DE 100%)',
+        }}
+      >
+        {/* Tray title — small caps centered, matches the reference. */}
+        <header className="mb-10 text-center">
+          <p className="text-sm font-bold uppercase tracking-[0.4em] text-[var(--cup-cocoa)]">
+            {lang === 'ar' ? 'اختار من القائمة' : 'Choose from the menu'}
+          </p>
+          <h2 className="mt-3 font-heading text-[40px] font-extrabold leading-tight tracking-tight text-[var(--cup-espresso)]">
+            {lang === 'ar' ? 'إيه اللي يعجبك؟' : "What's calling you?"}
+          </h2>
+        </header>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-        {CATEGORY_GROUPS.map((group, i) => (
-          <motion.button
-            key={group.id}
-            type="button"
-            onClick={() => onSelect(group)}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.32,
-              delay: i * 0.05,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            className="group relative flex min-h-[260px] flex-col items-center justify-between gap-5 overflow-hidden rounded-card border border-cup-stroke bg-white p-6 text-center shadow-card transition-[transform,box-shadow] duration-150 active:scale-[0.985] active:translate-y-px hover:shadow-elevated focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cup-primary"
-          >
-            {/* Decorative accent halo behind the icon — soft tinted blur,
-                varies by group accent so the row reads with rhythm. */}
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute -top-12 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full opacity-60 blur-2xl transition-opacity duration-300 group-hover:opacity-90"
-              style={{ background: accentHaloFor(group.accent) }}
-            />
-
-            <span
-              aria-hidden="true"
-              className="relative z-10 grid h-24 w-24 place-items-center rounded-full"
-              style={{
-                background: accentSurfaceFor(group.accent),
-                color: accentForeFor(group.accent),
+        {/* Sticker row — 5 chips in a fluid grid that compacts on narrow
+            previews. On a 12.9" iPad in landscape this lands as a single
+            row of 5; in portrait it falls to 3 → 2 → 1. */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-5 lg:grid-cols-5">
+          {CATEGORY_GROUPS.map((group, i) => (
+            <motion.button
+              key={group.id}
+              type="button"
+              onClick={() => onSelect(group)}
+              initial={{ opacity: 0, y: 14, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                duration: 0.32,
+                delay: 0.08 + i * 0.06,
+                ease: [0.22, 1, 0.36, 1],
               }}
+              aria-label={lang === 'ar' ? group.label.ar : group.label.en}
+              className="group flex flex-col items-center gap-3 rounded-[28px] bg-transparent p-2 transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cup-primary"
             >
-              <GroupIcon kind={group.icon} />
-            </span>
+              {/* The sticker — rounded square with brand-tinted gradient,
+                  white icon centered, soft drop shadow, plus a tiny inset
+                  highlight at the top to pick up the "ceramic" feel of
+                  the reference. */}
+              <span
+                aria-hidden="true"
+                className="relative grid h-[120px] w-[120px] place-items-center overflow-hidden rounded-[28px] shadow-[0_10px_24px_rgba(28,25,23,0.10)] transition-[transform,box-shadow] duration-200 group-hover:-translate-y-0.5 group-hover:shadow-[0_16px_32px_rgba(28,25,23,0.14)]"
+                style={{
+                  background: stickerSurfaceFor(group.accent),
+                  color: stickerIconColorFor(group.accent),
+                }}
+              >
+                {/* Inner highlight — top-curve sheen, gives the sticker
+                    a 3D ceramic feel without an actual illustration. */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-3 top-2 h-1/3 rounded-[20px] opacity-50"
+                  style={{
+                    background:
+                      'linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 100%)',
+                  }}
+                />
+                <GroupIcon kind={group.icon} />
+              </span>
 
-            <div className="relative z-10 flex flex-1 flex-col items-center justify-end gap-1.5">
-              <h3 className="font-heading text-[26px] font-extrabold leading-tight text-[var(--cup-espresso)]">
+              {/* Label — uppercase + letter-spaced, matching the small caps
+                  in the reference. */}
+              <span className="font-heading text-[15px] font-extrabold uppercase tracking-[0.18em] text-[var(--cup-cocoa)] group-hover:text-[var(--cup-espresso)]">
                 {lang === 'ar' ? group.label.ar : group.label.en}
-              </h3>
-              <p className="font-body text-[15px] font-medium text-[var(--cup-muted)]">
-                {lang === 'ar' ? group.hint.ar : group.hint.en}
-              </p>
-            </div>
+              </span>
+            </motion.button>
+          ))}
+        </div>
 
-            {/* Subtle progress affordance — the chevron quietly invites
-                the next tap. RTL flips the direction. */}
-            <span
-              aria-hidden="true"
-              className="relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--cup-paper)] text-[var(--cup-cocoa)] transition-transform duration-200 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 rtl:rotate-180"
-            >
-              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-            </span>
-          </motion.button>
-        ))}
-      </div>
+        {/* Footer hint — invites the tap with a directional chevron, kept
+            subtle so it doesn't compete with the chip row. */}
+        <p className="mt-9 inline-flex w-full items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.32em] text-[var(--cup-muted)]">
+          {lang === 'ar' ? 'دوس على فئة' : 'Tap a category'}
+          <ArrowRight className="h-3 w-3 rtl:rotate-180" aria-hidden="true" />
+        </p>
+      </motion.section>
     </div>
   );
 }
@@ -101,7 +123,9 @@ export function CategoryLanding({ lang, onSelect }: CategoryLandingProps) {
 // ── icon dispatcher ─────────────────────────────────────────────────────
 
 function GroupIcon({ kind }: { kind: GroupIconKind }) {
-  const sizeProps = { className: 'h-12 w-12', strokeWidth: 1.6 };
+  // Slightly thicker stroke than the previous version — reads better at
+  // sticker scale (~52px effective glyph in a 120px chip).
+  const sizeProps = { className: 'h-14 w-14', strokeWidth: 1.7 };
   switch (kind) {
     case 'coffee':
       return <Coffee {...sizeProps} aria-hidden="true" />;
@@ -116,44 +140,32 @@ function GroupIcon({ kind }: { kind: GroupIconKind }) {
   }
 }
 
-// ── accent palette helpers ──────────────────────────────────────────────
+// ── sticker palette ─────────────────────────────────────────────────────
 //
-// We intentionally use literal hex here (not Tailwind classes) so the
-// halo + tint colors render reliably even if a Tailwind alias hasn't
-// been added (the same root cause that hid the Checkout button before
-// today's Tailwind config fix — defense-in-depth).
+// Each accent gets a custom 2-stop diagonal gradient that's been hand-tuned
+// to read well at sticker scale (small chip, no text inside). All of them
+// keep enough contrast against the cream tray so the row reads as a
+// composed object rather than five floating shapes.
 
-function accentHaloFor(a: CategoryGroup['accent']): string {
+function stickerSurfaceFor(a: CategoryGroup['accent']): string {
   switch (a) {
     case 'terracotta':
-      return 'radial-gradient(closest-side, rgba(244,162,97,0.45) 0%, transparent 70%)';
+      return 'linear-gradient(155deg, #F4A261 0%, #C2410C 100%)';
     case 'teal':
-      return 'radial-gradient(closest-side, rgba(45,212,191,0.32) 0%, transparent 70%)';
+      return 'linear-gradient(155deg, #5EEAD4 0%, #0F766E 100%)';
     case 'cream':
-      return 'radial-gradient(closest-side, rgba(254,243,199,0.85) 0%, transparent 70%)';
+      // Cream tray + cream sticker would disappear, so this is the warmest
+      // butter→honey tone instead — still on-brand.
+      return 'linear-gradient(155deg, #FBBF24 0%, #C2810C 100%)';
     case 'cocoa':
-      return 'radial-gradient(closest-side, rgba(68,64,60,0.18) 0%, transparent 70%)';
+      return 'linear-gradient(155deg, #78716C 0%, #1C1917 100%)';
   }
 }
 
-function accentSurfaceFor(a: CategoryGroup['accent']): string {
-  switch (a) {
-    case 'terracotta':
-      return 'linear-gradient(135deg, #F4A261 0%, #C2410C 100%)';
-    case 'teal':
-      return 'linear-gradient(135deg, #2DD4BF 0%, #0F766E 100%)';
-    case 'cream':
-      return 'linear-gradient(135deg, #FEF3C7 0%, #F4A261 100%)';
-    case 'cocoa':
-      return 'linear-gradient(135deg, #44403C 0%, #1C1917 100%)';
-  }
-}
-
-function accentForeFor(a: CategoryGroup['accent']): string {
-  switch (a) {
-    case 'cream':
-      return '#7C2D12'; // dark terracotta on cream — readable contrast
-    default:
-      return '#FFFFFF';
-  }
+function stickerIconColorFor(a: CategoryGroup['accent']): string {
+  // White everywhere — the gradient backgrounds are dark enough at the
+  // 100% stop that the icon reads cleanly. Cream variant goes white too
+  // because we shifted it to butter→honey above.
+  return '#FFFFFF';
+  void a;
 }

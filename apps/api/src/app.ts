@@ -106,6 +106,7 @@ import {
   recordHeartbeat as recordKioskHeartbeat,
   listKiosks,
   updateKiosk,
+  getKiosk,
   type KioskState,
 } from './db/kiosksStore.js';
 import {
@@ -1313,6 +1314,22 @@ export function createApp(): express.Express {
       const kioskId = isKioskOrigin
         ? req.kioskId ?? headerKioskId
         : input.kioskId ?? null;
+
+      // Phase POST-PROD — admin pause guard. If a kiosk has been
+      // disabled in /admin/kiosks (active=false), reject orders with
+      // 423 Locked and a friendly message. The kiosk client surfaces
+      // a fullscreen 'paused' banner separately so the customer is
+      // told to order at the counter — this guard is the server-side
+      // belt-and-braces that catches a stale client that hasn't
+      // heartbeat'd in a while.
+      if (isKioskOrigin && kioskId) {
+        const registered = getKiosk(kioskId);
+        if (registered && registered.active === false) {
+          const e = new Error('Kiosk paused. Please order at the counter.') as Error & { status?: number };
+          e.status = 423;
+          throw e;
+        }
+      }
 
       const order = buildOrder(
         {

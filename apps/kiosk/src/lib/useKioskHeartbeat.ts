@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useStaffAccess } from './useStaffAccess';
+import { useKioskActive } from './useKioskActive';
 
 /**
  * K6.3 — kiosk → API heartbeat (every 60s).
@@ -66,7 +67,7 @@ export function useKioskHeartbeat(): void {
     async function beat() {
       if (cancelled) return;
       try {
-        await fetch(`${apiBase}/kiosks/heartbeat`, {
+        const res = await fetch(`${apiBase}/kiosks/heartbeat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -75,13 +76,21 @@ export function useKioskHeartbeat(): void {
           },
           body: JSON.stringify({ state: stateRef.current, version }),
           credentials: 'omit',
-          // Heartbeat is fire-and-forget; if it fails we just retry on
-          // the next interval. No need to surface anything to the
-          // customer.
           cache: 'no-store',
         });
+        // Per-heartbeat: read the kiosk record back so we know whether
+        // an admin has paused us. Failure is silent — the customer
+        // never sees heartbeat failures, the next tick retries.
+        if (!cancelled && res.ok) {
+          const body = (await res.json()) as { kiosk?: { active?: boolean } };
+          if (typeof body?.kiosk?.active === 'boolean') {
+            useKioskActive.getState().set(body.kiosk.active);
+          }
+        }
       } catch {
-        // Silent — the customer never sees heartbeat failures.
+        // Silent — the customer never sees heartbeat failures. We
+        // deliberately leave the active flag at its previous value
+        // here so a brief network blip doesn't false-pause the kiosk.
       }
     }
 

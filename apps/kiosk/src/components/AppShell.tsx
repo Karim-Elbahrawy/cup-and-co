@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { NetStatusPill } from './NetStatusPill';
 import { OfflineQueuePill } from './OfflineQueuePill';
 import { KioskUnavailableBanner } from './KioskUnavailableBanner';
+import { KioskPausedBanner } from './KioskPausedBanner';
 import { StaffTriggerZone } from './StaffTriggerZone';
 import { StaffPinModal } from './StaffPinModal';
 import { StaffOverlay } from './StaffOverlay';
@@ -58,6 +59,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <StaffOverlay />
       <LockScreen />
       <KioskUnavailableBanner />
+      {/* Admin-paused state — softer overlay, sits below the technical
+          'unavailable' banner (z-80) and the cleaning lock (z-90) so the
+          right surface always wins. */}
+      <KioskPausedBanner />
     </>
   );
 }
