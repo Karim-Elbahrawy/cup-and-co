@@ -377,6 +377,18 @@ export const adminApi = {
   listCampuses: (signal?: AbortSignal) =>
     api<{ campuses: Campus[] }>('/campuses', { signal, anonymous: true }),
 
+  // ── Cup AI: per-product concierge attributes ─────────────────────────────
+  getProductAttrs: (productId: string, signal?: AbortSignal) =>
+    api<{ id: string; attrs: ConciergeAttrs }>(`/admin/menu/products/${productId}/attrs`, { signal }),
+  setProductAttrs: (productId: string, body: Partial<ConciergeAttrs>) =>
+    api<{ id: string; attrs: Partial<ConciergeAttrs> }>(`/admin/menu/products/${productId}/attrs`, { method: 'PATCH', body }),
+  autoDetectAttrs: (productId: string) =>
+    api<{ id: string; inferred: ConciergeAttrs }>(`/admin/menu/products/${productId}/auto-detect-attrs`, { method: 'POST' }),
+
+  // Cup AI usage analytics
+  getCupAiStats: (days = 7, signal?: AbortSignal) =>
+    api<CupAiStatsResponse>(`/admin/reports/cup-ai?days=${days}`, { signal }),
+
   // Phase K6.1 / K6.3 — kiosk registry + heartbeat-driven health.
   listKiosks: (signal?: AbortSignal) =>
     api<{ kiosks: AdminKiosk[] }>('/admin/kiosks', { signal }),
@@ -390,6 +402,29 @@ export const adminApi = {
   getKioskReport: (signal?: AbortSignal) =>
     api<AdminKioskReport>('/admin/reports/by-kiosk', { signal }),
 };
+
+// ── Cup AI types ───────────────────────────────────────────────────────────
+export interface ConciergeAttrs {
+  energy_level: 'low' | 'medium' | 'high' | null;
+  sweetness: number | null;
+  temperature: 'hot' | 'cold' | 'both' | null;
+  caffeine_mg: number | null;
+  tags_en: string[];
+  tags_ar: string[];
+}
+
+export interface CupAiStatsResponse {
+  days: number;
+  windowMs: number;
+  totalQueries: number;
+  byLanguage: { en: number; ar: number };
+  byConfidence: { low: number; medium: number; high: number };
+  zeroMatchCount: number;
+  topQueries: Array<{ query: string; count: number }>;
+  topLowConfidenceQueries: Array<{ query: string; count: number }>;
+  topSuggestedProductIds: Array<{ productId: string; count: number }>;
+  topProducts: Array<{ productId: string; count: number; name_en: string; name_ar: string }>;
+}
 
 /** Phase K6.4 — by-kiosk daily report shape. */
 export interface AdminKioskReport {

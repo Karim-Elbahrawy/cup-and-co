@@ -91,6 +91,7 @@ export const ar: Translations = {
       submitButton: 'إرسال التقييم',
       submittedThankYou: 'شكراً لتقييمك!',
       noReviewsYet: 'لا توجد تقييمات بعد — كن أول من يقيّم!',
+      mustOrderFirst: 'اطلب هذا المشروب وأكمل طلبك لتتمكن من التقييم.',
     },
   },
   cart: {

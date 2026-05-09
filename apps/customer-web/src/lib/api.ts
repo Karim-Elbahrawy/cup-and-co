@@ -343,7 +343,42 @@ export const api = {
       shareLinkPath: string;
       rewards: { referrer: number; referee: number; minOrderEgp: number };
     }>('/me/referral'),
+
+  /**
+   * Cup AI Concierge — describe what you want, get matched products.
+   * Free + offline-friendly: server uses a rule-based matcher, no LLM call.
+   */
+  conciergeSuggest: (query: string, language: 'en' | 'ar', signal?: AbortSignal) =>
+    apiFetch<ConciergeSuggestResponse>('/catalog/suggest', {
+      method: 'POST',
+      body: { query, language, limit: 3 },
+      noAuth: true,
+      signal,
+    }),
 };
+
+// ── Cup AI Concierge response types ─────────────────────────────────────────
+export interface ConciergeSignals {
+  temperature: 'hot' | 'cold' | null;
+  energy: 'low' | 'medium' | 'high' | null;
+  sweetness: 'none' | 'low' | 'high' | null;
+  caffeine: 'none' | 'low' | 'high' | null;
+  tags: string[];
+  category: string | null;
+}
+
+export interface ConciergeMatch {
+  product: import('./types').Product;
+  score: number;
+  reason: string;
+  reasonEn: string;
+}
+
+export interface ConciergeSuggestResponse {
+  matches: ConciergeMatch[];
+  understood: ConciergeSignals;
+  confidence: 'low' | 'medium' | 'high';
+}
 
 // Phase 6.1 types — kept inline so callers can import alongside `api`.
 export interface OrderFavoriteItem {

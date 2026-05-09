@@ -89,6 +89,19 @@ export interface Product {
    * category in the API layer; admin overrides are union-merged on top.
    */
   pairs_well_with?: string[];
+  // ── Cup AI concierge attributes (all optional; populated by admin) ────────
+  /** Stimulation level — drives matches like "energising" vs "calming". */
+  energy_level?: 'low' | 'medium' | 'high' | null;
+  /** 0 (bitter / savoury) … 5 (very sweet). */
+  sweetness?: number | null;
+  /** Whether this drink is served hot, cold, or either. */
+  temperature?: 'hot' | 'cold' | 'both' | null;
+  /** Rough caffeine in mg — used for "no caffeine" / "strong" matching. */
+  caffeine_mg?: number | null;
+  /** Free-form English descriptors (e.g. ['refreshing', 'creamy', 'nutty']). */
+  tags_en?: string[];
+  /** Free-form Arabic descriptors (e.g. ['منعش', 'كريمي']). */
+  tags_ar?: string[];
 }
 
 export interface ProductOption {

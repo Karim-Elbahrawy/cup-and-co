@@ -45,6 +45,11 @@ export default function ProductDetailPage({
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewSuccess, setReviewSuccess] = useState(false);
+  // The API requires every review to be tied to a completed order containing
+  // this product. We auto-resolve it from the user's order history so the
+  // form doesn't need a manual order picker. `null` = still loading;
+  // `''` = checked, no eligible order found.
+  const [eligibleOrderId, setEligibleOrderId] = useState<string | null>(null);
 
   // Fetch product
   useEffect(() => {
@@ -96,6 +101,31 @@ export default function ProductDetailPage({
     };
   }, [id]);
 
+  // Find the most recent completed order containing this product, so the
+  // review form has a valid orderId to attach. If no such order exists,
+  // we hide the review form entirely (you can't review a drink you haven't
+  // bought yet — the API enforces this).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.listOrders();
+        if (cancelled) return;
+        // Sort newest first, then pick the first completed order whose
+        // items include this product.
+        const candidate = (res.orders ?? [])
+          .filter((o) => o.status === 'completed')
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .find((o) => o.items.some((it) => it.productId === id));
+        setEligibleOrderId(candidate?.id ?? '');
+      } catch {
+        // Silent — if we can't fetch orders, just don't show the form.
+        if (!cancelled) setEligibleOrderId('');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
   const groups = useMemo(
     () => (data ? groupBy(data.options) : ({} as Record<string, ProductOption[]>)),
     [data],
@@ -134,11 +164,16 @@ export default function ProductDetailPage({
 
   async function handleSubmitReview() {
     if (reviewRating === 0 || !reviewComment.trim() || submittingReview) return;
+    if (!eligibleOrderId) {
+      setReviewError(t('product.reviews.mustOrderFirst'));
+      return;
+    }
     setSubmittingReview(true);
     setReviewError(null);
     try {
       const input: ReviewInput = {
         productId: id,
+        orderId: eligibleOrderId,
         rating: reviewRating,
         comment: reviewComment.trim(),
       };
@@ -414,7 +449,10 @@ export default function ProductDetailPage({
           </div>
         )}
 
-        {/* Write a review — always visible here; section is already gated to non-hidden */}
+        {/* Write a review — only when the user has a completed order
+            containing this product. Hides cleanly otherwise so we never
+            show a form that's guaranteed to 403 on submit. */}
+        {eligibleOrderId ? (
         <div className="rounded-2xl border border-cup-stroke bg-white p-4 shadow-subtle">
           <p className="font-heading text-sm font-semibold text-cup-brown-900">
             {t('product.reviews.writeAReview')}
@@ -474,6 +512,11 @@ export default function ProductDetailPage({
             {submittingReview ? `${t('product.reviews.submitButton')}...` : t('product.reviews.submitButton')}
           </button>
         </div>
+        ) : eligibleOrderId === '' ? (
+          <div className="rounded-2xl border border-dashed border-cup-stroke bg-cup-paper p-4 text-center text-xs text-cup-muted">
+            {t('product.reviews.mustOrderFirst')}
+          </div>
+        ) : null /* still loading order history */}
 
         {/* Existing reviews — only in full mode */}
         {data.review_mode === 'full' && (data.reviews.length > 0 ? (

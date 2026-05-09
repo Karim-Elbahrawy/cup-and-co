@@ -4,6 +4,8 @@ import { getProductStock } from '../db/productStockRepo.js';
 import { adminOffers } from '../db/offersStore.js';
 import { isFeatured } from '../db/featuredProductsStore.js';
 import { defaultsForProduct } from '../db/productPairsStore.js';
+import { match, type Language } from '../services/concierge.js';
+import { recordSuggestion } from '../services/conciergeMetrics.js';
 
 export function catalogRouter(): Router {
   const router = Router();
@@ -62,6 +64,46 @@ export function catalogRouter(): Router {
       }));
 
       res.json(catalog);
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Cup AI Concierge — "describe what you want" endpoint.
+   * Public (no auth) so guests can experiment before signing in.
+   * Pure rule-based matching against the live catalogue; zero external calls.
+   */
+  router.post('/catalog/suggest', async (req, res, next) => {
+    try {
+      const body = req.body as { query?: unknown; language?: unknown; limit?: unknown };
+      const query = typeof body.query === 'string' ? body.query.trim() : '';
+      const language: Language = body.language === 'ar' ? 'ar' : 'en';
+      const limit = typeof body.limit === 'number' && body.limit > 0 && body.limit <= 10
+        ? Math.floor(body.limit)
+        : 3;
+
+      if (query.length < 2) {
+        res.status(400).json({ error: 'Query is too short.' });
+        return;
+      }
+      if (query.length > 500) {
+        res.status(400).json({ error: 'Query is too long.' });
+        return;
+      }
+
+      const catalog = await getCatalog();
+      const categorySlugById: Record<string, string> = {};
+      for (const cat of catalog.categories) categorySlugById[cat.id] = cat.slug;
+
+      const result = match(
+        { text: query, language },
+        { products: catalog.products, categorySlugById, limit },
+      );
+
+      // Record the call for the admin analytics tile. Synchronous, free,
+      // in-process (just appends to a bounded ring buffer).
+      recordSuggestion({ query, language, result });
+
+      res.json(result);
     } catch (e) { next(e); }
   });
 
