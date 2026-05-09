@@ -393,3 +393,102 @@ describe('Phase K7.3 — POST /orders/:id/kiosk-rating', () => {
     expect(true).toBe(true);
   });
 });
+
+// ── Post-prod — admin-pause guard on POST /orders ───────────────────────
+
+describe('Admin pause guard — POST /orders rejects when kiosk.active=false', () => {
+  const KIOSK_TOKEN = 'kiosk-test-bearer-secret';
+  const KIOSK_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeffff';
+  const VELVET = '22222222-0000-0000-0000-000000000001';
+  const ownerHeaders = {
+    'x-user-id': 'owner-pause-test',
+    'x-user-role': 'owner',
+    'x-verification-status': 'approved',
+    'x-user-phone': '+201000000060',
+  };
+
+  const prev = process.env.KIOSK_BEARER_TOKEN;
+  beforeEach(() => {
+    process.env.KIOSK_BEARER_TOKEN = KIOSK_TOKEN;
+    resetKiosksForTests();
+  });
+
+  async function place(app: ReturnType<typeof createApp>) {
+    return request(app)
+      .post('/orders')
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [{ productId: VELVET, quantity: 1, options: { size: 'Medium' } }],
+      });
+  }
+
+  it('places order normally when kiosk is active (default)', async () => {
+    const app = createApp();
+    // Heartbeat first so the kiosk row exists.
+    await request(app)
+      .post('/kiosks/heartbeat')
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({ state: 'attract' });
+
+    const res = await place(app);
+    expect(res.status).toBe(201);
+  });
+
+  it('returns 423 when admin has paused the kiosk', async () => {
+    const app = createApp();
+    await request(app)
+      .post('/kiosks/heartbeat')
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({ state: 'attract' });
+    await request(app)
+      .patch(`/admin/kiosks/${KIOSK_ID}`)
+      .set(ownerHeaders)
+      .send({ active: false });
+
+    const res = await place(app);
+    expect(res.status).toBe(423);
+    expect(res.body.error).toMatch(/paused/i);
+  });
+
+  it('resumes accepting orders after admin reactivates', async () => {
+    const app = createApp();
+    await request(app)
+      .post('/kiosks/heartbeat')
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({ state: 'attract' });
+    await request(app)
+      .patch(`/admin/kiosks/${KIOSK_ID}`)
+      .set(ownerHeaders)
+      .send({ active: false });
+    expect((await place(app)).status).toBe(423);
+
+    await request(app)
+      .patch(`/admin/kiosks/${KIOSK_ID}`)
+      .set(ownerHeaders)
+      .send({ active: true });
+    expect((await place(app)).status).toBe(201);
+  });
+
+  it('does NOT block when no kiosk record exists yet (auto-create on first heartbeat is normal)', async () => {
+    const app = createApp();
+    // Place an order BEFORE the kiosk has heartbeat'd. The guard should
+    // be permissive — the first POST /orders for a fresh iPad shouldn't
+    // 423 just because no registry row exists yet.
+    const res = await place(app);
+    expect(res.status).toBe(201);
+  });
+
+  // Restore env
+  it('restores env teardown sentinel', () => {
+    if (prev === undefined) delete process.env.KIOSK_BEARER_TOKEN;
+    else process.env.KIOSK_BEARER_TOKEN = prev;
+    expect(true).toBe(true);
+  });
+});
