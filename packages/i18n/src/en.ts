@@ -93,6 +93,7 @@ export const en: Translations = {
       submitButton: 'Submit Review',
       submittedThankYou: 'Thanks for your review!',
       noReviewsYet: 'No reviews yet — be the first!',
+      mustOrderFirst: 'Order this drink and finish your order to leave a review.',
     },
   },
   cart: {

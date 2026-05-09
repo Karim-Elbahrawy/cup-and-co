@@ -4,7 +4,9 @@
   "private": true,
   "description": "Cup & Co — campus coffee kiosk ordering ecosystem",
   "scripts": {
+    "setup:kiosk": "node scripts/setup-kiosk-dev.mjs",
     "dev": "pnpm --parallel --filter \"./apps/*\" run dev",
+    "dev:kiosk": "node scripts/setup-kiosk-dev.mjs && pnpm --parallel --filter \"./apps/api\" --filter \"./apps/admin\" --filter \"./apps/kiosk\" run dev",
     "build": "pnpm --filter \"./apps/*\" run build",
     "lint": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" run lint",
     "typecheck": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" run typecheck",

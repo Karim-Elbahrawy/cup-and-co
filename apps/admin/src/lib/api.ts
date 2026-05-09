@@ -520,6 +520,8 @@ export interface AdminKioskReport {
       orderCount: number;
       revenueEgp: number;
       topItems: { name_en: string; name_ar: string; count: number }[];
+      /** Phase K7.3 — today's thumbs-up / thumbs-down tallies. */
+      ratings: { up: number; down: number };
     };
   }>;
   /** YYYY-MM-DD in server's UTC clock. */

@@ -84,6 +84,7 @@ export interface Translations {
       submitButton: string;
       submittedThankYou: string;
       noReviewsYet: string;
+      mustOrderFirst: string;
     };
   };
   cart: {

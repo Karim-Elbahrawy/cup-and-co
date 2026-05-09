@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Tablet, AlertCircle } from 'lucide-react';
+import { Tablet, AlertCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { adminApi, ApiError, type AdminKioskReport } from '@/lib/api';
 import { Skeleton } from './Skeleton';
 import { EmptyState } from './EmptyState';
@@ -101,6 +101,20 @@ function KioskRow({ row }: { row: AdminKioskReport['rows'][number] }) {
         <p className="truncate font-heading text-base font-bold text-cup-brown-900">
           {kiosk.name}
         </p>
+        {/* Ratings sit under the name as a secondary read so they don't
+            compete with the orders/revenue columns but are still glanceable.
+            Hidden when there are zero ratings today — the row is dense
+            enough without an empty 0/0 line. */}
+        {today.ratings.up + today.ratings.down > 0 ? (
+          <p className="mt-0.5 inline-flex items-center gap-2.5 text-xs font-semibold tabular-nums text-cup-muted">
+            <span className="inline-flex items-center gap-1 text-cup-teal-700">
+              <ThumbsUp className="h-3 w-3" aria-hidden="true" /> {today.ratings.up}
+            </span>
+            <span className="inline-flex items-center gap-1 text-cup-error">
+              <ThumbsDown className="h-3 w-3" aria-hidden="true" /> {today.ratings.down}
+            </span>
+          </p>
+        ) : null}
         <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wider text-cup-muted">
           {kiosk.id}
         </p>

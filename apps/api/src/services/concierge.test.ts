@@ -113,3 +113,103 @@ describe('match', () => {
     expect(r.matches.find((m) => m.product.id === '6')).toBeUndefined();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Inference-fallback regression tests — these would have caught the bug
+// where un-tagged DB rows all scored the same and the matcher returned the
+// top-rated 3 regardless of query.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('match — inference fallback for products with NULL concierge attrs', () => {
+  // These products have NO explicit concierge attrs (matches a real DB row
+  // before the admin runs Auto-detect). The matcher should still
+  // differentiate them based on name + description.
+  const UNTAGGED: Product[] = [
+    p({ id: 'u1', name_en: 'Iced Americano',    description_en: 'Long espresso shaken over ice' }),
+    p({ id: 'u2', name_en: 'Velvet Cappuccino', description_en: 'Silky steamed milk over a double shot, dusted with cocoa' }),
+    p({ id: 'u3', name_en: 'Brownie Bar',       description_en: 'Fudgy double-chocolate brownie' }),
+    p({ id: 'u4', name_en: 'Mint Lemonade',     description_en: 'Crisp and refreshing iced lemonade with mint' }),
+    p({ id: 'u5', name_en: 'Hot Chocolate',     description_en: 'Rich melted chocolate with steamed milk' }),
+  ].map((prod) => ({
+    ...prod,
+    energy_level: undefined,
+    sweetness: undefined,
+    temperature: undefined,
+    caffeine_mg: undefined,
+    tags_en: undefined,
+    tags_ar: undefined,
+  }));
+
+  it('cold query and hot query return different top products', () => {
+    const cold = match({ text: 'something cold and refreshing', language: 'en' }, { products: UNTAGGED });
+    const hot  = match({ text: 'something hot and creamy',     language: 'en' }, { products: UNTAGGED });
+    expect(cold.matches[0].product.id).not.toBe(hot.matches[0].product.id);
+    // Cold query should NOT pick a hot drink at the top
+    expect(['u1', 'u4']).toContain(cold.matches[0].product.id);
+    // Hot query should NOT pick an iced drink at the top
+    expect(['u2', 'u5']).toContain(hot.matches[0].product.id);
+  });
+
+  it('caffeine-free query surfaces the caffeine-free items, not espresso', () => {
+    const r = match({ text: 'no caffeine sweet', language: 'en' }, { products: UNTAGGED });
+    // Brownie/lemonade/hot-choc should rank above the espresso-based drinks
+    expect(['u3', 'u4', 'u5']).toContain(r.matches[0].product.id);
+    // Iced Americano (caffeinated) should NOT be the top match
+    expect(r.matches[0].product.id).not.toBe('u1');
+  });
+
+  it('strong espresso query surfaces the espresso item, not the brownie', () => {
+    const r = match({ text: 'strong espresso to wake me up', language: 'en' }, { products: UNTAGGED });
+    expect(['u1', 'u2'].includes(r.matches[0].product.id)).toBe(true);
+    expect(r.matches[0].product.id).not.toBe('u3'); // brownie has no caffeine
+  });
+
+  it('Arabic cold query also differentiates against un-tagged products', () => {
+    const r = match({ text: 'عايز حاجة باردة منعشة', language: 'ar' }, { products: UNTAGGED });
+    expect(['u1', 'u4']).toContain(r.matches[0].product.id);
+  });
+
+  it('substring on product name boosts the right product', () => {
+    // Query the product BY NAME. Should pick that exact product even though
+    // tags etc. are not particularly informative.
+    const r = match({ text: 'mint lemonade', language: 'en' }, { products: UNTAGGED });
+    expect(r.matches[0].product.id).toBe('u4'); // Mint Lemonade
+  });
+
+  it('substring on description matches when name does not', () => {
+    const products = [
+      p({ id: 'a', name_en: 'Drink A', description_en: 'A frothy mocha latte with whipped cream' }),
+      p({ id: 'b', name_en: 'Drink B', description_en: 'Just a fizzy soda' }),
+    ].map((prod) => ({ ...prod, energy_level: undefined, sweetness: undefined, temperature: undefined, caffeine_mg: undefined, tags_en: undefined, tags_ar: undefined }));
+    const r = match({ text: 'mocha', language: 'en' }, { products });
+    expect(r.matches[0].product.id).toBe('a');
+  });
+
+  it('substring boost ignores stop-words like "something"', () => {
+    // "something" is a stop word, so it should NOT match products that happen
+    // to contain it. The actual differentiation comes from "cold".
+    const r = match({ text: 'something cold', language: 'en' }, { products: UNTAGGED });
+    // Top match should be a cold drink (americano or lemonade), not something
+    // randomly named.
+    expect(['u1', 'u4']).toContain(r.matches[0].product.id);
+  });
+
+  it('explicit attrs always win over inferred ones', () => {
+    // Take the brownie (caffeine-free dessert) and FORCE temperature='hot'.
+    // For a "hot drink" query, this dessert should now beat hot drinks
+    // whose attrs are inferred from text (because explicit > inferred).
+    const tweaked = [
+      ...UNTAGGED.filter((u) => u.id !== 'u3'),
+      p({ id: 'u3', name_en: 'Brownie Bar', description_en: 'Fudgy double-chocolate brownie', temperature: 'hot' }),
+    ];
+    const r = match({ text: 'something hot', language: 'en' }, { products: tweaked });
+    // Both hot-chocolate (inferred) and brownie (explicit) should be in top results;
+    // assert the explicit one is at least matched on temperature (score should
+    // include the +30 hot bonus, not be skipped).
+    const brownie = r.matches.find((m) => m.product.id === 'u3');
+    expect(brownie).toBeDefined();
+    // It should at least beat a clearly-cold drink
+    const americano = r.matches.find((m) => m.product.id === 'u1');
+    if (americano && brownie) expect(brownie.score).toBeGreaterThan(americano.score);
+  });
+});

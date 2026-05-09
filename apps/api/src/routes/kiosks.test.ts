@@ -261,3 +261,135 @@ describe('Phase K6.4 — /admin/reports/by-kiosk', () => {
     expect(true).toBe(true);
   });
 });
+
+// ── Phase K7.3 — kiosk post-order rating ────────────────────────────────
+
+describe('Phase K7.3 — POST /orders/:id/kiosk-rating', () => {
+  const KIOSK_TOKEN = 'kiosk-test-bearer-secret';
+  const KIOSK_ID = '99999999-aaaa-bbbb-cccc-ddddddddffff';
+  const VELVET = '22222222-0000-0000-0000-000000000001';
+
+  const prev = process.env.KIOSK_BEARER_TOKEN;
+  beforeEach(async () => {
+    process.env.KIOSK_BEARER_TOKEN = KIOSK_TOKEN;
+    resetKiosksForTests();
+    // Ratings store is module-level — wipe between tests so rolling-up
+    // assertions don't see leftover rows from prior `it` blocks.
+    const { resetRatingsForTests } = await import('../db/kioskRatingsStore.js');
+    resetRatingsForTests();
+  });
+
+  async function placeKioskOrder(app: ReturnType<typeof createApp>) {
+    return request(app)
+      .post('/orders')
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMethod: 'cash',
+        redeemPoints: 0,
+        items: [{ productId: VELVET, quantity: 1, options: { size: 'Medium' } }],
+      });
+  }
+
+  it('records a thumbs-up rating', async () => {
+    const app = createApp();
+    const placed = await placeKioskOrder(app);
+    const orderId = placed.body.order.id;
+
+    const res = await request(app)
+      .post(`/orders/${orderId}/kiosk-rating`)
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({ rating: 'up' });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.alreadyRated).toBe(false);
+  });
+
+  it('returns alreadyRated=true on a second submit (idempotent)', async () => {
+    const app = createApp();
+    const placed = await placeKioskOrder(app);
+    const orderId = placed.body.order.id;
+
+    await request(app)
+      .post(`/orders/${orderId}/kiosk-rating`)
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({ rating: 'up' });
+
+    const second = await request(app)
+      .post(`/orders/${orderId}/kiosk-rating`)
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({ rating: 'down' });
+    expect(second.status).toBe(200);
+    expect(second.body.alreadyRated).toBe(true);
+  });
+
+  it('404s when another kiosk tries to rate the order', async () => {
+    const app = createApp();
+    const placed = await placeKioskOrder(app);
+    const orderId = placed.body.order.id;
+
+    const res = await request(app)
+      .post(`/orders/${orderId}/kiosk-rating`)
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', '88888888-aaaa-bbbb-cccc-ffffffffffff') // different
+      .send({ rating: 'up' });
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects rating without x-kiosk-id', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .post(`/orders/some-fake-id/kiosk-rating`)
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .send({ rating: 'up' });
+    // No x-kiosk-id → kiosk-auth itself rejects first.
+    expect(res.status).toBe(401);
+  });
+
+  it('by-kiosk report rolls ratings up per kiosk', async () => {
+    const app = createApp();
+    const ownerHeaders = {
+      'x-user-id': 'owner-rate-test',
+      'x-user-role': 'owner',
+      'x-verification-status': 'approved',
+      'x-user-phone': '+201000000050',
+    };
+
+    // Heartbeat the kiosk, place 2 orders, rate them.
+    await request(app)
+      .post('/kiosks/heartbeat')
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({ state: 'attract' });
+
+    const a = await placeKioskOrder(app);
+    const b = await placeKioskOrder(app);
+
+    await request(app)
+      .post(`/orders/${a.body.order.id}/kiosk-rating`)
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({ rating: 'up' });
+    await request(app)
+      .post(`/orders/${b.body.order.id}/kiosk-rating`)
+      .set('Authorization', `Bearer ${KIOSK_TOKEN}`)
+      .set('x-kiosk-id', KIOSK_ID)
+      .send({ rating: 'down' });
+
+    const res = await request(app).get('/admin/reports/by-kiosk').set(ownerHeaders);
+    expect(res.status).toBe(200);
+    const row = res.body.rows.find((r: { kiosk: { id: string } }) => r.kiosk.id === KIOSK_ID);
+    expect(row.today.ratings).toEqual({ up: 1, down: 1 });
+  });
+
+  // Restore env
+  it('restores env teardown sentinel', () => {
+    if (prev === undefined) delete process.env.KIOSK_BEARER_TOKEN;
+    else process.env.KIOSK_BEARER_TOKEN = prev;
+    expect(true).toBe(true);
+  });
+});
