@@ -11,10 +11,17 @@ import { CartDrawer } from '@/components/CartDrawer';
 import { ToastHost, type ToastApi } from '@/components/Toast';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { StillThereModal } from '@/components/StillThereModal';
+import { CategoryLanding } from '@/components/CategoryLanding';
+import { SubgroupPicker } from '@/components/SubgroupPicker';
 import {
   PersonalHero,
   buildCartOptionsFromUsual,
 } from '@/components/PersonalHero';
+import {
+  productsForSelection,
+  type CategoryGroup,
+  type SubGroup,
+} from '@/lib/categoryGroups';
 import { useIdleReset } from '@/lib/useIdleReset';
 import { useCart } from '@/lib/cart';
 import { useCartDrawer } from '@/lib/useCartDrawer';
@@ -77,14 +84,61 @@ export default function CatalogPage() {
   const addLine = useCart((s) => s.addLine);
   const [showStillThere, setShowStillThere] = useState(false);
   const [personal, setPersonal] = useState<PersonalCard | null>(null);
+  /**
+   * Catalog navigation — three-state machine layered on top of the API's
+   * flat category list. Per the Karim 2026-05-09 spec, customer always
+   * starts at the 5-icon group landing; tapping a group either drills
+   * into the subgroup picker (Coffee, Drinks) or jumps straight to the
+   * product grid (Breakfast, Dessert, Herbs).
+   */
+  const [selectedGroup, setSelectedGroup] = useState<CategoryGroup | null>(null);
+  const [selectedSubgroup, setSelectedSubgroup] = useState<SubGroup | null>(null);
 
   function fullReset() {
     clearCart();
     hideDrawer();
     resetLang();
     clearIdentified();
+    setSelectedGroup(null);
+    setSelectedSubgroup(null);
     setShowStillThere(false);
     router.replace('/');
+  }
+
+  /** Filtered products based on the current group + subgroup selection. */
+  const filteredProducts: Product[] = useMemo(() => {
+    if (!catalog || !selectedGroup) return [];
+    // For groups WITH subgroups (Coffee, Drinks), only show products
+    // once the customer has picked a subgroup — otherwise wait at the
+    // subgroup picker. For leaf groups (Breakfast, Dessert, Herbs),
+    // resolve the product list immediately.
+    if (selectedGroup.subgroups && !selectedSubgroup) return [];
+    return productsForSelection(
+      catalog.products,
+      selectedGroup,
+      selectedSubgroup?.id ?? null,
+      catalog.categories,
+    );
+  }, [catalog, selectedGroup, selectedSubgroup]);
+
+  /**
+   * Are we currently showing a product grid (i.e. the customer has
+   * picked a leaf, either via a subgroup tap or via a no-subgroup
+   * group like Breakfast)? Used to decide whether to render the grid
+   * or one of the picker screens.
+   */
+  const showingProducts =
+    selectedGroup !== null &&
+    (!selectedGroup.subgroups || selectedSubgroup !== null);
+
+  function backFromProducts() {
+    // Coffee/Drinks → back to subgroup picker. Leaf groups → back to
+    // the 5-icon landing.
+    if (selectedGroup?.subgroups) {
+      setSelectedSubgroup(null);
+    } else {
+      setSelectedGroup(null);
+    }
   }
 
   // Two-phase idle: warn at 75s, reset at 90s. The "still there?" modal
@@ -393,13 +447,76 @@ export default function CatalogPage() {
         <ErrorState message={error} onRetry={() => setRetryNonce((n) => n + 1)} />
       ) : catalog === null ? (
         <LoadingSkeleton />
-      ) : (
-        <ProductGrid
-          catalog={catalog}
+      ) : !selectedGroup ? (
+        // State 1 — top-level group landing (5 big icons).
+        <CategoryLanding lang={lang} onSelect={setSelectedGroup} />
+      ) : selectedGroup.subgroups && !selectedSubgroup ? (
+        // State 2 — subgroup picker (Coffee → Hot/Iced/Blended; Drinks → Hot/Cold).
+        <SubgroupPicker
+          group={selectedGroup}
           lang={lang}
-          onSelectProduct={handleSelectProduct}
-          onOutOfStockTap={handleOutOfStockTap}
+          onSelect={setSelectedSubgroup}
+          onBack={() => setSelectedGroup(null)}
         />
+      ) : (
+        // State 3 — product grid for the resolved category list.
+        <div className="space-y-5">
+          {/* Drill breadcrumb so the customer can step back without
+              losing their group selection. */}
+          <button
+            type="button"
+            onClick={backFromProducts}
+            className="inline-flex items-center gap-2 rounded-pill bg-white px-5 py-2.5 font-heading text-base font-bold text-[var(--cup-cocoa)] shadow-subtle transition active:scale-[0.97] hover:bg-[var(--cup-paper)]"
+          >
+            <ChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
+            {selectedGroup.subgroups
+              ? lang === 'ar' ? 'الأنواع' : 'Styles'
+              : lang === 'ar' ? 'الفئات' : 'Categories'}
+          </button>
+
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.32em] text-[var(--cup-muted)]">
+              {lang === 'ar' ? selectedGroup.label.ar : selectedGroup.label.en}
+              {selectedSubgroup ? (
+                <>
+                  {' · '}
+                  {lang === 'ar' ? selectedSubgroup.label.ar : selectedSubgroup.label.en}
+                </>
+              ) : null}
+            </p>
+            <h2 className="mt-1.5 font-heading text-[34px] font-extrabold leading-tight tracking-tight text-[var(--cup-espresso)]">
+              {filteredProducts.length === 0
+                ? lang === 'ar' ? 'مفيش حاجة هنا' : 'Nothing here yet'
+                : lang === 'ar' ? `${filteredProducts.length} منتج` : `${filteredProducts.length} items`}
+            </h2>
+          </div>
+
+          {filteredProducts.length === 0 ? (
+            <p className="rounded-card bg-white p-8 text-center font-body text-[var(--cup-muted)] shadow-card">
+              {lang === 'ar'
+                ? 'مفيش منتجات في الفئة دي دلوقتي. جرّب فئة تانية.'
+                : "Nothing here yet today. Try a different category."}
+            </p>
+          ) : (
+            <ProductGrid
+              // Pass a narrowed catalog so ProductGrid's internal
+              // category-tab filter sees only the products for this
+              // group/subgroup. We also narrow the categories to those
+              // present in the filtered products so the redundant tabs
+              // disappear when a group resolves to just one slug.
+              catalog={{
+                ...catalog,
+                products: filteredProducts,
+                categories: catalog.categories.filter((c) =>
+                  filteredProducts.some((p) => p.category_id === c.id),
+                ),
+              }}
+              lang={lang}
+              onSelectProduct={handleSelectProduct}
+              onOutOfStockTap={handleOutOfStockTap}
+            />
+          )}
+        </div>
       )}
 
       <CartPill onClick={showDrawer} />

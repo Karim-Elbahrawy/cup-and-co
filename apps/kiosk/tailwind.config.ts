@@ -14,7 +14,36 @@ const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
-      colors: tailwindColors as unknown as Record<string, string>,
+      colors: {
+        ...(tailwindColors as unknown as Record<string, string>),
+        // Semantic aliases so utilities like `bg-cup-primary`,
+        // `text-cup-accent`, `bg-cup-paper`, etc. actually resolve.
+        // Without these, JIT silently strips the class and you get
+        // white-on-white CTAs (which is exactly what happened to the
+        // 'Checkout' button before this fix).
+        //
+        // Kept as `extend` (not a replacement) so the legacy
+        // `cup-orange-{50..900}` scale that customer-web depends on
+        // continues to work unchanged.
+        'cup-primary': '#C2410C',
+        'cup-primary-hover': '#9A3412',
+        'cup-primary-tint': '#FED7AA',
+        'cup-accent': '#0F766E',
+        'cup-accent-hover': '#115E59',
+        'cup-accent-tint': '#CCFBF1',
+        'cup-paper': '#FAF6F0',
+        'cup-surface': '#FFFFFF',
+        'cup-espresso': '#1C1917',
+        'cup-cocoa': '#44403C',
+        'cup-muted': '#78716C',
+        'cup-stroke': '#E7E5E4',
+        'cup-success': '#15803D',
+        'cup-error': '#B91C1C',
+        'cup-warning': '#D97706',
+        'cup-star': '#F59E0B',
+        'cup-sunrise-from': '#F4A261',
+        'cup-sunrise-to': '#C2410C',
+      },
       borderRadius: {
         chip: `${radius.chip}px`,
         card: `${radius.card}px`,
