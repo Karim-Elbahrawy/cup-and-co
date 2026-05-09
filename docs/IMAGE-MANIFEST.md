@@ -11,6 +11,18 @@
 - **Photography style:** Overhead or 3/4 angle, shallow DoF, warm natural light, linen/marble surfaces, soft espresso-tinted shadows.
 - **Illustration style:** Geometric line art with sunrise gradient fills, rounded strokes, breathing whitespace.
 
+## Where images get wired (single source of truth)
+
+`apps/api/src/db/productImageOverrides.ts` is the canonical mapping from product NAME (case-insensitive) to its best-known image path. Every catalog response runs through this map at the API edge, so updating one entry there propagates immediately to:
+
+- Kiosk catalog grid + product cards
+- Kiosk drink-builder fallback hero
+- Cart drawer line items + checkout summary
+- Confirmation screen receipt thumbnail
+- Customer-web product cards + detail page
+
+You never need to update Supabase rows or the FALLBACK fixture in `catalogRepo.ts` for product imagery. The override wins.
+
 ---
 
 ## App Icon
@@ -32,34 +44,58 @@
 
 ---
 
-## Product Shots (22)
+## Product Shots — current state
 
-All product images: warm cream (#FAF6F0) background, soft drop shadow, centered subject, editorial food photography feel.
+Status legend:
+- **real** — dedicated PNG photo wired via `productImageOverrides.ts`
+- **bucket** — falls back to a category-level photo (`breakfast.png` / `dessert.png`); needs own photo
+- **stub** — still a flat SVG illustration, override missing
 
-| ID | Product | Paths | Dimensions | Format | Status |
-|----|---------|-------|-----------|--------|--------|
-| velvet_cappuccino | Velvet Cappuccino — latte art on ceramic cup | `public/images/products/velvet_cappuccino.jpg` | 600×600 | JPG | stub |
-| caramel_macchiato | Caramel Macchiato — drizzled caramel, tall glass | `public/images/products/caramel_macchiato.jpg` | 600×600 | JPG | stub |
-| honey_latte | Honey Latte — golden honey drip, ceramic mug | `public/images/products/honey_latte.jpg` | 600×600 | JPG | stub |
-| vanilla_cold_brew | Vanilla Cold Brew — iced tall glass, condensation | `public/images/products/vanilla_cold_brew.jpg` | 600×600 | JPG | stub |
-| espresso_romano | Espresso Romano — demitasse cup, lemon twist | `public/images/products/espresso_romano.jpg` | 600×600 | JPG | stub |
-| iced_americano | Iced Americano — clear glass, ice cubes, dark brew | `public/images/products/iced_americano.jpg` | 600×600 | JPG | stub |
-| mocha_royale | Mocha Royale — cocoa dusted, whipped cream | `public/images/products/mocha_royale.jpg` | 600×600 | JPG | stub |
-| hazelnut_latte | Hazelnut Latte — warm tones, hazelnut garnish | `public/images/products/hazelnut_latte.jpg` | 600×600 | JPG | stub |
-| spanish_latte | Spanish Latte — condensed milk layer, warm cup | `public/images/products/spanish_latte.jpg` | 600×600 | JPG | stub |
-| flat_white | Flat White — velvety microfoam, flat ceramic | `public/images/products/flat_white.jpg` | 600×600 | JPG | stub |
-| tiramisu_cup | Tiramisu Cup — layered cocoa/mascarpone in glass | `public/images/products/tiramisu_cup.jpg` | 600×600 | JPG | stub |
-| brownie_bar | Brownie Bar — fudgy slab, cocoa dust | `public/images/products/brownie_bar.jpg` | 600×600 | JPG | stub |
-| almond_croissant | Almond Croissant — flaky layers, almond slivers | `public/images/products/almond_croissant.jpg` | 600×600 | JPG | stub |
-| cheesecake_slice | Cheesecake Slice — creamy wedge, berry drizzle | `public/images/products/cheesecake_slice.jpg` | 600×600 | JPG | stub |
-| chocolate_tart | Chocolate Tart — glossy ganache, gold leaf | `public/images/products/chocolate_tart.jpg` | 600×600 | JPG | stub |
-| cinnamon_roll | Cinnamon Roll — glazed spiral, steam | `public/images/products/cinnamon_roll.jpg` | 600×600 | JPG | stub |
-| avocado_toast | Avocado Toast — sourdough, smashed avo, seeds | `public/images/products/avocado_toast.jpg` | 600×600 | JPG | stub |
-| egg_cheese_sandwich | Egg & Cheese Sandwich — golden toast, melted cheese | `public/images/products/egg_cheese_sandwich.jpg` | 600×600 | JPG | stub |
-| smoked_turkey_bagel | Smoked Turkey Bagel — everything bagel, layers | `public/images/products/smoked_turkey_bagel.jpg` | 600×600 | JPG | stub |
-| granola_bowl | Granola Bowl — yogurt, granola clusters, berries | `public/images/products/granola_bowl.jpg` | 600×600 | JPG | stub |
-| acai_bowl | Acai Bowl — purple blend, toppings, coconut | `public/images/products/acai_bowl.jpg` | 600×600 | JPG | stub |
-| spinach_feta_wrap | Spinach Feta Wrap — grilled wrap, cross-section | `public/images/products/spinach_feta_wrap.jpg` | 600×600 | JPG | stub |
+| Product | File | Status | Notes |
+|---|---|---|---|
+| Velvet Cappuccino | `velvet_cappuccino.png` | real | 515 KB |
+| Caramel Macchiato | `caramel_macchiato.png` | real | 495 KB |
+| Caramel Frappuccino | `caramel_frappuccino.png` | real | 475 KB |
+| Honey Latte | `honey_latte.png` | real | 566 KB |
+| Hazelnut Latte | `hazelnut_latte.png` | real | 556 KB |
+| Spanish Latte | `spanish_latte.png` | real | 449 KB |
+| Mocha Royale | `mocha_royale.png` | real | 664 KB |
+| Flat White | `flat_white.png` | real | 543 KB |
+| Hot Chocolate | `hot_chocolate.png` | real | 574 KB |
+| Espresso Romano | `espresso_romano.png` | real | 482 KB |
+| Iced Americano | `iced_americano.png` | real | 487 KB |
+| Vanilla Cold Brew | `vanilla_cold_brew.png` | real | 415 KB |
+| Classic Earl Grey | `earl_grey_tea.png` | real | 434 KB |
+| Fresh Orange Juice | `orange_juice.png` | real | 422 KB |
+| Peach Iced Tea | `peach_iced_tea.png` | real | 414 KB |
+| Avocado Toast | `breakfast.png` | bucket | Needs own photo |
+| Egg & Cheese Sandwich | `breakfast.png` | bucket | Needs own photo |
+| Smoked Turkey Bagel | `breakfast.png` | bucket | Needs own photo |
+| Granola Bowl | `breakfast.png` | bucket | Needs own photo |
+| Acai Bowl | `breakfast.png` | bucket | Needs own photo |
+| Spinach Feta Wrap | `breakfast.png` | bucket | Needs own photo |
+| Tiramisu Cup | `dessert.png` | bucket | Needs own photo |
+| Brownie Bar | `dessert.png` | bucket | Needs own photo |
+| Almond Croissant | `dessert.png` | bucket | Needs own photo |
+| Cheesecake Slice | `dessert.png` | bucket | Needs own photo |
+| Chocolate Tart | `dessert.png` | bucket | Needs own photo |
+| Cinnamon Roll | `dessert.png` | bucket | Needs own photo |
+
+### Commissioning the 12 missing photos
+
+Two paths, depending on budget:
+
+**Path A — local food photographer.** Hire someone with a 50mm prime + softbox setup. Brief: cream backdrop, single product, top-down or 3/4 angle, soft directional light. Background removal in Photoshop / Affinity / remove.bg → transparent PNG. Output 1024×1024, drop into `apps/kiosk/public/images/products/<slug>.png`, add an entry to `productImageOverrides.ts`.
+
+**Path B — AI generation + cleanup.** Generate via Krea / Imagen / Midjourney with prompt: *"Premium product photography, [product name] on a warm cream background, soft directional lighting from upper-left, slight steam (hot) or condensation (cold), 3/4 angle, shallow depth of field, on-brand specialty coffee aesthetic, no garnish, square crop, clean composition."* Upscale to 1024×1024. Run through remove.bg for transparent background. Same drop-in step as Path A.
+
+### Brand rules for any new image
+
+- **Background:** cream `#FEF3C7` solid OR transparent. Never pure white, never any other tint.
+- **Aspect:** square (1:1) for cards; minimum 1024×1024 for retina.
+- **Light direction:** upper-left, soft. Morning sun through café window, not studio strobe.
+- **Crop margins:** ~10% breathing room on all sides. Tight crop reads as "stamp" not "object".
+- **Color treatment:** warm whites, terracotta highlights welcome. Avoid blue casts.
 
 ---
 

@@ -46,23 +46,45 @@ export function ProductCard({ product, lang, onTap }: ProductCardProps) {
           : 'bg-white border-[var(--cup-stroke)] cursor-pointer',
       ].join(' ')}
     >
-      {/* Hero image */}
+      {/* Hero image — built for the new real-photo catalog. The cream
+          backdrop sits behind a soft radial halo that picks up the
+          product's brand-warm tone, then a subtle drop-shadow on the
+          photo itself gives it a little 'lift' without faking a 3D
+          render. The image scales 1.04x on hover (slow easing) which
+          reads as 'inviting' on a kiosk where everything else is still. */}
       <div
         className={[
-          'relative grid aspect-square place-items-center overflow-hidden rounded-[16px]',
+          'relative grid aspect-square place-items-center overflow-hidden rounded-[18px]',
           isOut ? 'bg-[var(--cup-warning)]/10' : 'bg-[var(--cup-paper)]',
         ].join(' ')}
       >
+        {/* Soft warm halo — radial-gradient behind the photo so a
+            transparent-cutout PNG reads as 'plated', and a flat-bg
+            PNG still benefits from the gentle vignette around it. */}
+        {isOut ? null : (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(ellipse at 50% 60%, rgba(254,243,199,0.65) 0%, rgba(250,246,240,0) 65%)',
+            }}
+          />
+        )}
+
         <Image
           src={product.image_url}
           alt=""
           fill
           sizes="(min-width: 1280px) 22vw, 30vw"
           className={[
-            'object-contain p-2 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-            isOut ? 'opacity-50 saturate-50' : 'group-hover:scale-[1.02]',
+            'object-contain p-3 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
+            isOut
+              ? 'opacity-50 saturate-50'
+              : 'group-hover:scale-[1.04] drop-shadow-[0_18px_24px_rgba(28,25,23,0.18)]',
           ].join(' ')}
         />
+
         {isOut ? (
           <span className="absolute end-3 top-3 rounded-pill bg-[var(--cup-warning)] px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-subtle">
             {lang === 'ar' ? 'نفد اليوم' : 'Out today'}
