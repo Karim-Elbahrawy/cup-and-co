@@ -4,6 +4,7 @@ import { getProductStock } from '../db/productStockRepo.js';
 import { adminOffers } from '../db/offersStore.js';
 import { isFeatured } from '../db/featuredProductsStore.js';
 import { defaultsForProduct } from '../db/productPairsStore.js';
+import { bestImageFor } from '../db/productImageOverrides.js';
 import { match, type Language } from '../services/concierge.js';
 import { recordSuggestion } from '../services/conciergeMetrics.js';
 
@@ -63,6 +64,15 @@ export function catalogRouter(): Router {
         ),
       }));
 
+      // Image-override pass — swap in real PNG photography wherever the
+      // override map has a better path than what Supabase or the FALLBACK
+      // currently serves. Applied LAST so every prior merge has run; the
+      // override owns the final image_url that goes out to the wire.
+      catalog.products = catalog.products.map((p) => {
+        const better = bestImageFor(p.name_en);
+        return better ? { ...p, image_url: better } : p;
+      });
+
       res.json(catalog);
     } catch (e) { next(e); }
   });
@@ -116,11 +126,15 @@ export function catalogRouter(): Router {
         return;
       }
       // Phase 3.2: surface stock state.
+      // Image-override pass also applies here so the customize screen
+      // shows the same real photography the catalog grid does.
       const stock = getProductStock(detail.product.id);
+      const betterImage = bestImageFor(detail.product.name_en);
       detail.product = {
         ...detail.product,
         is_out_of_stock: stock.is_out_of_stock,
         out_of_stock_until: stock.out_of_stock_until,
+        ...(betterImage ? { image_url: betterImage } : {}),
       };
       res.json(detail);
     } catch (e) { next(e); }
