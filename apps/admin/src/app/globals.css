@@ -53,3 +53,17 @@ button { cursor: pointer; }
     animation: none !important;
   }
 }
+
+/* Print stylesheet — hide nav/buttons, format reports as a clean PDF. */
+@media print {
+  body { background: white; }
+  nav, aside, header[role='banner'], .no-print { display: none !important; }
+  button { display: none !important; }
+  input[type='date'], input[type='month'], input[type='text'], input[type='number'] { display: none !important; }
+  .print-show { display: block !important; }
+  section { break-inside: avoid; page-break-inside: avoid; }
+  .shadow-card { box-shadow: none !important; }
+  .recharts-responsive-container { break-inside: avoid; }
+  /* Hide interactive Layer D cards from print since they're tools, not reports */
+  [data-print-hide='true'] { display: none !important; }
+}
