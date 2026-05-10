@@ -608,7 +608,7 @@ Report PR URL.
 | R | R.5 Archive old plans | `[x]` (2026-05-10, PR #65) |
 | R | R.6 Delete dead branches | `[ ]` |
 | 0 | 0.0 Playbook authored | `[x]` (2026-05-10, PR #67 — see `docs/runbooks/go-online-free-tier.md`) |
-| 0 | 0.1 Supabase project | `[ ]` (Karim — follow playbook step 1) |
+| 0 | 0.1 Supabase project | `[x]` (2026-05-10, applied via MCP — `Cup&co` project, all 11 missing migrations 0003–0013 added on top of existing 0001+0002, 27 products / 5 users / 1 campus / 1 kiosk live) |
 | 0 | 0.2 Render API | `[ ]` (Karim — follow playbook step 2) |
 | 0 | 0.3 Vercel × 3 | `[ ]` (Karim — follow playbook step 3) |
 | 0 | 0.4 Sentry + PostHog | `[ ]` (Karim — follow playbook steps 5–6) |
