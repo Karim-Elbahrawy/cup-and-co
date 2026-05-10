@@ -264,11 +264,11 @@ Total to "production-ready, app-store-ready, free-tier-online": **Phases R + 0 +
 **Goal:** Close the gaps that block App Store submission or break the demo on iOS.
 
 ### 1.1 — Real APNs registration (replace cosmetic toggle)
-**Status:** `[ ]`
+**Status:** `[~]` (branch `claude/ios-phase-1-apns-and-sse`, awaiting CI green)
 **Acceptance:** `apps/ios/CupAndCo/CupAndCo/CupAndCoApp.swift` calls `UNUserNotificationCenter.current().requestAuthorization` on first launch; device token uploaded via `POST /push/register`; toggle in Profile actually controls notification authorization status.
 
 ### 1.2 — SSE order tracking (replace 5s polling)
-**Status:** `[ ]`
+**Status:** `[~]` (branch `claude/ios-phase-1-apns-and-sse`, awaiting CI green)
 **Acceptance:** `OrderTrackingView.swift` uses URLSession streaming or a `EventSource` Swift package against `GET /orders/:id/events`. Falls back to polling on connection error. Matches web's behavior.
 
 ### 1.3 — Card payments via Paymob
@@ -614,8 +614,8 @@ Report PR URL.
 | 0 | 0.4 Sentry + PostHog | `[ ]` (Karim — follow playbook steps 5–6) |
 | 0 | 0.5 E2E smoke test | `[ ]` (Karim — follow playbook step 4 + 8) |
 | 0 | 0.6 Public-URL hardening | `[ ]` |
-| 1 | 1.1 APNs | `[ ]` |
-| 1 | 1.2 SSE order tracking | `[ ]` |
+| 1 | 1.1 APNs | `[~]` (branch `claude/ios-phase-1-apns-and-sse`) |
+| 1 | 1.2 SSE order tracking | `[~]` (branch `claude/ios-phase-1-apns-and-sse`) |
 | 1 | 1.3 Card payments | `[ ]` |
 | 1 | 1.4 Tier badges | `[ ]` |
 | 1 | 1.5 Account delete UI | `[ ]` |

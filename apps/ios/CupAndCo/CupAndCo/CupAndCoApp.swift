@@ -1,7 +1,12 @@
 import SwiftUI
+import UIKit
+import UserNotifications
+import os.log
 
 @main
 struct CupAndCoApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     @State private var session = SessionStore()
     @State private var catalog = CatalogStore()
     @State private var cart = CartStore()
@@ -22,6 +27,50 @@ struct CupAndCoApp: App {
                 .id(language.current)
                 .preferredColorScheme(.light)
         }
+    }
+}
+
+/// AppDelegate captures the APNs registration callbacks. SwiftUI's
+/// `@UIApplicationDelegateAdaptor` lets us keep the App-as-Scene structure
+/// while still receiving these UIKit-only delegate methods.
+///
+/// Marked `@MainActor` because UIKit always calls these methods on the
+/// main thread and `UIApplication.shared` is `@MainActor`-bound.
+@MainActor
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    private static let log = Logger(subsystem: "com.cupandco.ios", category: "push")
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        // Wire the foreground-presentation delegate before any push arrives.
+        UNUserNotificationCenter.current().delegate = PushService.shared
+        return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        let hex = PushService.hexString(from: deviceToken)
+        Self.log.info("APNs token received (\(hex.count, privacy: .public) chars)")
+        // Persist for later unregister, then upload.
+        UserDefaults.standard.set(hex, forKey: PushService.storedTokenKey)
+        Task {
+            do {
+                _ = try await PushAPI.register(deviceToken: hex)
+            } catch {
+                Self.log.error("PushAPI.register failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        Self.log.error("APNs registration failed: \(error.localizedDescription, privacy: .public)")
     }
 }
 

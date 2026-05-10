@@ -119,6 +119,10 @@
 "profile.logout" = "Log Out";
 "profile.logout.confirm.title" = "Log out of Cup & Co?";
 "profile.logout.confirm.message" = "You'll need to sign in again next time.";
+"profile.notifications.denied_warning" = "Notifications are off in iOS Settings.";
+"profile.notifications.open_settings" = "Open Settings";
+"profile.notifications.settings_title" = "Open iOS Settings";
+"profile.notifications.settings_message" = "Notifications are managed by iOS. Open Settings to fully revoke or change permissions.";
 
 /* Errors */
 "error.network" = "Couldn't reach Cup & Co. Check your connection and try again.";
@@ -174,6 +178,10 @@
 "orders.cancel_order" = "Cancel Order";
 "orders.keep_order" = "Keep Order";
 "orders.cancel_confirm_message" = "Are you sure you want to cancel this order? This cannot be undone.";
+"orders.live" = "Live";
+"orders.reconnecting" = "Reconnecting";
+"orders.live_a11y" = "Live updates connected";
+"orders.reconnecting_a11y" = "Reconnecting to live updates";
 
 /* Game */
 "game.loading" = "Preparing your game…";

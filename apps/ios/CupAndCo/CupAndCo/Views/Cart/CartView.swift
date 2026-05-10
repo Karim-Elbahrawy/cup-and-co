@@ -240,7 +240,7 @@ struct CartItemRow: View {
 
             // Info
             VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: item.product.localizedName(language: language))
+                Text(verbatim: item.product.localizedName(language))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(CupColors.espresso)
                     .lineLimit(1)

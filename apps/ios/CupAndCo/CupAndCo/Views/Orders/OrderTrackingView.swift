@@ -1,7 +1,16 @@
 import SwiftUI
 
+/// Tracks how the live order updates are being delivered. Drives the
+/// status pill at the top of the screen so the user can tell when the
+/// stream is healthy vs. when we've fallen back to polling.
+enum LiveStatus: Equatable {
+    case live          // SSE stream connected and receiving frames
+    case reconnecting  // SSE dropped, reconnecting / on polling fallback
+}
+
 /// Live order tracking — pickup code, vertical timeline, collapsible items,
-/// and cancel button.  Polls every 5 seconds while the order is active.
+/// and cancel button. Pulls real-time updates from `GET /orders/:id/events`
+/// (SSE), with the existing 5-second polling kept as the fallback path.
 struct OrderTrackingView: View {
     let orderId: String
     var initialResponse: OrderResponse?
@@ -19,6 +28,7 @@ struct OrderTrackingView: View {
     @State private var showCancelConfirm: Bool = false
     @State private var isCancelling: Bool = false
     @State private var pollingTask: Task<Void, Never>?
+    @State private var liveStatus: LiveStatus = .reconnecting
 
     var body: some View {
         ZStack {
@@ -26,20 +36,30 @@ struct OrderTrackingView: View {
 
             if let order {
                 ScrollView {
-                    VStack(spacing: 20) {
-                        pickupCodeSection(order: order)
-                        timelineSection
-                        itemsSection(order: order)
-                        orderInfoSection(order: order)
-
-                        if order.status.isCancellable {
-                            cancelButton
+                    VStack(spacing: 12) {
+                        // Live/Reconnecting pill — sits above the pickup code
+                        // so the customer can tell at a glance whether the
+                        // status they're seeing is fresh.  Hidden once the
+                        // order reaches a terminal state — there's nothing
+                        // more to live-stream.
+                        if !order.status.isTerminal {
+                            liveStatusPill
                         }
+                        VStack(spacing: 20) {
+                            pickupCodeSection(order: order)
+                            timelineSection
+                            itemsSection(order: order)
+                            orderInfoSection(order: order)
 
-                        Color.clear.frame(height: 40)
+                            if order.status.isCancellable {
+                                cancelButton
+                            }
+
+                            Color.clear.frame(height: 40)
+                        }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 16)
+                    .padding(.top, 12)
                 }
             } else {
                 ProgressView(String(localized: "orders.loading"))
@@ -389,41 +409,103 @@ struct OrderTrackingView: View {
         }
     }
 
+    /// Connects the SSE stream and updates state as events arrive. On any
+    /// failure, falls back to the existing 5-second polling code path —
+    /// the polling loop is preserved exactly as before per SHIP-PLAN 1.2
+    /// ("don't delete it; make it the fallback").
     private func startPolling() {
         pollingTask = Task {
-            // Try SSE first; on drop, retry with exponential backoff;
-            // on hard failure or absent SSE, fall back to 5-sec polling.
-            var retryDelay: UInt64 = 1_000_000_000 // 1 s
-            let maxDelay: UInt64 = 30_000_000_000  // 30 s
+            await streamOrderUpdates()
+        }
+    }
 
-            while !Task.isCancelled {
-                if let current = order?.status, current.isTerminal { break }
-                do {
-                    let stream = APIClient.shared.streamSSE(
-                        "/orders/\(orderId)/events",
-                        type: OrderResponse.self
-                    )
-                    for try await event in stream {
-                        if Task.isCancelled { break }
-                        order = event.order
-                        timeline = event.timeline
-                        if event.order.status.isTerminal { return }
-                    }
-                    // Stream ended cleanly — back off and reconnect
-                    try? await Task.sleep(nanoseconds: retryDelay)
-                    retryDelay = min(retryDelay * 2, maxDelay)
-                } catch {
-                    // SSE failed — fall back to polling for the rest of the lifecycle
-                    while !Task.isCancelled {
-                        try? await Task.sleep(for: .seconds(5))
-                        guard !Task.isCancelled else { break }
-                        if let current = order?.status, current.isTerminal { return }
-                        await refreshOrder()
-                    }
-                    return
+    /// SSE-first event loop. Mirrors the web client (see
+    /// `apps/customer-web/src/app/(authed)/orders/[id]/page.tsx`):
+    ///   - try SSE; on drop, exponential-backoff reconnect
+    ///   - on hard failure (404, transport, etc.), fall back to polling
+    ///   - exit when the order reaches a terminal status
+    private func streamOrderUpdates() async {
+        var retryDelay: UInt64 = 1_000_000_000 // 1 s
+        let maxDelay: UInt64 = 30_000_000_000  // 30 s
+
+        while !Task.isCancelled {
+            if let current = order?.status, current.isTerminal { break }
+
+            // Reflect "trying to connect" until the first frame arrives.
+            liveStatus = .reconnecting
+
+            do {
+                let stream = OrderEventStream(orderId: orderId).updates()
+                for try await event in stream {
+                    if Task.isCancelled { break }
+                    // First frame proves the stream is healthy.
+                    liveStatus = .live
+                    // Reset backoff once we've received a real frame.
+                    retryDelay = 1_000_000_000
+                    order = event.order
+                    timeline = event.timeline
+                    if event.order.status.isTerminal { return }
                 }
+                // Stream ended cleanly — back off and reconnect.
+                liveStatus = .reconnecting
+                try? await Task.sleep(nanoseconds: retryDelay)
+                retryDelay = min(retryDelay * 2, maxDelay)
+            } catch {
+                // Hard failure — fall back to polling for the rest of the
+                // lifecycle. The pill stays "Reconnecting" to advertise the
+                // degraded mode.
+                liveStatus = .reconnecting
+                await pollUntilTerminalOrCancelled()
+                return
             }
         }
+    }
+
+    /// Existing 5-second polling loop, preserved as the fallback. Kept
+    /// untouched per SHIP-PLAN 1.2 so a transport regression doesn't kill
+    /// the user-visible tracking flow.
+    private func pollUntilTerminalOrCancelled() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { break }
+            if let current = order?.status, current.isTerminal { return }
+            await refreshOrder()
+        }
+    }
+
+    // MARK: - Live status pill
+
+    /// Tiny pill shown above the pickup code: green "Live" while SSE is
+    /// connected, amber "Reconnecting" otherwise. Mirrors the web
+    /// behaviour but kept lightweight and respects existing `CupColors`.
+    private var liveStatusPill: some View {
+        let key: LocalizedStringKey = liveStatus == .live
+            ? "orders.live"
+            : "orders.reconnecting"
+        let a11yKey: LocalizedStringKey = liveStatus == .live
+            ? "orders.live_a11y"
+            : "orders.reconnecting_a11y"
+
+        return HStack(spacing: 6) {
+            Circle()
+                .fill(liveStatus == .live ? CupColors.success : CupColors.star)
+                .frame(width: 6, height: 6)
+            Text(key)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(CupColors.cocoa)
+                .textCase(.uppercase)
+                .tracking(0.6)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(CupColors.surface)
+        .clipShape(Capsule())
+        .overlay(
+            Capsule().stroke(CupColors.stroke, lineWidth: 1)
+        )
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(a11yKey))
     }
 
     // MARK: - Helpers

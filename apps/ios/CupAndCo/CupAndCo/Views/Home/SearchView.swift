@@ -16,7 +16,7 @@ struct SearchView: View {
         return catalog.products.filter { product in
             product.nameEn.lowercased().contains(q) ||
             product.nameAr.contains(q) ||
-            (product.descriptionEn?.lowercased().contains(q) ?? false)
+            product.descriptionEn.lowercased().contains(q)
         }
     }
 
