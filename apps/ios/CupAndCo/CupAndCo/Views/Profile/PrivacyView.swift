@@ -40,6 +40,16 @@ struct PrivacyView: View {
         case submittingCode
         case succeeded(graceDays: Int)
         case error(String)
+
+        /// True while the view is mid-network for the delete OTP submit;
+        /// the button shows a spinner and is disabled. Mirrors the
+        /// "submitting" pill on web.
+        var isInFlight: Bool {
+            switch self {
+            case .submittingCode: return true
+            default: return false
+            }
+        }
     }
     @State private var deleteStage: DeleteStage = .idle
     @State private var deleteCode: String = ""
@@ -583,17 +593,6 @@ struct PrivacyView: View {
         } catch {
             // Surface the failure; user can retry.
             status = status  // no-op; let the banner re-render via state mutation if needed
-        }
-    }
-}
-
-// MARK: - DeleteStage helpers
-
-private extension PrivacyView.DeleteStage {
-    var isInFlight: Bool {
-        switch self {
-        case .submittingCode: return true
-        default: return false
         }
     }
 }
