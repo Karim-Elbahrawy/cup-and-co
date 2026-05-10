@@ -13,8 +13,16 @@
  *      ("don't suggest cinnamon rolls with my Hazelnut Latte"). Empty
  *      array is a valid override that means "no pairings for this".
  *
- * In-memory and process-local for now. Persisted to Supabase later.
+ * Persistence (SHIP-PLAN Phase 2.1):
+ *   - In-memory `Map<productId, string[]>` is the hot cache (catalog
+ *     hot-path reads `defaultsForProduct(...)` synchronously per product).
+ *   - When SUPABASE is configured, the Map hydrates lazily on first read
+ *     from the `product_pairs` table, and every setPairs / clearPairs
+ *     mirrors back fire-and-forget. Survives a Render redeploy.
+ *   - When SUPABASE is unset (dev / vitest), the Map IS the truth.
  */
+import { config } from '../config.js';
+import { getServiceClient } from './supabase.js';
 
 /**
  * Curated default pairs by category SLUG. Values are PRODUCT slug-like
@@ -40,21 +48,110 @@ const DEFAULT_PAIR_NAMES_BY_CATEGORY: Record<string, string[]> = {
 /** Admin per-product overrides — replaces the default when set. */
 const overrides = new Map<string, string[]>();
 
+let hydrated = false;
+let hydratePromise: Promise<void> | null = null;
+
+function isSupabaseReady(): boolean {
+  return !!(
+    config.supabase.serviceRoleKey &&
+    config.supabase.url &&
+    !config.supabase.url.includes('127.0.0.1:54321')
+  );
+}
+
+interface ProductPairsRow {
+  product_id: string;
+  pair_ids: string[];
+}
+
+function hydrateOnce(): Promise<void> {
+  if (hydrated) return Promise.resolve();
+  if (!isSupabaseReady()) {
+    hydrated = true;
+    return Promise.resolve();
+  }
+  if (hydratePromise) return hydratePromise;
+
+  hydratePromise = (async () => {
+    try {
+      const sb = getServiceClient();
+      const { data, error } = await sb.from('product_pairs').select('product_id, pair_ids');
+      if (error) throw error;
+      for (const row of (data ?? []) as ProductPairsRow[]) {
+        // Don't clobber a hot-write that landed during hydration.
+        if (!overrides.has(row.product_id)) {
+          overrides.set(row.product_id, [...(row.pair_ids ?? [])]);
+        }
+      }
+      hydrated = true;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[productPairsStore] hydrate failed:', err);
+      hydrated = true;
+    } finally {
+      hydratePromise = null;
+    }
+  })();
+  return hydratePromise;
+}
+
+function persistSet(productId: string, pairs: string[]): void {
+  if (!isSupabaseReady()) return;
+  const sb = getServiceClient();
+  void sb
+    .from('product_pairs')
+    .upsert(
+      { product_id: productId, pair_ids: pairs, updated_at: new Date().toISOString() },
+      { onConflict: 'product_id' },
+    )
+    .then(({ error }) => {
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('[productPairsStore] persist set failed:', error.message);
+      }
+    });
+}
+
+function persistDelete(productId: string): void {
+  if (!isSupabaseReady()) return;
+  const sb = getServiceClient();
+  void sb
+    .from('product_pairs')
+    .delete()
+    .eq('product_id', productId)
+    .then(({ error }) => {
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('[productPairsStore] persist delete failed:', error.message);
+      }
+    });
+}
+
 export function setPairs(productId: string, pairs: string[]): void {
-  overrides.set(productId, pairs);
+  void hydrateOnce();
+  // Defensive copy so callers can't mutate the stored list later.
+  overrides.set(productId, [...pairs]);
+  persistSet(productId, pairs);
 }
 
 export function clearPairs(productId: string): void {
+  void hydrateOnce();
   overrides.delete(productId);
+  persistDelete(productId);
 }
 
 export function getOverride(productId: string): string[] | undefined {
-  return overrides.get(productId);
+  void hydrateOnce();
+  const list = overrides.get(productId);
+  // Copy-on-read so caller mutations don't leak into the cache.
+  return list ? [...list] : undefined;
 }
 
 /** Test helper — wipes all overrides between describe blocks. */
 export function resetPairsForTests(): void {
   overrides.clear();
+  hydrated = false;
+  hydratePromise = null;
 }
 
 /**
@@ -71,6 +168,8 @@ export function defaultsForProduct(
   productCategorySlug: string | null,
   allProducts: Array<{ id: string; name_en: string; is_available: boolean }>,
 ): string[] {
+  void hydrateOnce();
+
   // 1. Override path — admin set explicit IDs for this product.
   const explicit = overrides.get(productId);
   if (explicit !== undefined) {
