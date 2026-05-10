@@ -92,7 +92,7 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
 
 // Typed helpers — keep the call sites tidy.
 
-import type { OrderStatus, Product, ProductOption } from '@cup-and-co/types';
+import type { OrderStatus } from '@cup-and-co/types';
 
 export interface AdminOrderItem {
   productId: string;
@@ -153,7 +153,6 @@ export interface AdminSummary {
   activeOrders: number;
   fullReportsVisible: boolean;
   kioskOpen?: boolean;
-  lowStockCount?: number;
 }
 
 /**
@@ -234,6 +233,8 @@ export interface AdminReportRoleBreakdown {
   breakdown: Record<string, { orders: number; revenue: number }>;
 }
 
+// Phase R.3 — recovered reports shapes for the Reviews / Revenue Trend /
+// Peak Hours sections that were lost in earlier merges.
 export interface AdminReportReviewsByProduct {
   productId: string;
   name_en: string;
@@ -272,13 +273,6 @@ export interface AdminAuditEntry {
   createdAt: string;
 }
 
-export interface AdminCategory {
-  id: string;
-  name_en: string;
-  name_ar: string;
-  sort_order: number;
-}
-
 export const adminApi = {
   listOrders: (signal?: AbortSignal) =>
     api<{ orders: AdminOrder[] }>('/admin/orders', { signal }),
@@ -315,7 +309,10 @@ export const adminApi = {
   setProductAvailability: (productId: string, available: boolean) =>
     api<{ id: string; available: boolean }>(
       `/admin/menu/products/${productId}/availability`,
-      { method: 'PATCH', body: { available } },
+      {
+        method: 'PATCH',
+        body: { available },
+      },
     ),
   // Phase 3.2 — staff out-of-stock toggle (separate from availability and
   // from the numeric `setProductStock` count below). The two endpoints
@@ -409,7 +406,10 @@ export const adminApi = {
     api<AdminOffer>('/admin/offers', { method: 'POST', body }),
   updateOffer: (id: string, body: Partial<Omit<AdminOffer, 'id' | 'usage_count'>>) =>
     api<AdminOffer>(`/admin/offers/${id}`, { method: 'PATCH', body }),
-  // Phase 5: Reports
+  // Phase 5 / R.3: Reports — `params` carries the optional date range filter
+  // ("today" / "7d" / "30d" / "all" / "custom") added when restoring the lost
+  // reports sections. Existing callers that pass nothing still get the
+  // unfiltered / default-window response.
   getRevenueReport: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
     const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
     return api<AdminReportRevenue>(`/admin/reports/revenue${qs ? `?${qs}` : ''}`, { signal });
@@ -422,6 +422,7 @@ export const adminApi = {
     const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
     return api<AdminReportRoleBreakdown>(`/admin/reports/role-breakdown${qs ? `?${qs}` : ''}`, { signal });
   },
+  // Phase R.3 — restored reports endpoints.
   getReviewsReport: (signal?: AbortSignal) =>
     api<AdminReportReviews>('/admin/reports/reviews', { signal }),
   getRevenueTrend: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
@@ -432,27 +433,6 @@ export const adminApi = {
     const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
     return api<{ hours: AdminPeakHourEntry[] }>(`/admin/reports/peak-hours${qs ? `?${qs}` : ''}`, { signal });
   },
-  getAuditLog: (params?: { action?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
-    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])).toString() : '';
-    return api<{ entries: AdminAuditEntry[]; total: number }>(`/admin/audit-log${qs ? `?${qs}` : ''}`, { signal });
-  },
-  // Product options CRUD
-  listProductOptions: (productId: string, signal?: AbortSignal) =>
-    api<{ options: ProductOption[] }>(`/admin/menu/products/${productId}/options`, { signal }),
-  addProductOption: (productId: string, body: Omit<ProductOption, 'id'>) =>
-    api<{ option: ProductOption }>(`/admin/menu/products/${productId}/options`, { method: 'POST', body }),
-  updateProductOption: (productId: string, optionId: string, body: Partial<Omit<ProductOption, 'id'>>) =>
-    api<{ option: ProductOption }>(`/admin/menu/products/${productId}/options/${optionId}`, { method: 'PATCH', body }),
-  deleteProductOption: (productId: string, optionId: string) =>
-    api<{ ok: boolean }>(`/admin/menu/products/${productId}/options/${optionId}`, { method: 'DELETE' }),
-  // Category CRUD
-  createCategory: (body: { name_en: string; name_ar: string; sort_order?: number }) =>
-    api<{ category: AdminCategory }>('/admin/menu/categories', { method: 'POST', body }),
-  updateCategory: (id: string, body: { name_en?: string; name_ar?: string; sort_order?: number }) =>
-    api<{ category: AdminCategory }>(`/admin/menu/categories/${id}`, { method: 'PATCH', body }),
-  deleteCategory: (id: string) =>
-    api<{ ok: boolean }>(`/admin/menu/categories/${id}`, { method: 'DELETE' }),
-
   // Phase 2.3 — multi-campus
   listCampuses: (signal?: AbortSignal) =>
     api<{ campuses: Campus[] }>('/campuses', { signal, anonymous: true }),
@@ -481,7 +461,32 @@ export const adminApi = {
   // Phase K6.4 — by-kiosk daily report.
   getKioskReport: (signal?: AbortSignal) =>
     api<AdminKioskReport>('/admin/reports/by-kiosk', { signal }),
+
+  // Audit log — paged list of admin actions, filterable by action prefix.
+  getAuditLog: (params?: { action?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const qs = params
+      ? new URLSearchParams(
+          Object.entries(params)
+            .filter(([, v]) => v != null)
+            .map(([k, v]) => [k, String(v)]),
+        ).toString()
+      : '';
+    return api<{ entries: AdminAuditEntry[]; total: number }>(
+      `/admin/audit-log${qs ? `?${qs}` : ''}`,
+      { signal },
+    );
+  },
 };
+
+// ── Cup AI types ───────────────────────────────────────────────────────────
+export interface ConciergeAttrs {
+  energy_level: 'low' | 'medium' | 'high' | null;
+  sweetness: number | null;
+  temperature: 'hot' | 'cold' | 'both' | null;
+  caffeine_mg: number | null;
+  tags_en: string[];
+  tags_ar: string[];
+}
 
 export interface CupAiStatsResponse {
   days: number;
@@ -494,16 +499,6 @@ export interface CupAiStatsResponse {
   topLowConfidenceQueries: Array<{ query: string; count: number }>;
   topSuggestedProductIds: Array<{ productId: string; count: number }>;
   topProducts: Array<{ productId: string; count: number; name_en: string; name_ar: string }>;
-}
-
-// ── Cup AI types (mirror api/services/concierge ConciergeAttrs) ────────────
-export interface ConciergeAttrs {
-  energy_level: 'low' | 'medium' | 'high' | null;
-  sweetness: number | null;
-  temperature: 'hot' | 'cold' | 'both' | null;
-  caffeine_mg: number | null;
-  tags_en: string[];
-  tags_ar: string[];
 }
 
 /** Phase K6.4 — by-kiosk daily report shape. */

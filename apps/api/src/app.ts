@@ -2289,51 +2289,6 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
-  // ── Cup AI: read current concierge attributes for a product ───────────
-  app.get('/admin/menu/products/:id/attrs', requireAuth, requireAdmin, async (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
-      const catalog = await getCatalog();
-      const product = catalog.products.find((p) => p.id === req.params.id);
-      if (!product) {
-        res.status(404).json({ error: 'Product not found.' });
-        return;
-      }
-      res.json({ id: product.id, attrs: getProductAttrs(product) });
-    } catch (e) { next(e); }
-  });
-
-  // ── Cup AI: persist admin-edited concierge attributes ─────────────────
-  app.patch('/admin/menu/products/:id/attrs', requireAuth, requireAdmin, async (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
-      const input = z.object({
-        energy_level: z.enum(['low', 'medium', 'high']).nullable().optional(),
-        sweetness: z.number().int().min(0).max(5).nullable().optional(),
-        temperature: z.enum(['hot', 'cold', 'both']).nullable().optional(),
-        caffeine_mg: z.number().int().nonnegative().max(500).nullable().optional(),
-        tags_en: z.array(z.string().min(1).max(40)).max(20).optional(),
-        tags_ar: z.array(z.string().min(1).max(40)).max(20).optional(),
-      }).parse(req.body);
-      await setProductAttrs(req.params.id as string, input);
-      res.json({ id: req.params.id, attrs: input });
-    } catch (e) { next(e); }
-  });
-
-  // ── Cup AI: auto-detect attributes from product name + description ────
-  app.post('/admin/menu/products/:id/auto-detect-attrs', requireAuth, requireAdmin, async (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'menu:update_availability');
-      const catalog = await getCatalog();
-      const product = catalog.products.find((p) => p.id === req.params.id);
-      if (!product) {
-        res.status(404).json({ error: 'Product not found.' });
-        return;
-      }
-      const inferred = inferAttributes(product);
-      res.json({ id: product.id, inferred });
-    } catch (e) { next(e); }
-  });
 
   // -------- Phase 5: Admin Reviews --------
   app.get('/admin/reviews', requireAuth, requireAdmin, (req, res, next) => {
@@ -2548,7 +2503,15 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
-  // ── Reports: per-product reviews aggregate (total/avg/hidden + distribution + per-product) ──
+  // -------- Phase R.3 — restored reports endpoints --------
+  // These three were lost in earlier merges; the admin Reports page
+  // depends on them for Reviews / Revenue Trend / Peak Hours.
+
+  /**
+   * Per-product reviews aggregate. Returns total / avg / hidden +
+   * a 1–5 distribution + per-product rollup. Reads from the in-memory
+   * `reviews` map (same source the admin /admin/reviews list uses).
+   */
   app.get('/admin/reports/reviews', requireAuth, requireAdmin, async (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reports:view_full');
@@ -2565,7 +2528,9 @@ export function createApp(): express.Express {
         : 0;
 
       const ratingDistribution: Record<string, number> = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
-      for (const r of allReviews) ratingDistribution[String(r.rating)] = (ratingDistribution[String(r.rating)] ?? 0) + 1;
+      for (const r of allReviews) {
+        ratingDistribution[String(r.rating)] = (ratingDistribution[String(r.rating)] ?? 0) + 1;
+      }
 
       const productMap = new Map<string, {
         reviewCount: number; totalRating: number; hiddenCount: number;
@@ -2579,7 +2544,8 @@ export function createApp(): express.Express {
         existing.reviewCount += 1;
         existing.totalRating += r.rating;
         if (r.hidden) existing.hiddenCount += 1;
-        existing.ratingDistribution[String(r.rating)] = (existing.ratingDistribution[String(r.rating)] ?? 0) + 1;
+        existing.ratingDistribution[String(r.rating)] =
+          (existing.ratingDistribution[String(r.rating)] ?? 0) + 1;
         productMap.set(r.productId, existing);
       }
 
@@ -2598,7 +2564,12 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
-  // ── Reports: revenue trend — daily revenue/orders over a window (default last 30 days) ──
+  /**
+   * Daily revenue/orders over a window. Default window is the last 30
+   * days (inclusive of today). Range can be overridden with `?from=` and
+   * `?to=` (YYYY-MM-DD). Returns one row per day so the chart axis is
+   * continuous even on days with zero orders.
+   */
   app.get('/admin/reports/revenue-trend', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reports:view_full');
@@ -2632,7 +2603,11 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
-  // ── Reports: peak hours — order counts grouped by hour-of-day (0–23) ──
+  /**
+   * Peak hours — order count grouped by hour-of-day (0–23). Optional
+   * `?from=` / `?to=` (YYYY-MM-DD) restricts which orders feed the
+   * histogram; default is all orders.
+   */
   app.get('/admin/reports/peak-hours', requireAuth, requireAdmin, (req, res, next) => {
     try {
       assertAdminPermission(getAdminRole(req), 'reports:view_full');
@@ -2648,36 +2623,6 @@ export function createApp(): express.Express {
       }
       const hours = hourCounts.map((count, hour) => ({ hour, count }));
       res.json({ hours });
-    } catch (e) { next(e); }
-  });
-
-  // ── Cup AI usage report — answers "is the rule engine carrying its weight?"
-  // Returns aggregates over a configurable rolling window (?days=N, default 7).
-  app.get('/admin/reports/cup-ai', requireAuth, requireAdmin, async (req, res, next) => {
-    try {
-      assertAdminPermission(getAdminRole(req), 'reports:view_full');
-      const daysParam = Number(req.query.days);
-      const days = Number.isFinite(daysParam) && daysParam > 0 && daysParam <= 90
-        ? Math.floor(daysParam)
-        : 7;
-      const windowMs = days * 24 * 60 * 60 * 1000;
-      const stats = getConciergeStats(windowMs);
-
-      // Hydrate top product ids with names for the UI. Fetched once from the
-      // catalog so we don't make N round trips.
-      const catalog = await getCatalog();
-      const productById = new Map(catalog.products.map((p) => [p.id, p]));
-      const topProducts = stats.topSuggestedProductIds.map(({ productId, count }) => {
-        const p = productById.get(productId);
-        return {
-          productId,
-          count,
-          name_en: p?.name_en ?? '(deleted product)',
-          name_ar: p?.name_ar ?? '',
-        };
-      });
-
-      res.json({ days, ...stats, topProducts });
     } catch (e) { next(e); }
   });
 

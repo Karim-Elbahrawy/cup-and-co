@@ -8,7 +8,7 @@
  * In-memory Map for the dev/demo path. Production swap is one file
  * change — replace the Map with Supabase reads/writes against the
  * `products.is_out_of_stock` + `products.out_of_stock_until` columns
- * added by migration `0006_product_inventory.sql`.
+ * added by migration `0007_product_inventory.sql`.
  *
  * The auto-clear is normally handled by the daily Postgres cron
  * (`select clear_expired_stock_holds()`), but the in-memory path

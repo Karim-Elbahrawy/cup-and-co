@@ -8,7 +8,7 @@
  *
  * In-memory mirror for the dev/demo path. Production swap is a
  * one-file change to point at Supabase via `order_favorites` table
- * (migration `0008_order_favorites.sql`).
+ * (migration `0009_order_favorites.sql`).
  */
 import { randomUUID } from 'node:crypto';
 

@@ -12,7 +12,7 @@
  *
  * In-memory mirror for the dev/demo path. Production swap is one
  * file change to point at Supabase via `user_streaks` table
- * (migration `0009_user_streaks.sql`).
+ * (migration `0010_user_streaks.sql`).
  */
 
 export interface StreakState {

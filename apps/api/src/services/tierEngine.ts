@@ -14,7 +14,7 @@
  *
  * Production swap is one file change to point at the
  * `recalculate_user_tier(uuid)` plpgsql function added by migration
- * `0010_tiered_loyalty.sql`. The in-memory mirror computes the same
+ * `0011_tiered_loyalty.sql`. The in-memory mirror computes the same
  * result so dev flows work without Supabase.
  *
  * The hot path: applyTierMultiplier() runs on every loyalty earn —
