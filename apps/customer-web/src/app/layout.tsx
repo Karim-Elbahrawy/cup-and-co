@@ -29,13 +29,13 @@ export const metadata: Metadata = {
     siteName: 'Cup & Co',
     title: 'Cup & Co — Your morning, handled',
     description: 'Order ahead, skip the line. Coffee, breakfast, and desserts on campus.',
-    images: [{ url: '/brand/og-card.svg', width: 1200, height: 630, alt: 'Cup & Co' }],
+    images: [{ url: '/brand/og-card.png', width: 1200, height: 630, alt: 'Cup & Co' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Cup & Co — Your morning, handled',
     description: 'Order ahead, skip the line.',
-    images: ['/brand/og-card.svg'],
+    images: ['/brand/og-card.png'],
   },
 };
 

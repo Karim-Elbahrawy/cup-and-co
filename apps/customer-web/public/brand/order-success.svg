@@ -1,5 +1,55 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
-  <rect width="240" height="240" fill="#FAF6F0" rx="16"/>
-  <circle cx="120" cy="100" r="60" fill="none" stroke="#C2410C" stroke-width="3" stroke-dasharray="8 4"/>
-  <text x="120" y="150" text-anchor="middle" font-family="system-ui" font-size="16" fill="#78716C">Order success!</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Order success">
+  <!-- Cup & Co — Order success. Sunrise check disc + cup glyph + confetti. Brand-locked palette. -->
+  <defs>
+    <linearGradient id="os-disc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F4A261"/>
+      <stop offset="100%" stop-color="#C2410C"/>
+    </linearGradient>
+    <radialGradient id="os-glow" cx="0.5" cy="0.5" r="0.6">
+      <stop offset="0%" stop-color="#FEF3C7" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#FAF6F0" stop-opacity="1"/>
+    </radialGradient>
+  </defs>
+  <!-- Cream backdrop with vignette -->
+  <rect width="240" height="240" fill="#FEF3C7"/>
+  <rect width="240" height="240" fill="url(#os-glow)"/>
+
+  <!-- Confetti scatter — terracotta + teal -->
+  <g>
+    <circle cx="46" cy="60" r="4" fill="#C2410C" opacity="0.85"/>
+    <circle cx="64" cy="36" r="3" fill="#0F766E" opacity="0.9"/>
+    <circle cx="200" cy="50" r="4" fill="#0F766E" opacity="0.9"/>
+    <circle cx="186" cy="78" r="3" fill="#F4A261" opacity="0.9"/>
+    <circle cx="58" cy="190" r="3.5" fill="#0F766E" opacity="0.9"/>
+    <circle cx="190" cy="200" r="4" fill="#C2410C" opacity="0.85"/>
+    <circle cx="36" cy="138" r="3" fill="#F4A261" opacity="0.9"/>
+    <circle cx="208" cy="146" r="3" fill="#C2410C" opacity="0.9"/>
+    <!-- Tiny diamond confetti -->
+    <rect x="80" y="22" width="6" height="6" fill="#F4A261" transform="rotate(45 83 25)" opacity="0.85"/>
+    <rect x="160" y="210" width="6" height="6" fill="#0F766E" transform="rotate(45 163 213)" opacity="0.85"/>
+  </g>
+
+  <!-- Soft glow behind disc -->
+  <circle cx="120" cy="120" r="74" fill="#C2410C" fill-opacity="0.06"/>
+
+  <!-- Sunrise gradient disc -->
+  <circle cx="120" cy="120" r="62" fill="url(#os-disc)"/>
+
+  <!-- White checkmark, generous stroke, rounded ends -->
+  <path d="M89 122 L112 144 L153 100"
+        fill="none"
+        stroke="#FAF6F0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Small coffee cup glyph at upper-right of the disc, suggesting the success is a coffee delivery -->
+  <g transform="translate(150 60)">
+    <!-- Mini cup body -->
+    <path d="M0 8 h20 v14 a8 8 0 0 1 -8 8 h-4 a8 8 0 0 1 -8 -8 Z"
+          fill="#FAF6F0"
+          stroke="#1C1917" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Mini handle -->
+    <path d="M20 12 a6 6 0 0 1 0 10" fill="none" stroke="#1C1917" stroke-width="2" stroke-linecap="round"/>
+    <!-- Mini steam -->
+    <path d="M6 4 c-1.5 -3 1.5 -5 0 -8" fill="none" stroke="#C2410C" stroke-width="2" stroke-linecap="round"/>
+    <path d="M14 4 c-1.5 -3 1.5 -5 0 -8" fill="none" stroke="#C2410C" stroke-width="2" stroke-linecap="round"/>
+  </g>
 </svg>
