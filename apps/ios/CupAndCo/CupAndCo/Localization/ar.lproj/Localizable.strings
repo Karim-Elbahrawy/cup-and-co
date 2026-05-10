@@ -239,6 +239,14 @@
 "home.recent_orders" = "الطلبات الأخيرة";
 "home.order_again" = "اطلب مجدداً";
 
+/* Loyalty tiers — Phase 1.4 (مرآة TierBadge.tsx من الويب) */
+"tier.bronze" = "برونزي";
+"tier.silver" = "فضي";
+"tier.gold" = "ذهبي";
+"tier.gold.top_perk" = "نقاط ×1.5 وترقيات حجم مجانية";
+"tier.silver.perk" = "نقاط ×1.25";
+"tier.bronze.perk" = "مكافآت قياسية";
+
 /* Order status labels */
 "orders.received" = "تم الاستلام";
 "orders.accepted" = "مقبول";

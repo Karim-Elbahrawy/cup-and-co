@@ -17,6 +17,10 @@ struct HomeView: View {
     @State private var selectedCategory: String? = nil
     @State private var showUsual: Bool = false
     @State private var usualToast: String?
+    // Phase 1.4 — current loyalty tier, fetched lazily on view appear.
+    // `nil` while loading or if the API errors (we silently hide the badge
+    // rather than replace the greeting with an error state).
+    @State private var tier: LoyaltyTier?
 
     private var greetingName: String {
         let name = session.user?.firstName ?? ""
@@ -132,13 +136,17 @@ struct HomeView: View {
         }
         .background(CupColors.paper.ignoresSafeArea())
         .refreshable {
+            // Pull-to-refresh re-fetches both the catalog and the user's
+            // current tier so a freshly-promoted user sees the updated badge.
             await catalog.load()
+            await loadTier()
         }
         .task {
             // Only fetch once per session; pull-to-refresh handles re-fetches.
             if catalog.products.isEmpty {
                 await catalog.load()
             }
+            await loadTier()
         }
         .sheet(isPresented: $showUsual) {
             NavigationStack {
@@ -198,11 +206,19 @@ struct HomeView: View {
                     Text(verbatim: ", \(greetingName)")
                         .font(.system(size: microLg, weight: .medium, design: .rounded))
                         .foregroundStyle(CupColors.muted)
+                    // Phase 1.4 — compact tier badge sits next to the
+                    // greeting line. Hidden until the API responds so we
+                    // don't flash a placeholder.
+                    if let tier {
+                        TierBadgeView(tier: tier, style: .compact)
+                            .transition(.scale.combined(with: .opacity))
+                    }
                 }
                 Text(roleSubtitle)
                     .font(.system(size: headingSm, weight: .bold, design: .rounded))
                     .foregroundStyle(CupColors.espresso)
             }
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: tier)
 
             Spacer()
         }
@@ -268,6 +284,20 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
+    }
+
+    // MARK: - Tier
+
+    private func loadTier() async {
+        // Tier badge is purely additive UI; if the call fails (offline,
+        // 401 mid-session, etc.) we simply don't show the badge instead
+        // of bubbling an error to the home screen.
+        do {
+            let res = try await TierAPI.currentTier()
+            tier = res.tier
+        } catch {
+            // Swallow — keep the previous tier on transient errors.
+        }
     }
 
     // MARK: - Reorder

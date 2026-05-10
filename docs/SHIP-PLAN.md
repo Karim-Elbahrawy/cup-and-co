@@ -276,7 +276,7 @@ Total to "production-ready, app-store-ready, free-tier-online": **Phases R + 0 +
 **Acceptance:** Checkout offers Cash + Card. Card opens Paymob iframe via `WKWebView` against `POST /payments/paymob/intention`. Success returns user to `OrderSuccessOverlay` (already exists, currently unwired). Cancel returns to checkout with toast.
 
 ### 1.4 — Tier badges (Bronze/Silver/Gold)
-**Status:** `[ ]`
+**Status:** `[~]` (branch `claude/ios-phase-1-4-tier-badges`, awaiting CI green)
 **Acceptance:** `RewardsView.swift` shows the user's tier next to the points balance. `HomeView.swift` greeting shows the tier badge. Reads from `GET /me/tier` (already exists).
 
 ### 1.5 — Account delete + data export (App Store 5.1.1(v) requirement)
@@ -622,7 +622,7 @@ Report PR URL.
 | 1 | 1.2 SSE order tracking | `[x]` (2026-05-10, PR #70 — `OrderEventStream.swift`; live/reconnecting pill on tracking view; polling kept as fallback) |
 | 1 | 1.x Bonus: real iOS CI | `[x]` (2026-05-10, PR #70 — macos-15 + `set -o pipefail`; storyboard targetRuntime; CartView label; SearchView optional chain) |
 | 1 | 1.3 Card payments | `[ ]` |
-| 1 | 1.4 Tier badges | `[ ]` |
+| 1 | 1.4 Tier badges | `[x]` (2026-05-10, PR #78 — `TierBadgeView.swift` + `TierAPI.swift` on home greeting + rewards page) |
 | 1 | 1.5 Account delete UI | `[x]` (2026-05-10, PR #76 — `AccountAPI.swift` + `PrivacyView.swift` + Profile navrow; covers App Store 5.1.1(v) account-delete + PDPL data export) |
 | 1 | 1.6 TestFlight pipeline | `[!]` (Apple Dev enrollment) |
 | 1 | 1.7 Sentry SDK | `[ ]` (after 1.6) |

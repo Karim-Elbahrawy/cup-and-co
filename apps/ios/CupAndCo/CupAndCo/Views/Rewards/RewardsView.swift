@@ -8,6 +8,10 @@ struct RewardsView: View {
     @State private var showScanner = false
     @State private var scanResult: String?
     @State private var showGame = false
+    // Phase 1.4 — current loyalty tier rendered above the points balance
+    // card. Fetched independently from `/me/tier`; nil while loading or on
+    // error so we don't replace the balance card with a placeholder.
+    @State private var tier: TierAPI.TierResponse?
 
     // Dynamic Type
     @ScaledMetric(relativeTo: .largeTitle) private var balanceSize: CGFloat = 48
@@ -16,6 +20,7 @@ struct RewardsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                tierHeader
                 balanceCard
                 if session.user?.role == .student {
                     gameSection
@@ -31,8 +36,14 @@ struct RewardsView: View {
         .background(CupColors.paper.ignoresSafeArea())
         .navigationTitle("Rewards")
         .navigationBarTitleDisplayMode(.large)
-        .task { await loadLoyalty() }
-        .refreshable { await loadLoyalty() }
+        .task {
+            await loadLoyalty()
+            await loadTier()
+        }
+        .refreshable {
+            await loadLoyalty()
+            await loadTier()
+        }
         .sheet(isPresented: $showScanner) {
             QRScannerView { code in
                 showScanner = false
@@ -57,6 +68,46 @@ struct RewardsView: View {
                 scanResultToast(result)
             }
         }
+    }
+
+    // MARK: - Tier Header (Phase 1.4)
+
+    private var tierHeader: some View {
+        Group {
+            if let tier {
+                HStack(spacing: 12) {
+                    TierBadgeView(tier: tier.tier, style: .full)
+                    if let next = tier.nextTier, let pts = tier.pointsToNext, pts > 0 {
+                        Text(progressLabel(pointsToNext: pts, nextTier: next))
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(CupColors.muted)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        // Already at Gold — show a stub so the layout doesn't shift.
+                        Text("tier.gold.top_perk")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(CupColors.muted)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: tier)
+    }
+
+    /// Localized "X pts to <Next>" copy. Hand-rolls the format since we
+    /// keep the numeric and the localized tier separate to respect RTL.
+    private func progressLabel(pointsToNext: Int, nextTier: LoyaltyTier) -> String {
+        let lang = session.user?.languagePref ?? .en
+        let nextName = NSLocalizedString(nextTier.localizationKey, comment: "")
+        if lang == .ar {
+            return "\(pointsToNext) نقطة لـ \(nextName)"
+        }
+        return "\(pointsToNext) pts to \(nextName)"
     }
 
     // MARK: - Balance Card
@@ -331,6 +382,15 @@ struct RewardsView: View {
             self.error = (error as? LocalizedError)?.errorDescription ?? "\(error)"
         }
         isLoading = false
+    }
+
+    private func loadTier() async {
+        // Tier is auxiliary; failure is non-fatal and silently retained.
+        do {
+            tier = try await TierAPI.currentTier()
+        } catch {
+            // Keep the previous tier (if any) on transient errors.
+        }
     }
 
     private func redeemCode(_ code: String) async {
