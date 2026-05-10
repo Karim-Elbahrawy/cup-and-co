@@ -178,6 +178,10 @@
 "orders.cancel_order" = "Cancel Order";
 "orders.keep_order" = "Keep Order";
 "orders.cancel_confirm_message" = "Are you sure you want to cancel this order? This cannot be undone.";
+"orders.live" = "Live";
+"orders.reconnecting" = "Reconnecting";
+"orders.live_a11y" = "Live updates connected";
+"orders.reconnecting_a11y" = "Reconnecting to live updates";
 
 /* Game */
 "game.loading" = "Preparing your game…";

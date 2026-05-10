@@ -178,6 +178,10 @@
 "orders.cancel_order" = "إلغاء الطلب";
 "orders.keep_order" = "الإبقاء على الطلب";
 "orders.cancel_confirm_message" = "هل أنت متأكد من إلغاء هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.";
+"orders.live" = "مباشر";
+"orders.reconnecting" = "جاري الاتصال";
+"orders.live_a11y" = "التحديثات المباشرة متصلة";
+"orders.reconnecting_a11y" = "جاري إعادة الاتصال بالتحديثات المباشرة";
 
 /* Game */
 "game.loading" = "جارٍ تحضير لعبتك…";
