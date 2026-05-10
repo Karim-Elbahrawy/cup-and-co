@@ -1,4 +1,4 @@
--- 0012_placement_source.sql — Phase K1.11 of docs/KIOSK-PLAN.md
+-- 0013_placement_source.sql — Phase K1.11 of docs/KIOSK-PLAN.md
 --
 -- Tags every order with the surface that placed it (kiosk, customer app,
 -- or admin phone-in) so:

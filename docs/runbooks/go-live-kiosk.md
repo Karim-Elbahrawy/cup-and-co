@@ -19,7 +19,7 @@ What this does: adds two columns to your `orders` table so each order is tagged 
 
 1. Go to https://supabase.com/dashboard → pick your Cup & Co project.
 2. Left sidebar → **SQL Editor** → click **New query**.
-3. Open `supabase/migrations/0012_placement_source.sql` in this repo, copy the whole file's contents into the SQL editor.
+3. Open `supabase/migrations/0013_placement_source.sql` in this repo, copy the whole file's contents into the SQL editor.
 4. Click **Run**.
 
 You should see `Success. No rows returned`. If it fails with "type already exists" you've already run it; safe to skip.
