@@ -601,17 +601,18 @@ Report PR URL.
 
 | Phase | Item | Status |
 |---|---|---|
-| R | R.1 Cherry-pick additive recovery | `[~]` (PR #63 open) |
-| R | R.2 Renumber migrations | `[~]` (PR #64 open) |
-| R | R.3 Re-port reports sections | `[ ]` |
-| R | R.4 Decide on profile rows | `[ ]` (decision pending) |
-| R | R.5 Archive old plans | `[~]` (this PR) |
+| R | R.1 Cherry-pick additive recovery | `[x]` (2026-05-10, PR #63) |
+| R | R.2 Renumber migrations | `[x]` (2026-05-10, PR #64) |
+| R | R.3 Re-port reports sections | `[x]` (2026-05-10, PR #66) |
+| R | R.4 Profile rows — chose option B (Coming soon stubs) | `[x]` (2026-05-10, PR #66) |
+| R | R.5 Archive old plans | `[x]` (2026-05-10, PR #65) |
 | R | R.6 Delete dead branches | `[ ]` |
-| 0 | 0.1 Supabase project | `[ ]` |
-| 0 | 0.2 Render API | `[ ]` |
-| 0 | 0.3 Vercel × 3 | `[ ]` |
-| 0 | 0.4 Sentry + PostHog | `[ ]` |
-| 0 | 0.5 E2E smoke test | `[ ]` |
+| 0 | 0.0 Playbook authored | `[x]` (2026-05-10, PR #67 — see `docs/runbooks/go-online-free-tier.md`) |
+| 0 | 0.1 Supabase project | `[ ]` (Karim — follow playbook step 1) |
+| 0 | 0.2 Render API | `[ ]` (Karim — follow playbook step 2) |
+| 0 | 0.3 Vercel × 3 | `[ ]` (Karim — follow playbook step 3) |
+| 0 | 0.4 Sentry + PostHog | `[ ]` (Karim — follow playbook steps 5–6) |
+| 0 | 0.5 E2E smoke test | `[ ]` (Karim — follow playbook step 4 + 8) |
 | 0 | 0.6 Public-URL hardening | `[ ]` |
 | 1 | 1.1 APNs | `[ ]` |
 | 1 | 1.2 SSE order tracking | `[ ]` |
