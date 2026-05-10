@@ -619,7 +619,7 @@ Report PR URL.
 | 1 | 1.x Bonus: real iOS CI | `[x]` (2026-05-10, PR #70 — macos-15 + `set -o pipefail`; storyboard targetRuntime; CartView label; SearchView optional chain) |
 | 1 | 1.3 Card payments | `[ ]` |
 | 1 | 1.4 Tier badges | `[ ]` |
-| 1 | 1.5 Account delete UI | `[ ]` |
+| 1 | 1.5 Account delete UI | `[~]` (branch `claude/ios-phase-1-5-account-delete-export`, awaiting CI green) |
 | 1 | 1.6 TestFlight pipeline | `[!]` (Apple Dev enrollment) |
 | 1 | 1.7 Sentry SDK | `[ ]` (after 1.6) |
 | 1 | 1.8 Cosmetic fixes | `[ ]` |
