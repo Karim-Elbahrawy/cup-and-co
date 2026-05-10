@@ -212,6 +212,25 @@ export default function ProfilePage() {
         <div>
           <SectionLabel>{t('profile.myProfile')}</SectionLabel>
           <div className="rounded-card bg-white shadow-card overflow-hidden">
+            {/* Phase R.4 (B) — visible-but-disabled "Coming soon" stubs.
+                The underlying flows (personal-info edit, saved cards,
+                transaction history) ship in Phases 1.5/3.x; the rows are
+                here so the surface is screenshot-ready. */}
+            <NavRow
+              icon={<User size={16} />}
+              label={t('profile.personalInfo')}
+              comingSoon
+            />
+            <NavRow
+              icon={<CreditCard size={16} />}
+              label={t('profile.cardsAndPayments')}
+              comingSoon
+            />
+            <NavRow
+              icon={<History size={16} />}
+              label={t('profile.transactionHistory')}
+              comingSoon
+            />
             <NavRow icon={<Tag size={16} />} label={t('profile.accountId')} />
             <NavRow
               icon={<MapPin size={16} />}
@@ -227,7 +246,40 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Security section — hidden until APNs + biometric impl */}
+        {/* Phase R.4 (B) — Security section, restored as visible-but-disabled
+            stubs. The toggles read state but `disabled` blocks any flip;
+            actual 2FA / Face ID / Passcode flows land in Phase 1.x. */}
+        <div>
+          <SectionLabel>{t('profile.security')}</SectionLabel>
+          <div className="rounded-card bg-white shadow-card overflow-hidden">
+            <ToggleRow
+              icon={<ShieldCheck size={16} />}
+              label={t('profile.twoFactor')}
+              checked={twoFactor}
+              onChange={setTwoFactor}
+              disabled
+              comingSoon
+            />
+            <ToggleRow
+              icon={<Fingerprint size={16} />}
+              label={t('profile.faceId')}
+              sublabel={t('profile.iOSOnly')}
+              checked={false}
+              onChange={() => {}}
+              disabled
+              comingSoon
+            />
+            <ToggleRow
+              icon={<KeyRound size={16} />}
+              label={t('profile.passcode')}
+              checked={passcode}
+              onChange={setPasscode}
+              disabled
+              comingSoon
+              last
+            />
+          </div>
+        </div>
 
         {/* Notification Preferences section */}
         <div>
@@ -348,14 +400,21 @@ function NavRow({
   label,
   href,
   last = false,
+  comingSoon = false,
 }: {
   icon: React.ReactNode;
   label: string;
   href?: string;
   last?: boolean;
+  /** Phase R.4 (B) — render as a visually-present, non-interactive
+   *  row with a "Coming soon" pill. Suppresses the chevron/link. */
+  comingSoon?: boolean;
 }) {
   const className = [
-    'flex w-full items-center gap-3 px-4 py-3.5 text-start transition-colors hover:bg-[var(--cup-paper)] active:bg-[var(--cup-paper)]',
+    'flex w-full items-center gap-3 px-4 py-3.5 text-start transition-colors',
+    comingSoon
+      ? 'cursor-not-allowed opacity-60'
+      : 'hover:bg-[var(--cup-paper)] active:bg-[var(--cup-paper)]',
     !last ? 'border-b border-[var(--cup-stroke)]' : '',
   ].join(' ');
   const inner = (
@@ -364,9 +423,20 @@ function NavRow({
         {icon}
       </span>
       <span className="flex-1 text-sm font-semibold text-[var(--cup-espresso)]">{label}</span>
-      <ChevronRight size={16} className="text-[var(--cup-muted)]" aria-hidden="true" />
+      {comingSoon ? (
+        <ComingSoonPill />
+      ) : (
+        <ChevronRight size={16} className="text-[var(--cup-muted)]" aria-hidden="true" />
+      )}
     </>
   );
+  if (comingSoon) {
+    return (
+      <div role="presentation" className={className} aria-disabled="true">
+        {inner}
+      </div>
+    );
+  }
   if (href) {
     return (
       <Link href={href} className={className}>
@@ -381,6 +451,17 @@ function NavRow({
   );
 }
 
+/** Phase R.4 (B) — small "Coming soon" pill used by the disabled
+ *  Profile rows / Security toggles. No new primitive on purpose;
+ *  this is the only spot in the app that needs it today. */
+function ComingSoonPill() {
+  return (
+    <span className="rounded-full bg-[var(--cup-cream)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--cup-cocoa)]">
+      Coming soon
+    </span>
+  );
+}
+
 function ToggleRow({
   icon,
   label,
@@ -389,6 +470,7 @@ function ToggleRow({
   onChange,
   disabled = false,
   last = false,
+  comingSoon = false,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -397,19 +479,27 @@ function ToggleRow({
   onChange: (next: boolean) => void;
   disabled?: boolean;
   last?: boolean;
+  /** Phase R.4 (B) — show a "Coming soon" pill alongside the label.
+   *  Implies disabled visually; callers still pass `disabled` so the
+   *  switch is also un-flippable for assistive tech. */
+  comingSoon?: boolean;
 }) {
   return (
     <div
       className={[
         'flex items-center gap-3 px-4 py-3.5',
         !last ? 'border-b border-[var(--cup-stroke)]' : '',
+        comingSoon ? 'opacity-70' : '',
       ].join(' ')}
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--cup-paper)] text-[var(--cup-muted)]">
         {icon}
       </span>
       <div className="flex-1 min-w-0">
-        <span className="block text-sm font-semibold text-[var(--cup-espresso)]">{label}</span>
+        <span className="flex items-center gap-2 text-sm font-semibold text-[var(--cup-espresso)]">
+          <span>{label}</span>
+          {comingSoon ? <ComingSoonPill /> : null}
+        </span>
         {sublabel ? (
           <span className="text-xs text-[var(--cup-muted)]">{sublabel}</span>
         ) : null}
