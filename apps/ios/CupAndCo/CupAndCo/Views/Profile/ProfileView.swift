@@ -184,6 +184,12 @@ struct ProfileView: View {
                 title: "profile.row.verification",
                 trailing: verificationLabel,
                 trailingColor: verificationColor)
+            divider()
+            // SHIP-PLAN 1.5 — Privacy & data: in-app account deletion
+            // (App Store 5.1.1(v)) and data export (Egypt PDPL 151/2020).
+            navRow(icon: "lock.shield.fill",
+                   title: "profile.privacyAndData",
+                   destination: PrivacyView())
         }
         .background(CupColors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -383,6 +389,32 @@ struct ProfileView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Tappable row that pushes a destination view onto the surrounding
+    /// NavigationStack. Used for "Privacy & data" (SHIP-PLAN 1.5).
+    private func navRow<Destination: View>(icon: String,
+                                           title: LocalizedStringKey,
+                                           destination: Destination) -> some View {
+        NavigationLink(destination: destination) {
+            HStack {
+                Image(systemName: icon)
+                    .frame(width: 24)
+                    .foregroundStyle(CupColors.primary)
+                Text(title)
+                    .font(.system(size: 15, design: .rounded))
+                    .foregroundStyle(CupColors.espresso)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(CupColors.muted)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
     }
 

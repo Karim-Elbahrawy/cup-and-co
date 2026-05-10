@@ -249,3 +249,43 @@
 "orders.cancelled" = "Cancelled";
 "orders.refunded" = "Refunded";
 "orders.reorder" = "Reorder";
+
+/* Privacy & data (SHIP-PLAN 1.5 — App Store 5.1.1(v) + Egypt PDPL Law 151/2020) */
+"profile.privacyAndData" = "Privacy & data";
+"privacy.title" = "Privacy & data";
+"privacy.intro" = "Manage your data and your account. Under Egypt PDPL Law 151 of 2020 you have the right to access and erase your personal data.";
+"privacy.row" = "Privacy & data";
+
+/* Privacy — export */
+"privacy.exportSection" = "Your data";
+"privacy.exportDescription" = "Download a copy of everything Cup & Co holds about you — orders, reviews, favorites, loyalty history, and profile.";
+"privacy.exportButton" = "Export my data";
+"privacy.exportPreparing" = "Preparing your export…";
+"privacy.exportReady" = "Your data is ready.";
+"privacy.exportDownload" = "Download";
+"privacy.exportShare" = "Share";
+"privacy.exportRateLimited" = "You can request a new export once every 7 days.";
+"privacy.exportError" = "Couldn't prepare your export. Please try again.";
+"privacy.exportSavedTo" = "Saved as %@";
+
+/* Privacy — delete account */
+"privacy.deleteSection" = "Delete account";
+"privacy.deleteDescription" = "Permanently anonymize your account. You'll have a 30-day grace period to change your mind.";
+"privacy.deleteButton" = "Request account deletion";
+"privacy.deleteConfirmTitle" = "Delete your account?";
+"privacy.deleteConfirmBody" = "This will anonymize your account in 30 days. You can cancel any time before then.";
+"privacy.deleteConfirmCTA" = "Continue";
+"privacy.deleteCodeTitle" = "Enter the confirmation code";
+"privacy.deleteCodeBody" = "We sent a 6-digit code. Enter it below to confirm.";
+"privacy.deleteCodePlaceholder" = "123456";
+"privacy.deleteSendCode" = "Send code";
+"privacy.deleteFinalConfirm" = "Confirm deletion";
+"privacy.deleteCancelButton" = "Cancel";
+"privacy.deleteDevCode" = "DEV code: %@";
+"privacy.deletePendingTitle" = "Account scheduled for deletion";
+"privacy.deletePendingBody" = "Your account will be permanently anonymized in %d days. Sign in any time before then to cancel.";
+"privacy.deletePendingDays" = "%d days remaining";
+"privacy.deleteCancelCTA" = "Cancel deletion";
+"privacy.deleteCancelled" = "Your account is active again.";
+"privacy.deleteInvalidCode" = "Invalid or expired code. Please request a new one.";
+"privacy.deleteError" = "Something went wrong. Please try again.";

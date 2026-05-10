@@ -249,3 +249,43 @@
 "orders.cancelled" = "ملغي";
 "orders.refunded" = "مسترد";
 "orders.reorder" = "اطلب مجدداً";
+
+/* Privacy & data (SHIP-PLAN 1.5 — App Store 5.1.1(v) + Egypt PDPL Law 151/2020) */
+"profile.privacyAndData" = "الخصوصية والبيانات";
+"privacy.title" = "الخصوصية والبيانات";
+"privacy.intro" = "تحكم في بياناتك وحسابك. وفقاً لقانون حماية البيانات الشخصية المصري رقم 151 لسنة 2020، يحق لك الوصول إلى بياناتك ومحوها.";
+"privacy.row" = "الخصوصية والبيانات";
+
+/* Privacy — export */
+"privacy.exportSection" = "بياناتك";
+"privacy.exportDescription" = "نزّل نسخة من كل ما يحتفظ به Cup & Co عنك — الطلبات والتقييمات والمفضلة وسجل الولاء وبيانات الملف.";
+"privacy.exportButton" = "تنزيل بياناتي";
+"privacy.exportPreparing" = "جاري تحضير ملفك…";
+"privacy.exportReady" = "بياناتك جاهزة.";
+"privacy.exportDownload" = "تنزيل";
+"privacy.exportShare" = "مشاركة";
+"privacy.exportRateLimited" = "يمكنك طلب نسخة جديدة كل 7 أيام.";
+"privacy.exportError" = "تعذر تحضير ملفك. حاول مجدداً.";
+"privacy.exportSavedTo" = "تم الحفظ باسم %@";
+
+/* Privacy — delete account */
+"privacy.deleteSection" = "حذف الحساب";
+"privacy.deleteDescription" = "تجهيل حسابك بشكل نهائي. لديك مهلة 30 يوماً للتراجع.";
+"privacy.deleteButton" = "طلب حذف الحساب";
+"privacy.deleteConfirmTitle" = "حذف حسابك؟";
+"privacy.deleteConfirmBody" = "سيتم تجهيل حسابك خلال 30 يوماً. يمكنك التراجع في أي وقت خلال هذه المدة.";
+"privacy.deleteConfirmCTA" = "متابعة";
+"privacy.deleteCodeTitle" = "أدخل كود التأكيد";
+"privacy.deleteCodeBody" = "أرسلنا لك كوداً من 6 أرقام. أدخله أدناه للتأكيد.";
+"privacy.deleteCodePlaceholder" = "123456";
+"privacy.deleteSendCode" = "أرسل الكود";
+"privacy.deleteFinalConfirm" = "تأكيد الحذف";
+"privacy.deleteCancelButton" = "إلغاء";
+"privacy.deleteDevCode" = "كود التطوير: %@";
+"privacy.deletePendingTitle" = "الحساب مجدول للحذف";
+"privacy.deletePendingBody" = "سيتم تجهيل حسابك بشكل نهائي خلال %d يوماً. سجّل دخولك في أي وقت قبل ذلك للإلغاء.";
+"privacy.deletePendingDays" = "متبقي %d يوماً";
+"privacy.deleteCancelCTA" = "إلغاء الحذف";
+"privacy.deleteCancelled" = "تم تفعيل حسابك مرة أخرى.";
+"privacy.deleteInvalidCode" = "كود غير صالح أو منتهي. اطلب كوداً جديداً.";
+"privacy.deleteError" = "حدث خطأ. حاول مجدداً.";
