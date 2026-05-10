@@ -12,6 +12,7 @@ import {
   LineChart,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -46,8 +47,52 @@ import {
   type AdminReportRoleBreakdown,
   type AdminReportTopItem,
   type AdminRevenueTrendEntry,
+  type AdminRevenueKpis,
+  type AdminCustomersReport,
+  type AdminPaymentMixEntry,
+  type AdminChannelMixEntry,
+  type AdminHeatmapReport,
+  type AdminRefundsReport,
+  type AdminFunnelReport,
+  type AdminPrepSlaReport,
+  type AdminKioskLeaderboardRow,
+  type AdminSlowMover,
+  type AdminProductPair,
+  type AdminOfferPerformance,
+  type AdminLoyaltyMetrics,
+  type AdminCohortRow,
+  type AdminClvReport,
+  type AdminReferralFunnel,
+  type AdminForecastReport,
+  type AdminAnomalyReport,
+  type AdminTarget,
 } from '@/lib/api';
 import { KioskBreakdownSection } from '@/components/KioskBreakdownSection';
+import { RevenueKpisV2 } from '@/components/RevenueKpisV2';
+import { CustomersSplitCard } from '@/components/CustomersSplitCard';
+import { PaymentMixCard } from '@/components/PaymentMixCard';
+import { ChannelMixCard } from '@/components/ChannelMixCard';
+import { OrderHeatmap } from '@/components/OrderHeatmap';
+import { RefundsCard } from '@/components/RefundsCard';
+import { FunnelChart } from '@/components/FunnelChart';
+import { PrepSlaCard } from '@/components/PrepSlaCard';
+import { KioskLeaderboard } from '@/components/KioskLeaderboard';
+import { SlowMoversCard } from '@/components/SlowMoversCard';
+import { ProductAttachCard } from '@/components/ProductAttachCard';
+import { OfferPerformanceCard } from '@/components/OfferPerformanceCard';
+import { LoyaltyMetricsCard } from '@/components/LoyaltyMetricsCard';
+import { CohortRetentionCard } from '@/components/CohortRetentionCard';
+import { ClvCard } from '@/components/ClvCard';
+import { ReferralFunnelCard } from '@/components/ReferralFunnelCard';
+import { ForecastCard } from '@/components/ForecastCard';
+import { AnomalyCard } from '@/components/AnomalyCard';
+import { ComparisonCard } from '@/components/ComparisonCard';
+import { TargetsCard } from '@/components/TargetsCard';
+import { AnnotationsCard } from '@/components/AnnotationsCard';
+import { SavedViewsBar } from '@/components/SavedViewsBar';
+import { PulseCard } from '@/components/PulseCard';
+import { MasterExportCard } from '@/components/MasterExportCard';
+import { DigestCard } from '@/components/DigestCard';
 
 const PIE_COLORS = ['#C2410C', '#0F766E', '#F4A261', '#9A3412', '#FEF3C7', '#1C1917'];
 
@@ -121,6 +166,33 @@ export default function ReportsPage() {
   const [peakHours, setPeakHours] = useState<AdminPeakHourEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Layer A — v2 report state
+  const [revenueKpis, setRevenueKpis] = useState<AdminRevenueKpis | null>(null);
+  const [customersReport, setCustomersReport] = useState<AdminCustomersReport | null>(null);
+  const [paymentMix, setPaymentMix] = useState<{ breakdown: AdminPaymentMixEntry[]; total: number } | null>(null);
+  const [channelMix, setChannelMix] = useState<{ breakdown: AdminChannelMixEntry[]; total: number } | null>(null);
+  const [heatmap, setHeatmap] = useState<AdminHeatmapReport | null>(null);
+  const [refundsReport, setRefundsReport] = useState<AdminRefundsReport | null>(null);
+  const [funnelReport, setFunnelReport] = useState<AdminFunnelReport | null>(null);
+
+  // Layer B — operational insights state
+  const [prepSla, setPrepSla] = useState<AdminPrepSlaReport | null>(null);
+  const [kioskLeaderboard, setKioskLeaderboard] = useState<AdminKioskLeaderboardRow[]>([]);
+  const [slowMovers, setSlowMovers] = useState<AdminSlowMover[]>([]);
+  const [productAttach, setProductAttach] = useState<AdminProductPair[]>([]);
+  const [offerPerf, setOfferPerf] = useState<AdminOfferPerformance | null>(null);
+  const [loyaltyMetrics, setLoyaltyMetrics] = useState<AdminLoyaltyMetrics | null>(null);
+
+  // Layer C — growth analytics state
+  const [cohortData, setCohortData] = useState<AdminCohortRow[]>([]);
+  const [clvReport, setClvReport] = useState<AdminClvReport | null>(null);
+  const [referralFunnel, setReferralFunnel] = useState<AdminReferralFunnel | null>(null);
+  const [forecastReport, setForecastReport] = useState<AdminForecastReport | null>(null);
+  const [anomalyReport, setAnomalyReport] = useState<AdminAnomalyReport | null>(null);
+
+  // Layer D — current month target for goal-line overlay
+  const [currentMonthTarget, setCurrentMonthTarget] = useState<AdminTarget | null>(null);
+
   const topSort = useSortState<TopItemSortKey>('count');
   const ratingSort = useSortState<RatingSortKey>('avgRating');
   const abortRef = useRef<AbortController | null>(null);
@@ -131,13 +203,32 @@ export default function ReportsPage() {
     abortRef.current = ctl;
     setLoading(true);
     try {
-      const [rev, top, roles, revs, trendData, peakData] = await Promise.all([
+      const [rev, top, roles, revs, trendData, peakData, kpis, customers, pmix, cmix, heat, refunds, funnel, sla, kioskLB, slow, attach, offers, loyalty, cohorts, clv, referrals, forecast, anomalies, targetsRes] = await Promise.all([
         adminApi.getRevenueReport(dateParams, ctl.signal),
         adminApi.getTopItems(dateParams, ctl.signal),
         adminApi.getRoleBreakdown(dateParams, ctl.signal),
         adminApi.getReviewsReport(ctl.signal),
         adminApi.getRevenueTrend(dateParams, ctl.signal),
         adminApi.getPeakHours(dateParams, ctl.signal),
+        adminApi.getRevenueKpis(dateParams, ctl.signal),
+        adminApi.getCustomersReport(dateParams, ctl.signal),
+        adminApi.getPaymentMix(dateParams, ctl.signal),
+        adminApi.getChannelMix(dateParams, ctl.signal),
+        adminApi.getHeatmap(dateParams, ctl.signal),
+        adminApi.getRefundsReport(dateParams, ctl.signal),
+        adminApi.getFunnelReport(dateParams, ctl.signal),
+        adminApi.getPrepSla(dateParams, ctl.signal),
+        adminApi.getKioskLeaderboard(dateParams, ctl.signal),
+        adminApi.getSlowMovers(dateParams, ctl.signal),
+        adminApi.getProductAttach(dateParams, ctl.signal),
+        adminApi.getOfferPerformance(dateParams, ctl.signal),
+        adminApi.getLoyaltyMetrics(ctl.signal),
+        adminApi.getCohortRetention(undefined, ctl.signal),
+        adminApi.getClv(ctl.signal),
+        adminApi.getReferralFunnel(ctl.signal),
+        adminApi.getForecast(ctl.signal),
+        adminApi.getAnomalies(undefined, ctl.signal),
+        adminApi.getTargets(ctl.signal),
       ]);
       if (ctl.signal.aborted) return;
       setRevenue(rev);
@@ -146,6 +237,26 @@ export default function ReportsPage() {
       setReviewsReport(revs);
       setTrend(trendData.days ?? []);
       setPeakHours(peakData.hours ?? []);
+      setRevenueKpis(kpis);
+      setCustomersReport(customers);
+      setPaymentMix(pmix);
+      setChannelMix(cmix);
+      setHeatmap(heat);
+      setRefundsReport(refunds);
+      setFunnelReport(funnel);
+      setPrepSla(sla);
+      setKioskLeaderboard(kioskLB.rows ?? []);
+      setSlowMovers(slow.products ?? []);
+      setProductAttach(attach.pairs ?? []);
+      setOfferPerf(offers);
+      setLoyaltyMetrics(loyalty);
+      setCohortData(cohorts.cohorts ?? []);
+      setClvReport(clv);
+      setReferralFunnel(referrals);
+      setForecastReport(forecast);
+      setAnomalyReport(anomalies);
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      setCurrentMonthTarget((targetsRes.targets ?? []).find(t => t.month === currentMonth) ?? null);
     } catch (err: unknown) {
       if ((err as Error).name === 'AbortError') return;
       toast('error', (err as Error).message);
@@ -268,6 +379,14 @@ export default function ReportsPage() {
           </p>
           <h1 className="font-heading text-3xl font-bold text-cup-brown-900">Reports</h1>
           <p className="mt-1 text-sm text-cup-muted">Revenue, top items, and customer mix.</p>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-pill border border-cup-stroke bg-white px-3 py-1 text-xs font-semibold text-cup-brown-700 transition hover:bg-cup-cream-100"
+          >
+            <FileText className="h-3 w-3" aria-hidden />
+            Print / Save as PDF
+          </button>
         </div>
 
         {/* Phase R.3 — date range presets. Drives revenue / top items /
@@ -316,31 +435,92 @@ export default function ReportsPage() {
         </div>
       </header>
 
-      {/* KPI cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard
-          label="Today's revenue"
-          value={formatEgp(revenue?.todayRevenueEgp ?? 0)}
-          icon={DollarSign}
-          accent="orange"
-        />
-        <KpiCard
-          label="All-time revenue"
-          value={formatEgp(revenue?.totalRevenueEgp ?? 0)}
-          icon={TrendingUp}
-          accent="teal"
-        />
-        <KpiCard
-          label="Paid orders"
-          value={String(revenue?.paidOrders ?? 0)}
-          icon={Users}
-          accent="brown"
+      {/* Saved views + owner pulse */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SavedViewsBar
+          currentPreset={preset}
+          currentFrom={dateParams?.from}
+          currentTo={dateParams?.to}
+          onApply={(p, f, t) => {
+            if (p === 'custom' && f && t) {
+              setPreset('custom');
+              setCustomFrom(f);
+              setCustomTo(t);
+            } else {
+              setPreset(p as RangePreset);
+            }
+          }}
         />
       </div>
 
-      {/* Cup AI usage analytics — sandwiched between KPI cards and the
-          top-items chart so it's visible without scrolling. */}
+      {/* v2 KPI cards with delta vs prior period + AOV */}
+      {revenueKpis ? (
+        <RevenueKpisV2 data={revenueKpis} />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <KpiCard label="Today's revenue" value={formatEgp(revenue?.todayRevenueEgp ?? 0)} icon={DollarSign} accent="orange" />
+          <KpiCard label="All-time revenue" value={formatEgp(revenue?.totalRevenueEgp ?? 0)} icon={TrendingUp} accent="teal" />
+          <KpiCard label="Paid orders" value={String(revenue?.paidOrders ?? 0)} icon={Users} accent="brown" />
+        </div>
+      )}
+
+      {/* Order funnel */}
+      {funnelReport && <FunnelChart data={funnelReport} />}
+
+      {/* New vs returning customers */}
+      {customersReport && <CustomersSplitCard data={customersReport} />}
+
+      {/* Cup AI usage analytics */}
       <CupAiUsageTile />
+
+      {/* Payment method + channel mix */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {paymentMix && <PaymentMixCard data={paymentMix.breakdown} total={paymentMix.total} />}
+        {channelMix && <ChannelMixCard data={channelMix.breakdown} total={channelMix.total} />}
+      </div>
+
+      {/* Order heatmap (replaces single-dimension peak hours below) */}
+      {heatmap && <OrderHeatmap data={heatmap} />}
+
+      {/* Cancellations & refunds */}
+      {refundsReport && <RefundsCard data={refundsReport} />}
+
+      {/* ── Layer B: Operational Mastery ──────────────────────────────── */}
+
+      {/* Prep-time SLA */}
+      {prepSla && <PrepSlaCard data={prepSla} />}
+
+      {/* Loyalty program metrics */}
+      {loyaltyMetrics && <LoyaltyMetricsCard data={loyaltyMetrics} />}
+
+      {/* Offer / discount performance */}
+      {offerPerf && <OfferPerformanceCard data={offerPerf} />}
+
+      {/* Kiosk leaderboard + product attach side by side */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {kioskLeaderboard.length > 0 && <KioskLeaderboard rows={kioskLeaderboard} />}
+        {productAttach.length > 0 && <ProductAttachCard pairs={productAttach} />}
+      </div>
+
+      {/* Slow movers */}
+      {slowMovers.length > 0 && <SlowMoversCard products={slowMovers} />}
+
+      {/* ── Layer C: Growth Analytics ────────────────────────────────── */}
+
+      {/* Cohort retention */}
+      {cohortData.length > 0 && <CohortRetentionCard cohorts={cohortData} />}
+
+      {/* Customer lifetime value */}
+      {clvReport && <ClvCard data={clvReport} />}
+
+      {/* Referral program funnel */}
+      {referralFunnel && <ReferralFunnelCard data={referralFunnel} />}
+
+      {/* 7-day revenue forecast */}
+      {forecastReport && <ForecastCard data={forecastReport} />}
+
+      {/* Anomaly detection */}
+      {anomalyReport && <AnomalyCard data={anomalyReport} />}
 
       {/* Top items chart */}
       <section className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card">
@@ -549,6 +729,19 @@ export default function ReportsPage() {
                   dot={{ r: 3, fill: '#C2410C' }}
                   activeDot={{ r: 5 }}
                 />
+                {currentMonthTarget && currentMonthTarget.revenueTarget > 0 && (
+                  <ReferenceLine
+                    y={Math.round(currentMonthTarget.revenueTarget / 30)}
+                    stroke="#0F766E"
+                    strokeDasharray="6 4"
+                    label={{
+                      value: `Daily target ${formatEgp(Math.round(currentMonthTarget.revenueTarget / 30))}`,
+                      fill: '#0F766E',
+                      fontSize: 10,
+                      position: 'insideTopRight',
+                    }}
+                  />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -930,6 +1123,29 @@ export default function ReportsPage() {
           rest of the Reports page can keep its single-shot Promise.all
           pattern without growing here. */}
       <KioskBreakdownSection />
+
+      {/* ── Layer D: Self-serve owner tools ──────────────────────────── */}
+
+      {/* Owner pulse — quick mobile-friendly snapshot */}
+      <PulseCard />
+
+      {/* Interactive Layer D — hidden from print since they're tools, not data. */}
+      <div data-print-hide="true" className="space-y-6">
+        {/* Period comparison */}
+        <ComparisonCard />
+
+        {/* Monthly targets */}
+        <TargetsCard />
+
+        {/* Annotations — pin notes to dates */}
+        <AnnotationsCard dateRange={dateParams} />
+
+        {/* Bulk CSV export — full data dumps */}
+        <MasterExportCard dateRange={dateParams} />
+
+        {/* Weekly email digest */}
+        <DigestCard />
+      </div>
     </div>
   );
 }

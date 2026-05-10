@@ -266,3 +266,7 @@ export function getReferralStats(userId: string): ReferralStats {
       .reduce((s, r) => s + (r.referrerReward ?? 0), 0),
   };
 }
+
+export function getAllReferrals(): Referral[] {
+  return [...referrals];
+}
