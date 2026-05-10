@@ -1,4 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="32" viewBox="0 0 48 32">
-  <rect width="48" height="32" rx="4" fill="#F5F5F4" stroke="#E7E5E4"/>
-  <text x="24" y="18" text-anchor="middle" dominant-baseline="middle" font-family="system-ui" font-size="8" fill="#44403C" font-weight="500">VF Cash</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" width="48" height="32" role="img" aria-label="Vodafone Cash">
+  <rect width="48" height="32" rx="5" fill="#FFFFFF" stroke="#E5E7EB"/>
+  <!-- Vodafone "speech-mark" comma in their signature red, simplified for legal-safe distinction -->
+  <g transform="translate(24 16)">
+    <!-- Outer red disc -->
+    <circle r="10" fill="#E60000"/>
+    <!-- White speech-mark (a curl) — visually evocative without being the trademark glyph -->
+    <path d="M-3 -3 c-3 0 -5 2 -5 5 c0 3 2 5 5 5 c2 0 4 -1 5 -4 c-1 1 -2 1 -3 1 c-2 0 -3 -1 -3 -3 c0 -2 1 -4 4 -4 Z"
+          fill="#FFFFFF"/>
+  </g>
+  <!-- Subtle "CASH" label below -->
+  <text x="24" y="29"
+        text-anchor="middle"
+        font-family="ui-sans-serif, system-ui, sans-serif"
+        font-size="3.5"
+        font-weight="700"
+        fill="#374151"
+        letter-spacing="0.4">CASH</text>
 </svg>

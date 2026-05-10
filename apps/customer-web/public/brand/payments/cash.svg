@@ -1,4 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="32" viewBox="0 0 48 32">
-  <rect width="48" height="32" rx="4" fill="#F5F5F4" stroke="#E7E5E4"/>
-  <text x="24" y="18" text-anchor="middle" dominant-baseline="middle" font-family="system-ui" font-size="8" fill="#44403C" font-weight="500">Cash</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" width="48" height="32" role="img" aria-label="Cash on pickup">
+  <rect width="48" height="32" rx="5" fill="#FEF3C7" stroke="#C2410C" stroke-opacity="0.25"/>
+  <!-- Banknote outline -->
+  <rect x="9" y="11" width="30" height="14" rx="2" fill="#FAF6F0" stroke="#0F766E" stroke-width="1.4"/>
+  <!-- Center coin -->
+  <circle cx="24" cy="18" r="3.6" fill="none" stroke="#0F766E" stroke-width="1.4"/>
+  <!-- "EGP" mark in the center coin (Egyptian Pound) -->
+  <text x="24" y="20"
+        text-anchor="middle"
+        font-family="ui-sans-serif, system-ui, sans-serif"
+        font-size="3.8"
+        font-weight="700"
+        fill="#0F766E"
+        letter-spacing="-0.1">EGP</text>
+  <!-- Decorative corner ticks -->
+  <circle cx="12" cy="14" r="0.9" fill="#0F766E"/>
+  <circle cx="36" cy="14" r="0.9" fill="#0F766E"/>
+  <circle cx="12" cy="22" r="0.9" fill="#0F766E"/>
+  <circle cx="36" cy="22" r="0.9" fill="#0F766E"/>
 </svg>

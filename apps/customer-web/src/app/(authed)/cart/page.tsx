@@ -54,7 +54,7 @@ export default function CartPage() {
         <CartHeader t={t} />
         <div className="mx-auto mt-16 max-w-sm rounded-card border border-cup-stroke bg-white p-8 text-center shadow-card">
           <Image
-            src="/brand/empty-cart.png"
+            src="/brand/empty-cart.svg"
             alt=""
             width={180}
             height={180}
