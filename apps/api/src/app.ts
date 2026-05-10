@@ -2503,6 +2503,129 @@ export function createApp(): express.Express {
     } catch (e) { next(e); }
   });
 
+  // -------- Phase R.3 — restored reports endpoints --------
+  // These three were lost in earlier merges; the admin Reports page
+  // depends on them for Reviews / Revenue Trend / Peak Hours.
+
+  /**
+   * Per-product reviews aggregate. Returns total / avg / hidden +
+   * a 1–5 distribution + per-product rollup. Reads from the in-memory
+   * `reviews` map (same source the admin /admin/reviews list uses).
+   */
+  app.get('/admin/reports/reviews', requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const allReviews: Array<{ productId: string; rating: number; hidden: boolean }> = [];
+      for (const [, list] of reviews) for (const r of list) allReviews.push(r);
+
+      const catalog = await getCatalog();
+      const productNameMap = new Map(catalog.products.map((p) => [p.id, p.name_en]));
+
+      const total = allReviews.length;
+      const hiddenCount = allReviews.filter((r) => r.hidden).length;
+      const avgRating = total > 0
+        ? Math.round((allReviews.reduce((s, r) => s + r.rating, 0) / total) * 10) / 10
+        : 0;
+
+      const ratingDistribution: Record<string, number> = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
+      for (const r of allReviews) {
+        ratingDistribution[String(r.rating)] = (ratingDistribution[String(r.rating)] ?? 0) + 1;
+      }
+
+      const productMap = new Map<string, {
+        reviewCount: number; totalRating: number; hiddenCount: number;
+        ratingDistribution: Record<string, number>;
+      }>();
+      for (const r of allReviews) {
+        const existing = productMap.get(r.productId) ?? {
+          reviewCount: 0, totalRating: 0, hiddenCount: 0,
+          ratingDistribution: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
+        };
+        existing.reviewCount += 1;
+        existing.totalRating += r.rating;
+        if (r.hidden) existing.hiddenCount += 1;
+        existing.ratingDistribution[String(r.rating)] =
+          (existing.ratingDistribution[String(r.rating)] ?? 0) + 1;
+        productMap.set(r.productId, existing);
+      }
+
+      const byProduct = Array.from(productMap.entries())
+        .map(([productId, data]) => ({
+          productId,
+          name_en: productNameMap.get(productId) ?? productId,
+          reviewCount: data.reviewCount,
+          avgRating: Math.round((data.totalRating / data.reviewCount) * 10) / 10,
+          hiddenCount: data.hiddenCount,
+          ratingDistribution: data.ratingDistribution,
+        }))
+        .sort((a, b) => b.reviewCount - a.reviewCount);
+
+      res.json({ total, avgRating, hiddenCount, ratingDistribution, byProduct });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Daily revenue/orders over a window. Default window is the last 30
+   * days (inclusive of today). Range can be overridden with `?from=` and
+   * `?to=` (YYYY-MM-DD). Returns one row per day so the chart axis is
+   * continuous even on days with zero orders.
+   */
+  app.get('/admin/reports/revenue-trend', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 29);
+        return d.toISOString().slice(0, 10);
+      })();
+      const dayMap = new Map<string, { revenue: number; orders: number }>();
+      for (const order of orders.values()) {
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        const slot = dayMap.get(day) ?? { revenue: 0, orders: 0 };
+        slot.orders += 1;
+        if (order.paymentStatus === 'paid') slot.revenue += order.totalEgp;
+        dayMap.set(day, slot);
+      }
+      const days: { date: string; revenue: number; orders: number }[] = [];
+      const cur = new Date(effectiveFrom + 'T00:00:00Z');
+      const end = new Date(effectiveTo + 'T00:00:00Z');
+      while (cur <= end) {
+        const key = cur.toISOString().slice(0, 10);
+        const slot = dayMap.get(key) ?? { revenue: 0, orders: 0 };
+        days.push({ date: key, ...slot });
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+      res.json({ days });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Peak hours — order count grouped by hour-of-day (0–23). Optional
+   * `?from=` / `?to=` (YYYY-MM-DD) restricts which orders feed the
+   * histogram; default is all orders.
+   */
+  app.get('/admin/reports/peak-hours', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const hourCounts = new Array<number>(24).fill(0);
+      for (const order of orders.values()) {
+        const day = order.createdAt.slice(0, 10);
+        if (fromQ && day < fromQ) continue;
+        if (toQ && day > toQ) continue;
+        const hour = new Date(order.createdAt).getHours();
+        hourCounts[hour] += 1;
+      }
+      const hours = hourCounts.map((count, hour) => ({ hour, count }));
+      res.json({ hours });
+    } catch (e) { next(e); }
+  });
+
   /**
    * Phase K6.4 — by-kiosk daily report.
    *
