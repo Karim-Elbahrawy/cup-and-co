@@ -117,7 +117,7 @@ export interface Translations {
   };
   nav: {
     home: string;
-    usual: string;
+    orders: string;
     cart: string;
     rewards: string;
     profile: string;
