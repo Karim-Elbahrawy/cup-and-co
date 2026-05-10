@@ -18,6 +18,7 @@ import { WelcomeBackBanner } from '@/components/WelcomeBackBanner';
 import { ActiveOrderBanner } from '@/components/ActiveOrderBanner';
 import { RecentOrdersStrip } from '@/components/RecentOrdersStrip';
 import { DrinkConcierge } from '@/components/DrinkConcierge';
+import { CoffeePassBanner } from '@/components/CoffeePassBanner';
 import { api } from '@/lib/api';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { useActiveOrder } from '@/lib/useActiveOrder';
@@ -125,6 +126,10 @@ export default function HomePage() {
         {activeOrder && (
           <ActiveOrderBanner order={activeOrder} language={language} />
         )}
+
+        {/* Coffee Pass banner — only renders for subscribers with a credit
+            available right now. Self-fetches; silent for everyone else. */}
+        <CoffeePassBanner />
 
         {/* Recent orders — horizontal strip of 3 most-recent terminal orders.
             Hidden when the user has no past orders (no flash for new users). */}

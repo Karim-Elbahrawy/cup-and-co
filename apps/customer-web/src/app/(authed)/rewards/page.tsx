@@ -32,6 +32,7 @@ import type {
   PrizesResponse,
 } from '@/lib/types';
 import { QRScanner } from './QRScanner';
+import { CoffeePassCard } from '@/components/CoffeePassCard';
 
 const SOURCE_CONFIG: Record<string, { label: string; icon: typeof Gift; color: string }> = {
   online_paid: { label: 'Online Order', icon: ShoppingBag, color: 'text-cup-teal-600' },
@@ -160,6 +161,13 @@ export default function RewardsPage() {
               </p>
             </div>
           </motion.section>
+
+          {/* Coffee Pass — subscription tier card. Lives directly under the
+              points balance because it's the next-tier upsell the customer
+              cares about most. Self-fetches its own state. */}
+          <div className="mt-4">
+            <CoffeePassCard />
+          </div>
 
           {/* Play Game button — students only */}
           {isStudent && (

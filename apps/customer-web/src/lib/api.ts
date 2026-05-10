@@ -305,6 +305,19 @@ export const api = {
   // -- Phase 6.2 streaks --
   myStreak: () => apiFetch<{ streak: StreakState }>('/me/streak'),
 
+  // -- Coffee Pass — subscription read/subscribe/cancel --
+  mySubscription: () =>
+    apiFetch<MySubscriptionResponse>('/me/subscription'),
+  subscribeToPlan: (planId: string) =>
+    apiFetch<{ subscription: UserSubscription }>('/me/subscription/subscribe', {
+      method: 'POST',
+      body: { planId },
+    }),
+  cancelMySubscription: () =>
+    apiFetch<{ subscription: UserSubscription }>('/me/subscription/cancel', {
+      method: 'POST',
+    }),
+
   // -- Phase 6.3 tiered loyalty --
   myTier: () =>
     apiFetch<{
@@ -445,4 +458,39 @@ export interface Suggestion {
   bucket: 'morning' | 'midday' | 'evening';
   season: 'summer' | 'winter';
   reason: 'history' | 'season' | 'bestseller';
+}
+
+// ── Coffee Pass — subscription types (mirror api/db/subscriptionsStore) ─────
+export interface SubscriptionPlan {
+  id: string;
+  name_en: string;
+  name_ar: string;
+  description_en: string;
+  description_ar: string;
+  price_egp: number;
+  daily_drink_credits: number;
+  valid_until_hour: number | null;
+  billing_cycle_days: number;
+}
+
+export interface UserSubscription {
+  userId: string;
+  planId: string;
+  startedAt: string;
+  endsAt: string;
+  status: 'active' | 'cancelled' | 'expired';
+  cancelledAt: string | null;
+  dailyUsage: Record<string, number>;
+}
+
+export interface SubscriptionEligibility {
+  eligible: boolean;
+  reason: 'no_subscription' | 'expired' | 'outside_hours' | 'daily_cap_reached' | 'eligible';
+  creditsRemainingToday: number;
+}
+
+export interface MySubscriptionResponse {
+  subscription: UserSubscription | null;
+  plans: SubscriptionPlan[];
+  eligibility: SubscriptionEligibility;
 }
