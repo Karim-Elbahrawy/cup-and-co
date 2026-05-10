@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Bar,
   BarChart,
+  CartesianGrid,
   Cell,
   Legend,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -14,7 +17,21 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { DollarSign, TrendingUp, Users, BarChart3, FileText } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  BarChart2,
+  BarChart3,
+  Clock,
+  DollarSign,
+  EyeOff,
+  FileText,
+  MessageSquare,
+  Star,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { useToast } from '@/components/Toast';
 import { Skeleton, SkeletonCard } from '@/components/Skeleton';
 import { EmptyState } from '@/components/EmptyState';
@@ -23,13 +40,56 @@ import { useSession } from '@/lib/useSession';
 import { formatEgp } from '@/lib/format';
 import {
   adminApi,
+  type AdminPeakHourEntry,
+  type AdminReportReviews,
   type AdminReportRevenue,
-  type AdminReportTopItem,
   type AdminReportRoleBreakdown,
+  type AdminReportTopItem,
+  type AdminRevenueTrendEntry,
 } from '@/lib/api';
 import { KioskBreakdownSection } from '@/components/KioskBreakdownSection';
 
 const PIE_COLORS = ['#C2410C', '#0F766E', '#F4A261', '#9A3412', '#FEF3C7', '#1C1917'];
+
+// ── Date range helpers (R.3 — date filter) ──────────────────────────────────
+type RangePreset = 'today' | '7d' | '30d' | 'all' | 'custom';
+
+function presetToDates(preset: RangePreset): { from: string; to: string } | undefined {
+  if (preset === 'all') return undefined;
+  const now = new Date();
+  const to = now.toISOString().slice(0, 10);
+  if (preset === 'today') return { from: to, to };
+  if (preset === '7d') {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 6);
+    return { from: d.toISOString().slice(0, 10), to };
+  }
+  if (preset === '30d') {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 29);
+    return { from: d.toISOString().slice(0, 10), to };
+  }
+  return undefined;
+}
+
+// ── Sort helpers (R.3 — sortable tables) ────────────────────────────────────
+type SortDir = 'asc' | 'desc';
+
+function useSortState<K extends string>(defaultKey: K, defaultDir: SortDir = 'desc') {
+  const [key, setKey] = useState<K>(defaultKey);
+  const [dir, setDir] = useState<SortDir>(defaultDir);
+  const toggle = (nextKey: K) => {
+    if (nextKey === key) setDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    else {
+      setKey(nextKey);
+      setDir(defaultDir);
+    }
+  };
+  return { key, dir, toggle };
+}
+
+type TopItemSortKey = 'count' | 'revenue' | 'name_en';
+type RatingSortKey = 'avgRating' | 'reviewCount' | 'name_en';
 
 export default function ReportsPage() {
   const toast = useToast();
@@ -40,30 +100,64 @@ export default function ReportsPage() {
     if (session && session.role !== 'owner') router.replace('/');
   }, [session, router]);
 
+  // Date range state — drives every filterable section.
+  const [preset, setPreset] = useState<RangePreset>('30d');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+
+  const dateParams = useMemo(() => {
+    if (preset === 'custom') {
+      if (customFrom && customTo) return { from: customFrom, to: customTo };
+      return undefined;
+    }
+    return presetToDates(preset);
+  }, [preset, customFrom, customTo]);
+
   const [revenue, setRevenue] = useState<AdminReportRevenue | null>(null);
   const [topItems, setTopItems] = useState<AdminReportTopItem[]>([]);
   const [breakdown, setBreakdown] = useState<AdminReportRoleBreakdown | null>(null);
+  const [reviewsReport, setReviewsReport] = useState<AdminReportReviews | null>(null);
+  const [trend, setTrend] = useState<AdminRevenueTrendEntry[]>([]);
+  const [peakHours, setPeakHours] = useState<AdminPeakHourEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const topSort = useSortState<TopItemSortKey>('count');
+  const ratingSort = useSortState<RatingSortKey>('avgRating');
+  const abortRef = useRef<AbortController | null>(null);
+
+  const loadReports = useCallback(async () => {
+    abortRef.current?.abort();
+    const ctl = new AbortController();
+    abortRef.current = ctl;
+    setLoading(true);
+    try {
+      const [rev, top, roles, revs, trendData, peakData] = await Promise.all([
+        adminApi.getRevenueReport(dateParams, ctl.signal),
+        adminApi.getTopItems(dateParams, ctl.signal),
+        adminApi.getRoleBreakdown(dateParams, ctl.signal),
+        adminApi.getReviewsReport(ctl.signal),
+        adminApi.getRevenueTrend(dateParams, ctl.signal),
+        adminApi.getPeakHours(dateParams, ctl.signal),
+      ]);
+      if (ctl.signal.aborted) return;
+      setRevenue(rev);
+      setTopItems(top.topItems ?? []);
+      setBreakdown(roles);
+      setReviewsReport(revs);
+      setTrend(trendData.days ?? []);
+      setPeakHours(peakData.hours ?? []);
+    } catch (err: unknown) {
+      if ((err as Error).name === 'AbortError') return;
+      toast('error', (err as Error).message);
+    } finally {
+      if (!ctl.signal.aborted) setLoading(false);
+    }
+  }, [dateParams, toast]);
+
   useEffect(() => {
-    let cancelled = false;
-    Promise.all([
-      adminApi.getRevenueReport(),
-      adminApi.getTopItems(),
-      adminApi.getRoleBreakdown(),
-    ])
-      .then(([rev, top, roles]) => {
-        if (cancelled) return;
-        setRevenue(rev);
-        setTopItems(top.topItems);
-        setBreakdown(roles);
-      })
-      .catch((err) => toast('error', err.message))
-      .finally(() => setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [toast]);
+    loadReports();
+    return () => abortRef.current?.abort();
+  }, [loadReports]);
 
   function exportCsv(rows: Array<Record<string, string | number>>, filename: string) {
     if (rows.length === 0) {
@@ -92,6 +186,32 @@ export default function ReportsPage() {
     toast('success', 'Downloaded.');
   }
 
+  // Sorted tables.
+  const sortedTopItems = useMemo(() => {
+    const items = [...topItems];
+    items.sort((a, b) => {
+      const delta =
+        topSort.key === 'name_en'
+          ? a.name_en.localeCompare(b.name_en)
+          : (a[topSort.key] as number) - (b[topSort.key] as number);
+      return topSort.dir === 'asc' ? delta : -delta;
+    });
+    return items;
+  }, [topItems, topSort.key, topSort.dir]);
+
+  const sortedByRating = useMemo(() => {
+    if (!reviewsReport) return [];
+    const items = [...reviewsReport.byProduct];
+    items.sort((a, b) => {
+      let delta = 0;
+      if (ratingSort.key === 'name_en') delta = a.name_en.localeCompare(b.name_en);
+      else if (ratingSort.key === 'avgRating') delta = a.avgRating - b.avgRating;
+      else if (ratingSort.key === 'reviewCount') delta = a.reviewCount - b.reviewCount;
+      return ratingSort.dir === 'asc' ? delta : -delta;
+    });
+    return items;
+  }, [reviewsReport, ratingSort.key, ratingSort.dir]);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -107,7 +227,7 @@ export default function ReportsPage() {
     );
   }
 
-  // Reshape role breakdown for the donut
+  // Reshape role breakdown for the donut.
   const rolePie = breakdown
     ? Object.entries(breakdown.breakdown).map(([role, data]) => ({
         role: role.charAt(0).toUpperCase() + role.slice(1),
@@ -116,7 +236,7 @@ export default function ReportsPage() {
       }))
     : [];
 
-  // Reshape top items for bar chart (top 8)
+  // Reshape top items for bar chart (top 8).
   const topBars = topItems.slice(0, 8).map((t) => ({
     name: t.name_en.length > 14 ? `${t.name_en.slice(0, 14)}…` : t.name_en,
     full: t.name_en,
@@ -124,13 +244,75 @@ export default function ReportsPage() {
     revenue: t.revenue,
   }));
 
+  // Trend chart data — recharts wants whatever-shaped objects.
+  const trendData = trend.map((t) => ({
+    date: t.date.slice(5), // MM-DD (the API gives YYYY-MM-DD)
+    fullDate: t.date,
+    revenue: t.revenue,
+    orders: t.orders,
+  }));
+
+  // Peak hours — fill 0-23 so the X axis is always continuous.
+  const peakMap = new Map(peakHours.map((h) => [h.hour, h.count]));
+  const peakChart = Array.from({ length: 24 }, (_, h) => ({
+    hour: `${h.toString().padStart(2, '0')}:00`,
+    count: peakMap.get(h) ?? 0,
+  }));
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cup-muted">Analytics</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cup-muted">
+            Analytics
+          </p>
           <h1 className="font-heading text-3xl font-bold text-cup-brown-900">Reports</h1>
           <p className="mt-1 text-sm text-cup-muted">Revenue, top items, and customer mix.</p>
+        </div>
+
+        {/* Phase R.3 — date range presets. Drives revenue / top items /
+            role breakdown / revenue trend / peak hours. Reviews is
+            currently unfiltered (lifetime) on purpose; it's small data. */}
+        <div className="flex flex-wrap items-center gap-2">
+          {(['today', '7d', '30d', 'all', 'custom'] as RangePreset[]).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPreset(p)}
+              className={`rounded-pill px-3 py-1.5 text-xs font-semibold transition ${
+                preset === p
+                  ? 'bg-cup-brown-900 text-white'
+                  : 'border border-cup-stroke bg-white text-cup-brown-700 hover:bg-cup-cream-100'
+              }`}
+            >
+              {p === 'today'
+                ? 'Today'
+                : p === '7d'
+                ? 'Last 7 days'
+                : p === '30d'
+                ? 'Last 30 days'
+                : p === 'all'
+                ? 'All time'
+                : 'Custom'}
+            </button>
+          ))}
+          {preset === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="rounded-lg border border-cup-stroke px-2 py-1.5 text-xs focus:border-cup-orange-600 focus:outline-none"
+              />
+              <span className="text-xs text-cup-muted">to</span>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="rounded-lg border border-cup-stroke px-2 py-1.5 text-xs focus:border-cup-orange-600 focus:outline-none"
+              />
+            </div>
+          )}
         </div>
       </header>
 
@@ -171,7 +353,11 @@ export default function ReportsPage() {
             type="button"
             onClick={() =>
               exportCsv(
-                topItems.map((t) => ({ Product: t.name_en, Quantity: t.count, Revenue: t.revenue })),
+                topItems.map((t) => ({
+                  Product: t.name_en,
+                  Quantity: t.count,
+                  Revenue: t.revenue,
+                })),
                 'top-items.csv',
               )
             }
@@ -306,6 +492,440 @@ export default function ReportsPage() {
         )}
       </section>
 
+      {/* Phase R.3 — Revenue trend (line chart). Recharts is reused so the
+          visual style matches the existing top-items / customer-breakdown
+          charts. The recovery branch used inline divs; we kept recharts. */}
+      <section className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card">
+        <header className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="h-4 w-4 text-cup-orange-600" aria-hidden />
+            <h2 className="font-heading text-base font-semibold text-cup-brown-900">
+              Revenue trend
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              exportCsv(
+                trend.map((t) => ({ Date: t.date, RevenueEGP: t.revenue, Orders: t.orders })),
+                'revenue-trend.csv',
+              )
+            }
+            className="inline-flex items-center gap-1.5 rounded-pill border border-cup-stroke bg-white px-3 py-1 text-xs font-semibold text-cup-brown-700 transition hover:bg-cup-cream-100"
+          >
+            <FileText className="h-3 w-3" aria-hidden />
+            Export CSV
+          </button>
+        </header>
+        {trendData.length === 0 ? (
+          <EmptyState
+            icon={BarChart2}
+            title="No trend data yet"
+            description="Daily revenue will plot here as orders come in."
+          />
+        ) : (
+          <div className="h-72 w-full">
+            <ResponsiveContainer>
+              <LineChart data={trendData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: '#78716C' }}
+                  interval={trendData.length > 14 ? Math.ceil(trendData.length / 12) : 0}
+                />
+                <YAxis tick={{ fontSize: 11, fill: '#78716C' }} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: '1px solid #E7E5E4' }}
+                  formatter={(value, name) =>
+                    name === 'revenue' ? [`${value} EGP`, 'Revenue'] : [String(value), 'Orders']
+                  }
+                  labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullDate ?? ''}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#C2410C"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#C2410C' }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </section>
+
+      {/* Phase R.3 — Peak hours (bar chart by hour 0-23). */}
+      <section className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card">
+        <header className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-cup-orange-600" aria-hidden />
+            <h2 className="font-heading text-base font-semibold text-cup-brown-900">
+              Peak order hours
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              exportCsv(
+                peakChart.map((p) => ({ Hour: p.hour, Orders: p.count })),
+                'peak-hours.csv',
+              )
+            }
+            className="inline-flex items-center gap-1.5 rounded-pill border border-cup-stroke bg-white px-3 py-1 text-xs font-semibold text-cup-brown-700 transition hover:bg-cup-cream-100"
+          >
+            <FileText className="h-3 w-3" aria-hidden />
+            Export CSV
+          </button>
+        </header>
+        {peakHours.length === 0 ? (
+          <EmptyState
+            icon={Clock}
+            title="No hour-of-day data yet"
+            description="Order timestamps will populate this chart."
+          />
+        ) : (
+          <div className="h-72 w-full">
+            <ResponsiveContainer>
+              <BarChart data={peakChart} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" />
+                <XAxis
+                  dataKey="hour"
+                  tick={{ fontSize: 10, fill: '#78716C' }}
+                  interval={1}
+                />
+                <YAxis tick={{ fontSize: 11, fill: '#78716C' }} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: '#FEF3C7' }}
+                  contentStyle={{ borderRadius: 12, border: '1px solid #E7E5E4' }}
+                  formatter={(value) => [String(value), 'Orders']}
+                />
+                <Bar dataKey="count" fill="#0F766E" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </section>
+
+      {/* Phase R.3 — Most ordered products (sortable table). */}
+      <section className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card">
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-cup-orange-600" aria-hidden />
+            <h2 className="font-heading text-base font-semibold text-cup-brown-900">
+              Most ordered products
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <SortPills
+              options={[
+                { key: 'count', label: 'Qty Sold' },
+                { key: 'revenue', label: 'Revenue' },
+                { key: 'name_en', label: 'Name' },
+              ]}
+              active={topSort.key}
+              dir={topSort.dir}
+              onSelect={topSort.toggle}
+            />
+            <button
+              type="button"
+              onClick={() =>
+                exportCsv(
+                  sortedTopItems.map((i) => ({
+                    Product: i.name_en,
+                    Quantity: i.count,
+                    Revenue: i.revenue,
+                  })),
+                  'top-products.csv',
+                )
+              }
+              className="inline-flex items-center gap-1.5 rounded-pill border border-cup-stroke bg-white px-3 py-1 text-xs font-semibold text-cup-brown-700 transition hover:bg-cup-cream-100"
+            >
+              <FileText className="h-3 w-3" aria-hidden />
+              CSV
+            </button>
+          </div>
+        </header>
+        {sortedTopItems.length === 0 ? (
+          <EmptyState
+            icon={BarChart3}
+            title="No order data yet"
+            description="Sales rankings populate as orders come in."
+          />
+        ) : (
+          <div className="overflow-hidden rounded-chip border border-cup-stroke">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-cup-cream-100 text-xs font-semibold uppercase text-cup-muted">
+                <tr>
+                  <SortTh
+                    label="Product"
+                    sortKey="name_en"
+                    active={topSort.key}
+                    dir={topSort.dir}
+                    onSort={topSort.toggle}
+                    className="px-4 py-3"
+                  />
+                  <SortTh
+                    label="Qty Sold"
+                    sortKey="count"
+                    active={topSort.key}
+                    dir={topSort.dir}
+                    onSort={topSort.toggle}
+                    className="px-4 py-3 text-right"
+                  />
+                  <SortTh
+                    label="Revenue"
+                    sortKey="revenue"
+                    active={topSort.key}
+                    dir={topSort.dir}
+                    onSort={topSort.toggle}
+                    className="px-4 py-3 text-right"
+                  />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-cup-stroke">
+                {sortedTopItems.map((item, i) => (
+                  <tr key={i} className="transition-colors hover:bg-cup-cream-50">
+                    <td className="px-4 py-3 font-medium text-cup-brown-900">{item.name_en}</td>
+                    <td className="px-4 py-3 text-right text-cup-brown-700 tabular-nums">
+                      {item.count}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-cup-brown-900 tabular-nums">
+                      {formatEgp(item.revenue)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Phase R.3 — Product reviews summary tiles + rating distribution. */}
+      <section className="space-y-4">
+        <header className="flex items-center gap-2">
+          <MessageSquare className="h-4 w-4 text-cup-orange-600" aria-hidden />
+          <h2 className="font-heading text-base font-semibold text-cup-brown-900">
+            Product reviews
+          </h2>
+        </header>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <KpiCard
+            label="Total reviews"
+            value={String(reviewsReport?.total ?? 0)}
+            icon={MessageSquare}
+            accent="orange"
+          />
+          <KpiCard
+            label="Average rating"
+            value={
+              reviewsReport
+                ? `${reviewsReport.avgRating.toFixed(1)} / 5`
+                : '— / 5'
+            }
+            icon={Star}
+            accent="teal"
+          />
+          <KpiCard
+            label="Hidden reviews"
+            value={String(reviewsReport?.hiddenCount ?? 0)}
+            icon={EyeOff}
+            accent="brown"
+          />
+        </div>
+
+        {reviewsReport && reviewsReport.total === 0 ? (
+          <EmptyState
+            icon={MessageSquare}
+            title="No reviews yet"
+            description="Customer ratings appear here once orders are reviewed."
+          />
+        ) : (
+          <div className="grid gap-5 lg:grid-cols-2">
+            {/* Rating distribution */}
+            <div className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card">
+              <h3 className="mb-4 font-heading text-sm font-semibold text-cup-brown-900">
+                Rating distribution
+              </h3>
+              <div className="space-y-2.5">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = reviewsReport?.ratingDistribution[String(star)] ?? 0;
+                  const total = reviewsReport?.total ?? 0;
+                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                  return (
+                    <div key={star} className="flex items-center gap-3">
+                      <div className="flex w-12 shrink-0 items-center gap-1">
+                        <span className="text-sm font-semibold text-cup-brown-900">{star}</span>
+                        <Star
+                          className="h-3.5 w-3.5 fill-amber-400 text-amber-400"
+                          aria-hidden
+                        />
+                      </div>
+                      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-cup-cream-100">
+                        <div
+                          className="h-full rounded-full bg-amber-400 transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="w-14 text-right text-xs text-cup-muted tabular-nums">
+                        {count} <span className="text-cup-brown-400">({pct}%)</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top 5 by current sort */}
+            <div className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card">
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h3 className="font-heading text-sm font-semibold text-cup-brown-900">
+                  {ratingSort.key === 'avgRating'
+                    ? ratingSort.dir === 'desc'
+                      ? 'Best rated products'
+                      : 'Worst rated products'
+                    : ratingSort.key === 'reviewCount'
+                    ? ratingSort.dir === 'desc'
+                      ? 'Most reviewed products'
+                      : 'Least reviewed products'
+                    : 'Products A–Z'}
+                </h3>
+                <DirToggle
+                  dir={ratingSort.dir}
+                  onToggle={() => ratingSort.toggle(ratingSort.key)}
+                />
+              </div>
+              {sortedByRating.length === 0 ? (
+                <p className="text-sm text-cup-muted">No data yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {sortedByRating.slice(0, 5).map((p) => (
+                    <div key={p.productId} className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-cup-brown-900">
+                          {p.name_en}
+                        </p>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <StarRow rating={p.avgRating} />
+                          <span className="text-xs text-cup-muted">
+                            {p.avgRating.toFixed(1)} · {p.reviewCount} review
+                            {p.reviewCount !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      {p.hiddenCount > 0 && (
+                        <span className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600">
+                          {p.hiddenCount} hidden
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Phase R.3 — All products list (sortable, searchable via header sort). */}
+        {reviewsReport && reviewsReport.byProduct.length > 0 && (
+          <div className="rounded-card border border-cup-stroke bg-cup-surface p-5 shadow-card">
+            <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-heading text-sm font-semibold text-cup-brown-900">All products</h3>
+              <div className="flex items-center gap-2">
+                <SortPills
+                  options={[
+                    { key: 'avgRating', label: 'Rating' },
+                    { key: 'reviewCount', label: 'Reviews' },
+                    { key: 'name_en', label: 'Name' },
+                  ]}
+                  active={ratingSort.key}
+                  dir={ratingSort.dir}
+                  onSelect={ratingSort.toggle}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    exportCsv(
+                      sortedByRating.map((p) => ({
+                        Product: p.name_en,
+                        AvgRating: p.avgRating.toFixed(2),
+                        Reviews: p.reviewCount,
+                        Hidden: p.hiddenCount,
+                      })),
+                      'reviews-by-product.csv',
+                    )
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-pill border border-cup-stroke bg-white px-3 py-1 text-xs font-semibold text-cup-brown-700 transition hover:bg-cup-cream-100"
+                >
+                  <FileText className="h-3 w-3" aria-hidden />
+                  CSV
+                </button>
+              </div>
+            </header>
+            <div className="overflow-hidden rounded-chip border border-cup-stroke">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-cup-cream-100 text-xs font-semibold uppercase text-cup-muted">
+                  <tr>
+                    <SortTh
+                      label="Product"
+                      sortKey="name_en"
+                      active={ratingSort.key}
+                      dir={ratingSort.dir}
+                      onSort={ratingSort.toggle}
+                      className="px-4 py-3"
+                    />
+                    <SortTh
+                      label="Avg Rating"
+                      sortKey="avgRating"
+                      active={ratingSort.key}
+                      dir={ratingSort.dir}
+                      onSort={ratingSort.toggle}
+                      className="px-4 py-3 text-center"
+                    />
+                    <SortTh
+                      label="Reviews"
+                      sortKey="reviewCount"
+                      active={ratingSort.key}
+                      dir={ratingSort.dir}
+                      onSort={ratingSort.toggle}
+                      className="px-4 py-3 text-right"
+                    />
+                    <th className="px-4 py-3 text-right">Hidden</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-cup-stroke">
+                  {sortedByRating.map((p) => (
+                    <tr key={p.productId} className="transition-colors hover:bg-cup-cream-50">
+                      <td className="px-4 py-3 font-medium text-cup-brown-900">{p.name_en}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <StarRow rating={p.avgRating} />
+                          <span className="text-xs font-semibold text-cup-brown-900">
+                            {p.avgRating.toFixed(1)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right text-cup-brown-700 tabular-nums">
+                        {p.reviewCount}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {p.hiddenCount > 0 ? (
+                          <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600">
+                            {p.hiddenCount}
+                          </span>
+                        ) : (
+                          <span className="text-cup-muted">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+
       {/* Phase K6.4 — by-kiosk daily breakdown. Self-fetching so the
           rest of the Reports page can keep its single-shot Promise.all
           pattern without growing here. */}
@@ -343,5 +963,115 @@ function KpiCard({
       </div>
       <p className="mt-3 font-heading text-3xl font-bold text-cup-brown-900">{value}</p>
     </div>
+  );
+}
+
+// ── Sortable-table primitives (Phase R.3) ───────────────────────────────────
+
+function StarRow({ rating }: { rating: number }) {
+  return (
+    <div className="flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star
+          key={s}
+          className={`h-3 w-3 ${
+            s <= Math.round(rating)
+              ? 'fill-amber-400 text-amber-400'
+              : 'fill-cup-cream-100 text-cup-stroke'
+          }`}
+          aria-hidden
+        />
+      ))}
+    </div>
+  );
+}
+
+function SortPills<K extends string>({
+  options,
+  active,
+  dir,
+  onSelect,
+}: {
+  options: { key: K; label: string }[];
+  active: K;
+  dir: SortDir;
+  onSelect: (key: K) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      {options.map(({ key, label }) => {
+        const isActive = key === active;
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onSelect(key)}
+            className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+              isActive
+                ? 'bg-cup-brown-900 text-white'
+                : 'bg-cup-cream-100 text-cup-muted hover:bg-cup-cream-200 hover:text-cup-brown-900'
+            }`}
+          >
+            {label}
+            {isActive &&
+              (dir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SortTh<K extends string>({
+  label,
+  sortKey,
+  active,
+  dir,
+  onSort,
+  className,
+}: {
+  label: string;
+  sortKey: K;
+  active: K;
+  dir: SortDir;
+  onSort: (key: K) => void;
+  className?: string;
+}) {
+  const isActive = sortKey === active;
+  return (
+    <th className={`cursor-pointer select-none ${className ?? ''}`} onClick={() => onSort(sortKey)}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {isActive ? (
+          dir === 'desc' ? (
+            <ArrowDown className="h-3 w-3 text-cup-brown-700" />
+          ) : (
+            <ArrowUp className="h-3 w-3 text-cup-brown-700" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </span>
+    </th>
+  );
+}
+
+function DirToggle({ dir, onToggle }: { dir: SortDir; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex items-center gap-1 rounded-full bg-cup-cream-100 px-2.5 py-1 text-[11px] font-semibold text-cup-muted transition-colors hover:bg-cup-cream-200 hover:text-cup-brown-900"
+    >
+      {dir === 'desc' ? (
+        <>
+          <ArrowDown className="h-3 w-3" /> Best first
+        </>
+      ) : (
+        <>
+          <ArrowUp className="h-3 w-3" /> Worst first
+        </>
+      )}
+    </button>
   );
 }

@@ -233,6 +233,36 @@ export interface AdminReportRoleBreakdown {
   breakdown: Record<string, { orders: number; revenue: number }>;
 }
 
+// Phase R.3 — recovered reports shapes for the Reviews / Revenue Trend /
+// Peak Hours sections that were lost in earlier merges.
+export interface AdminReportReviewsByProduct {
+  productId: string;
+  name_en: string;
+  reviewCount: number;
+  avgRating: number;
+  hiddenCount: number;
+  ratingDistribution: Record<string, number>;
+}
+
+export interface AdminReportReviews {
+  total: number;
+  avgRating: number;
+  hiddenCount: number;
+  ratingDistribution: Record<string, number>;
+  byProduct: AdminReportReviewsByProduct[];
+}
+
+export interface AdminRevenueTrendEntry {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AdminPeakHourEntry {
+  hour: number;
+  count: number;
+}
+
 export const adminApi = {
   listOrders: (signal?: AbortSignal) =>
     api<{ orders: AdminOrder[] }>('/admin/orders', { signal }),
@@ -366,13 +396,33 @@ export const adminApi = {
     api<AdminOffer>('/admin/offers', { method: 'POST', body }),
   updateOffer: (id: string, body: Partial<Omit<AdminOffer, 'id' | 'usage_count'>>) =>
     api<AdminOffer>(`/admin/offers/${id}`, { method: 'PATCH', body }),
-  // Phase 5: Reports
-  getRevenueReport: (signal?: AbortSignal) =>
-    api<AdminReportRevenue>('/admin/reports/revenue', { signal }),
-  getTopItems: (signal?: AbortSignal) =>
-    api<{ topItems: AdminReportTopItem[] }>('/admin/reports/top-items', { signal }),
-  getRoleBreakdown: (signal?: AbortSignal) =>
-    api<AdminReportRoleBreakdown>('/admin/reports/role-breakdown', { signal }),
+  // Phase 5 / R.3: Reports — `params` carries the optional date range filter
+  // ("today" / "7d" / "30d" / "all" / "custom") added when restoring the lost
+  // reports sections. Existing callers that pass nothing still get the
+  // unfiltered / default-window response.
+  getRevenueReport: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminReportRevenue>(`/admin/reports/revenue${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getTopItems: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ topItems: AdminReportTopItem[] }>(`/admin/reports/top-items${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getRoleBreakdown: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminReportRoleBreakdown>(`/admin/reports/role-breakdown${qs ? `?${qs}` : ''}`, { signal });
+  },
+  // Phase R.3 — restored reports endpoints.
+  getReviewsReport: (signal?: AbortSignal) =>
+    api<AdminReportReviews>('/admin/reports/reviews', { signal }),
+  getRevenueTrend: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ days: AdminRevenueTrendEntry[] }>(`/admin/reports/revenue-trend${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getPeakHours: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ hours: AdminPeakHourEntry[] }>(`/admin/reports/peak-hours${qs ? `?${qs}` : ''}`, { signal });
+  },
   // Phase 2.3 — multi-campus
   listCampuses: (signal?: AbortSignal) =>
     api<{ campuses: Campus[] }>('/campuses', { signal, anonymous: true }),
