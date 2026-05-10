@@ -614,8 +614,9 @@ Report PR URL.
 | 0 | 0.4 Sentry + PostHog | `[ ]` (Karim — follow playbook steps 5–6) |
 | 0 | 0.5 E2E smoke test | `[ ]` (Karim — follow playbook step 4 + 8) |
 | 0 | 0.6 Public-URL hardening | `[ ]` |
-| 1 | 1.1 APNs | `[~]` (branch `claude/ios-phase-1-apns-and-sse`) |
-| 1 | 1.2 SSE order tracking | `[~]` (branch `claude/ios-phase-1-apns-and-sse`) |
+| 1 | 1.1 APNs | `[x]` (2026-05-10, PR #70 — `PushService.swift` + `PushAPI.swift` + AppDelegate; toggle in Profile is now real) |
+| 1 | 1.2 SSE order tracking | `[x]` (2026-05-10, PR #70 — `OrderEventStream.swift`; live/reconnecting pill on tracking view; polling kept as fallback) |
+| 1 | 1.x Bonus: real iOS CI | `[x]` (2026-05-10, PR #70 — macos-15 + `set -o pipefail`; storyboard targetRuntime; CartView label; SearchView optional chain) |
 | 1 | 1.3 Card payments | `[ ]` |
 | 1 | 1.4 Tier badges | `[ ]` |
 | 1 | 1.5 Account delete UI | `[ ]` |
