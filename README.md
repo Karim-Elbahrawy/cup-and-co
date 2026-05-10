@@ -85,18 +85,18 @@ pnpm test:visual     # Playwright visual diff vs Figma exports (Phase 1+)
 
 ## Roadmap
 
-See [PLAN.md](./PLAN.md) for the full multi-phase plan. Phases ship in parallel waves across iOS, customer web, and admin.
+The active roadmap is **[`docs/SHIP-PLAN.md`](./docs/SHIP-PLAN.md)** — one master plan to get Cup & Co into production. It supersedes the five prior plans (now archived under `docs/_archive/`).
 
 | Phase | Focus | Status |
 |---|---|---|
-| 0 | Foundation | ✅ Done |
-| 1 | Auth + Catalog | 🔜 Next |
-| 2 | Ordering vertical slice (Paymob) | |
-| 3 | Loyalty + QR | |
-| 4 | Games + Leaderboard | |
-| 5 | Reviews + Offers + Admin polish | |
-| 6 | i18n + Accessibility + Polish | |
-| 7 | Test + Deploy + Launch | |
+| 0–7 | Original founding plan (Foundation → Launch) | ✅ Done — see `docs/PHASES/` |
+| R | Recovery — pull lost work back, fix migration collision, archive old plans | 🟡 In progress |
+| 0 | Go online (free-tier production) | 🔜 Next |
+| 1 | iOS parity must-haves | |
+| 2 | Operational hardening | |
+| 3 | Growth (Apple Pay / Google Pay / Tip / Voice) | |
+| 4 | iOS nice-to-haves | |
+| 5 | Wow extras | |
 
 ## License
 
