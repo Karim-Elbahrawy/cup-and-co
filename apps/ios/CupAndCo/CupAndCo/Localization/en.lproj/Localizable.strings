@@ -239,6 +239,14 @@
 "home.recent_orders" = "Recent Orders";
 "home.order_again" = "Order Again";
 
+/* Loyalty tiers — Phase 1.4 (mirrors web TierBadge.tsx) */
+"tier.bronze" = "Bronze";
+"tier.silver" = "Silver";
+"tier.gold" = "Gold";
+"tier.gold.top_perk" = "1.5x points & free upsizes";
+"tier.silver.perk" = "1.25x points";
+"tier.bronze.perk" = "Standard rewards";
+
 /* Order status labels (reused as keys via OrderStatus.rawValue) */
 "orders.received" = "Received";
 "orders.accepted" = "Accepted";
