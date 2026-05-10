@@ -49,8 +49,8 @@ export const ar: Translations = {
     },
   },
   nav: {
-    home: 'الطلبات',
-    usual: 'كالعادة',
+    home: 'الرئيسية',
+    orders: 'طلباتي',
     cart: 'السلة',
     rewards: 'المكافآت',
     profile: 'حسابي',

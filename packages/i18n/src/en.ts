@@ -49,8 +49,8 @@ export const en: Translations = {
     },
   },
   nav: {
-    home: 'Orders',
-    usual: 'Usual',
+    home: 'Home',
+    orders: 'Orders',
     cart: 'Cart',
     rewards: 'Rewards',
     profile: 'Profile',
