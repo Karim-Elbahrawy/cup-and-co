@@ -1,5 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200">
-  <rect width="300" height="200" fill="#FAF6F0" rx="16"/>
-  <circle cx="150" cy="80" r="50" fill="none" stroke="#C2410C" stroke-width="3" stroke-dasharray="8 4"/>
-  <text x="150" y="130" text-anchor="middle" font-family="system-ui" font-size="16" fill="#78716C">1st  2nd  3rd</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="300" height="200" role="img" aria-label="Leaderboard podium">
+  <!-- Cup & Co — Leaderboard podium 1-2-3. Sunrise/teal/cream blocks with star tops. -->
+  <defs>
+    <linearGradient id="pod-1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F4A261"/>
+      <stop offset="100%" stop-color="#C2410C"/>
+    </linearGradient>
+    <linearGradient id="pod-2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#14B8A6"/>
+      <stop offset="100%" stop-color="#0F766E"/>
+    </linearGradient>
+    <linearGradient id="pod-3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FEF3C7"/>
+      <stop offset="100%" stop-color="#E7CFA1"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="200" fill="#FAF6F0"/>
+
+  <!-- Soft shadow line under all blocks -->
+  <line x1="20" y1="184" x2="280" y2="184" stroke="#1C1917" stroke-opacity="0.10" stroke-width="2"/>
+
+  <!-- 2nd place block (left) — teal -->
+  <rect x="40" y="100" width="68" height="84" rx="6" fill="url(#pod-2)"/>
+  <text x="74" y="156" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="36" font-weight="800" fill="#FAF6F0">2</text>
+
+  <!-- 1st place block (center, tallest) — sunrise -->
+  <rect x="116" y="76" width="68" height="108" rx="6" fill="url(#pod-1)"/>
+  <text x="150" y="146" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="44" font-weight="800" fill="#FAF6F0">1</text>
+
+  <!-- 3rd place block (right) — cream -->
+  <rect x="192" y="120" width="68" height="64" rx="6" fill="url(#pod-3)" stroke="#C2410C" stroke-opacity="0.25"/>
+  <text x="226" y="166" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="32" font-weight="800" fill="#C2410C">3</text>
+
+  <!-- Star above 1st place block -->
+  <g transform="translate(150 56)">
+    <polygon points="0,-14 4,-4 14,-4 6,3 9,13 0,7 -9,13 -6,3 -14,-4 -4,-4"
+             fill="#F4A261" stroke="#C2410C" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Smaller stars above 2nd and 3rd -->
+  <g transform="translate(74 86)">
+    <polygon points="0,-9 3,-3 9,-3 4,2 6,8 0,4 -6,8 -4,2 -9,-3 -3,-3"
+             fill="#0F766E" stroke="#FAF6F0" stroke-width="1" stroke-linejoin="round"/>
+  </g>
+  <g transform="translate(226 108)">
+    <polygon points="0,-8 3,-3 8,-3 4,1 5,7 0,3 -5,7 -4,1 -8,-3 -3,-3"
+             fill="#C2410C" stroke="#FAF6F0" stroke-width="1" stroke-linejoin="round"/>
+  </g>
 </svg>

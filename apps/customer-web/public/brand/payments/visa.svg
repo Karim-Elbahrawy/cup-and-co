@@ -1,4 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="32" viewBox="0 0 48 32">
-  <rect width="48" height="32" rx="4" fill="#F5F5F4" stroke="#E7E5E4"/>
-  <text x="24" y="18" text-anchor="middle" dominant-baseline="middle" font-family="system-ui" font-size="8" fill="#44403C" font-weight="500">VISA</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" width="48" height="32" role="img" aria-label="Visa">
+  <rect width="48" height="32" rx="5" fill="#FFFFFF" stroke="#E5E7EB"/>
+  <!-- Visa logotype: tilted V + I + S + A in corporate Visa blue -->
+  <text x="24" y="22"
+        text-anchor="middle"
+        font-family="ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', sans-serif"
+        font-size="13"
+        font-weight="900"
+        font-style="italic"
+        letter-spacing="-0.3"
+        fill="#1A1F71">VISA</text>
+  <!-- Yellow accent underline (Visa brand mark) -->
+  <rect x="14" y="24" width="20" height="2" rx="1" fill="#F7B600"/>
 </svg>
