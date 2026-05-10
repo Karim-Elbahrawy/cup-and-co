@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import UserNotifications
 
 /// Settings + identity screen.  Phase 1 surface: name, phone, role,
 /// language toggle, Face ID toggle, notifications toggle, logout.
@@ -6,11 +8,23 @@ struct ProfileView: View {
     @Environment(SessionStore.self) private var session
     @Environment(LanguageStore.self) private var language
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var languageEN: Bool = AppLanguage.current == .english
     @State private var biometricEnabled: Bool = BiometricAuthManager.shared.isEnabled
+    /// Mirrors the OS-level `UNAuthorizationStatus`. Toggling on requests
+    /// authorization + APNs registration. Toggling off calls
+    /// `PushAPI.unregister`. The OS-level permission stays intact (only the
+    /// user can revoke that, in iOS Settings) — when status == `.denied` we
+    /// surface a "Notifications are off in iOS Settings" warning.
     @State private var notificationsEnabled: Bool = UserDefaults.standard.bool(forKey: "notifications_enabled")
+    @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @State private var showLogoutConfirm: Bool = false
+    @State private var showSettingsSheet: Bool = false
+    /// Suppress the `onChange` side-effect when we re-sync the toggle from
+    /// the OS authorization status (on appear / scene-return) so we don't
+    /// double-fire the request/unregister flow.
+    @State private var suppressToggleSideEffect: Bool = false
 
     var body: some View {
         ScrollView {
@@ -78,6 +92,23 @@ struct ProfileView: View {
             Button("common.cancel", role: .cancel) {}
         } message: {
             Text("profile.logout.confirm.message")
+        }
+        .alert(
+            Text("profile.notifications.settings_title"),
+            isPresented: $showSettingsSheet
+        ) {
+            Button("profile.notifications.open_settings") { openIOSSettings() }
+            Button("common.cancel", role: .cancel) {}
+        } message: {
+            Text("profile.notifications.settings_message")
+        }
+        .task { await refreshNotificationStatus() }
+        .onChange(of: scenePhase) { _, newValue in
+            // When the user comes back from iOS Settings the auth state may
+            // have changed — re-sync.
+            if newValue == .active {
+                Task { await refreshNotificationStatus() }
+            }
         }
     }
 
@@ -202,7 +233,10 @@ struct ProfileView: View {
 
             divider()
 
-            // Notifications toggle (UI-only Phase 1)
+            // Notifications toggle — wired to UNUserNotificationCenter +
+            // APNs registration. Toggling on requests authorization and (if
+            // granted) registers for remote notifications. Toggling off
+            // unregisters the device token from the server.
             Toggle(isOn: $notificationsEnabled) {
                 HStack {
                     Image(systemName: "bell.badge.fill")
@@ -218,6 +252,33 @@ struct ProfileView: View {
             .padding(.vertical, 8)
             .onChange(of: notificationsEnabled) { _, newValue in
                 UserDefaults.standard.set(newValue, forKey: "notifications_enabled")
+                guard !suppressToggleSideEffect else { return }
+                Task { await handleNotificationsToggle(enabled: newValue) }
+            }
+
+            // OS-level "denied" warning. Only shown when the user wants
+            // notifications on but iOS Settings has them off.
+            if notificationStatus == .denied {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(CupColors.error)
+                    Text("profile.notifications.denied_warning")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundStyle(CupColors.muted)
+                    Spacer()
+                    Button {
+                        openIOSSettings()
+                    } label: {
+                        Text("profile.notifications.open_settings")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(CupColors.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+                .accessibilityElement(children: .combine)
             }
         }
         .background(CupColors.surface)
@@ -346,6 +407,65 @@ struct ProfileView: View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         return "\(v) (\(b))"
+    }
+
+    // MARK: - Notifications
+
+    /// Re-read the OS-level authorization status and reconcile the toggle.
+    /// We mirror the OS state for `.authorized` / `.denied` / `.notDetermined`
+    /// so the UI never lies about what's actually happening.
+    private func refreshNotificationStatus() async {
+        let status = await PushService.shared.currentStatus()
+        notificationStatus = status
+        let osEnabled = status == .authorized || status == .provisional || status == .ephemeral
+        // If the OS says denied, force the in-app toggle off.
+        // If the OS says authorized, the in-app toggle reflects user choice.
+        if !osEnabled && notificationsEnabled {
+            suppressToggleSideEffect = true
+            notificationsEnabled = false
+            UserDefaults.standard.set(false, forKey: "notifications_enabled")
+            // Drop the suppression on the next runloop tick.
+            await Task.yield()
+            suppressToggleSideEffect = false
+        }
+    }
+
+    /// Side-effect for the toggle. Switching on requests authorization +
+    /// APNs registration; switching off calls `PushAPI.unregister`.
+    private func handleNotificationsToggle(enabled: Bool) async {
+        if enabled {
+            let status = await PushService.shared.requestAuthorization()
+            notificationStatus = status
+            let granted = status == .authorized || status == .provisional || status == .ephemeral
+            if granted {
+                PushService.shared.register()
+            } else {
+                // Reflect reality — the OS denied the prompt or the user
+                // had previously denied. Flip back off without re-firing.
+                suppressToggleSideEffect = true
+                notificationsEnabled = false
+                UserDefaults.standard.set(false, forKey: "notifications_enabled")
+                await Task.yield()
+                suppressToggleSideEffect = false
+            }
+        } else {
+            // User disabled the toggle. Stop the OS from delivering pushes
+            // and tell the server to drop our token.
+            if let stored = UserDefaults.standard.string(forKey: PushService.storedTokenKey),
+               !stored.isEmpty {
+                Task {
+                    do { _ = try await PushAPI.unregister(deviceToken: stored) }
+                    catch { /* logged by APIClient; nothing the UI can do */ }
+                }
+            }
+            PushService.shared.unregister()
+        }
+    }
+
+    private func openIOSSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
     }
 }
 

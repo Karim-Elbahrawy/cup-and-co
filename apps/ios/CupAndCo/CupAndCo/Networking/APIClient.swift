@@ -86,6 +86,13 @@ final class APIClient: @unchecked Sendable {
         try await send(path: path, method: "DELETE", body: Optional<EmptyBody>.none)
     }
 
+    /// DELETE with a JSON body. Most REST stacks (including Express +
+    /// `express.json()`) read the body even on DELETE requests, which is
+    /// what `/push/register` expects.
+    func deleteWithBody<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
+        try await send(path: path, method: "DELETE", body: body)
+    }
+
     // MARK: - Internal
 
     private func send<T: Decodable, B: Encodable>(path: String,

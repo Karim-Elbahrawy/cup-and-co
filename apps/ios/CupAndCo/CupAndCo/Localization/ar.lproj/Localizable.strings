@@ -119,6 +119,10 @@
 "profile.logout" = "تسجيل الخروج";
 "profile.logout.confirm.title" = "تسجيل الخروج من كب آند كو؟";
 "profile.logout.confirm.message" = "هتحتاج تسجل دخول تاني المرة الجاية.";
+"profile.notifications.denied_warning" = "الإشعارات معطّلة في إعدادات iOS.";
+"profile.notifications.open_settings" = "فتح الإعدادات";
+"profile.notifications.settings_title" = "فتح إعدادات iOS";
+"profile.notifications.settings_message" = "الإشعارات بتدار من iOS. افتح الإعدادات لإلغاء الإذن بالكامل أو تعديله.";
 
 /* Errors */
 "error.network" = "تعذر الاتصال بكب آند كو. تأكد من الإنترنت وحاول تاني.";
