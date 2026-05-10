@@ -49,7 +49,7 @@ export const en: Translations = {
     },
   },
   nav: {
-    home: 'Home',
+    home: 'Orders',
     usual: 'Usual',
     cart: 'Cart',
     rewards: 'Rewards',
@@ -62,6 +62,8 @@ export const en: Translations = {
     todayOnly: 'Today Only',
     superDiscount: 'Super Discount',
     offPercent: '% OFF',
+    recentOrders: 'Recent Orders',
+    orderAgain: 'Order Again',
     categories: {
       all: 'All',
       coffee: 'Coffee',
