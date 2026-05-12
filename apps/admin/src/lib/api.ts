@@ -263,6 +263,255 @@ export interface AdminPeakHourEntry {
   count: number;
 }
 
+// ── Reports v2 — Layer A types ─────────────────────────────────────────────
+export interface AdminRevenueKpis {
+  current: { revenue: number; orders: number; aov: number };
+  prior: { revenue: number; orders: number; aov: number };
+  delta: { revenue: number; orders: number; aov: number };
+  window: { from: string; to: string; priorFrom: string; priorTo: string };
+}
+
+export interface AdminCustomersReport {
+  newCustomers: number;
+  returningCustomers: number;
+  repeatRate: number;
+  newRevenue: number;
+  returningRevenue: number;
+}
+
+export interface AdminPaymentMixEntry {
+  method: string;
+  orders: number;
+  revenue: number;
+}
+
+export interface AdminChannelMixEntry {
+  channel: string;
+  orders: number;
+  revenue: number;
+}
+
+export interface AdminHeatmapReport {
+  grid: number[][];
+}
+
+export interface AdminRefundsReport {
+  totalOrders: number;
+  cancelled: number;
+  refunded: number;
+  cancellationRate: number;
+  refundRate: number;
+  cancelledRevenue: number;
+  refundedRevenue: number;
+  reasons: Array<{ reason: string; count: number }>;
+}
+
+export interface AdminFunnelStage {
+  stage: string;
+  count: number;
+}
+
+export interface AdminFunnelDropoff {
+  from: string;
+  to: string;
+  dropoff: number;
+}
+
+export interface AdminFunnelReport {
+  stages: AdminFunnelStage[];
+  dropoffs: AdminFunnelDropoff[];
+  cancelled: number;
+}
+
+// ── Reports v2 — Layer B types ─────────────────────────────────────────────
+export interface AdminPrepSlaMetric {
+  p50: number;
+  p95: number;
+  avg: number;
+  count: number;
+}
+
+export interface AdminPrepSlaReport {
+  placedToAccepted: AdminPrepSlaMetric;
+  acceptedToReady: AdminPrepSlaMetric;
+  placedToCompleted: AdminPrepSlaMetric;
+}
+
+export interface AdminKioskLeaderboardRow {
+  kioskId: string;
+  kioskName: string;
+  orders: number;
+  revenue: number;
+  peakHour: number;
+  hourCounts: number[];
+}
+
+export interface AdminSlowMover {
+  name_en: string;
+  count: number;
+  revenue: number;
+}
+
+export interface AdminProductPair {
+  productA: string;
+  productB: string;
+  count: number;
+}
+
+export interface AdminOfferPerformance {
+  totalDiscountedOrders: number;
+  totalDiscountAmount: number;
+  totalRevenueWithDiscount: number;
+  offers: Array<{
+    id: string;
+    name_en: string;
+    type: string;
+    value: number;
+    usageCount: number;
+    usageLimit: number | null;
+    active: boolean;
+  }>;
+}
+
+export interface AdminLoyaltyMetrics {
+  totalPointsIssued: number;
+  totalPointsRedeemed: number;
+  totalCurrentBalance: number;
+  redemptionRate: number;
+  tierDistribution: Record<string, number>;
+  revenueFromRedemptions: number;
+  usersWithPoints: number;
+}
+
+export interface AdminDrillDownOrder {
+  id: string;
+  createdAt: string;
+  totalEgp: number;
+  status: string;
+  paymentMethod: string;
+  placementSource: string;
+  itemCount: number;
+  userId: string;
+}
+
+// ── Reports v2 — Layer C types ─────────────────────────────────────────────
+export interface AdminCohortRow {
+  week: string;
+  size: number;
+  retention: number[];
+}
+
+export interface AdminClvReport {
+  totalCustomers: number;
+  median: number;
+  avg: number;
+  p75: number;
+  p90: number;
+  buckets: Array<{ label: string; count: number }>;
+  topCustomers: Array<{ userId: string; revenue: number; orders: number; firstOrder: string }>;
+}
+
+export interface AdminReferralFunnel {
+  totalClicks: number;
+  totalSignups: number;
+  totalConversions: number;
+  totalPointsAwarded: number;
+  revenueFromReferred: number;
+  conversionRate: number;
+  topReferrers: Array<{ userId: string; conversions: number; points: number }>;
+}
+
+export interface AdminForecastDay {
+  date: string;
+  predicted: number;
+  dow: number;
+}
+
+export interface AdminForecastReport {
+  forecast: AdminForecastDay[];
+  totalForecast: number;
+  trendFactor: number;
+  dowAvg: number[];
+}
+
+export interface AdminAnomaly {
+  date: string;
+  revenue: number;
+  expected: number;
+  deviation: number;
+  type: 'spike' | 'dip';
+}
+
+export interface AdminAnomalyReport {
+  anomalies: AdminAnomaly[];
+  today: { revenue: number; expected: number; deviation: number };
+  threshold: number;
+}
+
+// ── Layer D types ─────────────────────────────────────────────────────────────
+export interface AdminComparisonPeriod {
+  from: string;
+  to: string;
+  revenue: number;
+  orders: number;
+  customers: number;
+  items: number;
+  aov: number;
+}
+
+export interface AdminComparisonReport {
+  period1: AdminComparisonPeriod;
+  period2: AdminComparisonPeriod;
+  delta: { revenue: number; orders: number; customers: number; aov: number };
+}
+
+export interface AdminTarget {
+  month: string;
+  revenueTarget: number;
+  ordersTarget: number;
+  note: string;
+}
+
+export interface AdminAnnotation {
+  id: string;
+  date: string;
+  text: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface AdminSavedView {
+  id: string;
+  name: string;
+  preset: string;
+  from?: string;
+  to?: string;
+  createdAt: string;
+}
+
+export interface AdminPulseReport {
+  today: { revenue: number; orders: number };
+  yesterday: { revenue: number; orders: number };
+  week: { revenue: number; orders: number };
+  pendingOrders: number;
+  monthProgress: { target: number; actual: number; pct: number } | null;
+}
+
+export interface AdminDigestConfig {
+  enabled: boolean;
+  recipients: string[];
+  dayOfWeek: number;
+  hour: number;
+}
+
+export interface AdminDigestPreview {
+  period: { from: string; to: string };
+  summary: { revenue: number; orders: number; customers: number; aov: number };
+  deltaVsLastWeek: { revenue: number; orders: number };
+  topProducts: Array<{ name: string; qty: number; revenue: number }>;
+  nextScheduled: string;
+}
+
 export const adminApi = {
   listOrders: (signal?: AbortSignal) =>
     api<{ orders: AdminOrder[] }>('/admin/orders', { signal }),
@@ -455,6 +704,131 @@ export const adminApi = {
   // Phase K6.4 — by-kiosk daily report.
   getKioskReport: (signal?: AbortSignal) =>
     api<AdminKioskReport>('/admin/reports/by-kiosk', { signal }),
+
+  // ── Reports v2 — Layer A ─────────────────────────────────────────────────
+  getRevenueKpis: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminRevenueKpis>(`/admin/reports/v2/revenue-kpis${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getCustomersReport: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminCustomersReport>(`/admin/reports/v2/customers${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getPaymentMix: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ breakdown: AdminPaymentMixEntry[]; total: number }>(`/admin/reports/v2/payment-mix${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getChannelMix: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ breakdown: AdminChannelMixEntry[]; total: number }>(`/admin/reports/v2/channel-mix${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getHeatmap: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminHeatmapReport>(`/admin/reports/v2/heatmap${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getRefundsReport: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminRefundsReport>(`/admin/reports/v2/refunds${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getFunnelReport: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminFunnelReport>(`/admin/reports/v2/funnel${qs ? `?${qs}` : ''}`, { signal });
+  },
+
+  // ── Reports v2 — Layer B ─────────────────────────────────────────────────
+  getPrepSla: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminPrepSlaReport>(`/admin/reports/v2/prep-sla${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getKioskLeaderboard: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<{ rows: AdminKioskLeaderboardRow[] }>(`/admin/reports/v2/kiosk-leaderboard${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getSlowMovers: (params?: { from?: string; to?: string; limit?: number }, signal?: AbortSignal) => {
+    const entries = Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]);
+    const qs = entries.length ? new URLSearchParams(entries).toString() : '';
+    return api<{ products: AdminSlowMover[] }>(`/admin/reports/v2/slow-movers${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getProductAttach: (params?: { from?: string; to?: string; limit?: number }, signal?: AbortSignal) => {
+    const entries = Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]);
+    const qs = entries.length ? new URLSearchParams(entries).toString() : '';
+    return api<{ pairs: AdminProductPair[] }>(`/admin/reports/v2/product-attach${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getOfferPerformance: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return api<AdminOfferPerformance>(`/admin/reports/v2/offer-performance${qs ? `?${qs}` : ''}`, { signal });
+  },
+  getLoyaltyMetrics: (signal?: AbortSignal) =>
+    api<AdminLoyaltyMetrics>('/admin/reports/v2/loyalty-metrics', { signal }),
+  getDrillDown: (params: { date?: string; status?: string; channel?: string; payment?: string; limit?: number }, signal?: AbortSignal) => {
+    const entries = Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]);
+    const qs = entries.length ? new URLSearchParams(entries).toString() : '';
+    return api<{ orders: AdminDrillDownOrder[]; total: number }>(`/admin/reports/v2/drill-down${qs ? `?${qs}` : ''}`, { signal });
+  },
+
+  // ── Reports v2 — Layer C ─────────────────────────────────────────────────
+  getCohortRetention: (weeks?: number, signal?: AbortSignal) =>
+    api<{ cohorts: AdminCohortRow[]; weeksBack: number }>(`/admin/reports/v2/cohort-retention${weeks ? `?weeks=${weeks}` : ''}`, { signal }),
+  getClv: (signal?: AbortSignal) =>
+    api<AdminClvReport>('/admin/reports/v2/clv', { signal }),
+  getReferralFunnel: (signal?: AbortSignal) =>
+    api<AdminReferralFunnel>('/admin/reports/v2/referral-funnel', { signal }),
+  getForecast: (signal?: AbortSignal) =>
+    api<AdminForecastReport>('/admin/reports/v2/forecast', { signal }),
+  getAnomalies: (params?: { days?: number; threshold?: number }, signal?: AbortSignal) => {
+    const entries = Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]);
+    const qs = entries.length ? new URLSearchParams(entries).toString() : '';
+    return api<AdminAnomalyReport>(`/admin/reports/v2/anomalies${qs ? `?${qs}` : ''}`, { signal });
+  },
+
+  // ── Reports v2 — Layer D (self-serve) ───────────────────────────────────────
+  getComparison: (from1: string, to1: string, from2: string, to2: string, signal?: AbortSignal) =>
+    api<AdminComparisonReport>(`/admin/reports/v2/compare?from1=${from1}&to1=${to1}&from2=${from2}&to2=${to2}`, { signal }),
+  getTargets: (signal?: AbortSignal) =>
+    api<{ targets: AdminTarget[] }>('/admin/reports/v2/targets', { signal }),
+  setTarget: (month: string, data: { revenueTarget: number; ordersTarget: number; note?: string }) =>
+    api<AdminTarget>(`/admin/reports/v2/targets/${month}`, { method: 'PUT', body: data }),
+  getAnnotations: (params?: { from?: string; to?: string }, signal?: AbortSignal) => {
+    const entries = Object.entries(params ?? {}).filter(([, v]) => v).map(([k, v]) => [k, String(v)]);
+    const qs = entries.length ? new URLSearchParams(entries).toString() : '';
+    return api<{ annotations: AdminAnnotation[] }>(`/admin/reports/v2/annotations${qs ? `?${qs}` : ''}`, { signal });
+  },
+  createAnnotation: (date: string, text: string) =>
+    api<AdminAnnotation>('/admin/reports/v2/annotations', { method: 'POST', body: { date, text } }),
+  deleteAnnotation: (id: string) =>
+    api<{ ok: boolean }>(`/admin/reports/v2/annotations/${id}`, { method: 'DELETE' }),
+  getSavedViews: (signal?: AbortSignal) =>
+    api<{ views: AdminSavedView[] }>('/admin/reports/v2/saved-views', { signal }),
+  createSavedView: (name: string, preset: string, from?: string, to?: string) =>
+    api<AdminSavedView>('/admin/reports/v2/saved-views', { method: 'POST', body: { name, preset, from, to } }),
+  deleteSavedView: (id: string) =>
+    api<{ ok: boolean }>(`/admin/reports/v2/saved-views/${id}`, { method: 'DELETE' }),
+  getPulse: (signal?: AbortSignal) =>
+    api<AdminPulseReport>('/admin/reports/v2/pulse', { signal }),
+  getDigestConfig: (signal?: AbortSignal) =>
+    api<AdminDigestConfig>('/admin/reports/v2/digest/config', { signal }),
+  setDigestConfig: (config: AdminDigestConfig) =>
+    api<AdminDigestConfig>('/admin/reports/v2/digest/config', { method: 'PUT', body: config }),
+  getDigestPreview: (signal?: AbortSignal) =>
+    api<AdminDigestPreview>('/admin/reports/v2/digest/preview', { signal }),
+  exportCsv: async (section: string, from?: string, to?: string) => {
+    const params = new URLSearchParams({ section });
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const url = `${BASE_URL}/admin/reports/v2/export/csv?${params.toString()}`;
+    const res = await fetch(url, { headers: buildAuthHeaders(), cache: 'no-store' });
+    if (res.status === 204) return null;
+    if (!res.ok) throw new ApiError(`Export failed (${res.status})`, res.status, null);
+    const blob = await res.blob();
+    const filename = `${section}-${from ?? 'all'}-${to ?? 'all'}.csv`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(objectUrl);
+    return filename;
+  },
 };
 
 // ── Cup AI types ───────────────────────────────────────────────────────────

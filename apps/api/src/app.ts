@@ -64,6 +64,7 @@ import {
   tryConvertReferralOnFirstPaidOrder,
   listReferralsByReferrer,
   getReferralStats,
+  getAllReferrals,
   REFERRER_REWARD,
   REFEREE_REWARD,
   MIN_CONVERSION_ORDER_EGP,
@@ -2806,6 +2807,1266 @@ export function createApp(): express.Express {
       });
 
       res.json({ rows, dateIso: today });
+    } catch (e) { next(e); }
+  });
+
+  // ────── Reports v2 — Layer A: Foundation Insights ──────────────────────────
+
+  /**
+   * Enhanced revenue report with delta vs prior period + AOV.
+   * Computes the same window shifted back in time to produce % change.
+   */
+  app.get('/admin/reports/v2/revenue-kpis', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? (() => {
+        const d = new Date(); d.setDate(d.getDate() - 29);
+        return d.toISOString().slice(0, 10);
+      })();
+
+      const windowMs = new Date(effectiveTo).getTime() - new Date(effectiveFrom).getTime() + 86400000;
+      const priorTo = new Date(new Date(effectiveFrom).getTime() - 86400000).toISOString().slice(0, 10);
+      const priorFrom = new Date(new Date(priorTo).getTime() - windowMs + 86400000).toISOString().slice(0, 10);
+
+      let currentRevenue = 0, currentOrders = 0;
+      let priorRevenue = 0, priorOrders = 0;
+
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        const day = order.createdAt.slice(0, 10);
+        if (day >= effectiveFrom && day <= effectiveTo) {
+          currentRevenue += order.totalEgp;
+          currentOrders += 1;
+        } else if (day >= priorFrom && day <= priorTo) {
+          priorRevenue += order.totalEgp;
+          priorOrders += 1;
+        }
+      }
+
+      const aov = currentOrders > 0 ? Math.round((currentRevenue / currentOrders) * 100) / 100 : 0;
+      const priorAov = priorOrders > 0 ? Math.round((priorRevenue / priorOrders) * 100) / 100 : 0;
+
+      const pctChange = (cur: number, prev: number) =>
+        prev === 0 ? (cur > 0 ? 100 : 0) : Math.round(((cur - prev) / prev) * 1000) / 10;
+
+      res.json({
+        current: { revenue: currentRevenue, orders: currentOrders, aov },
+        prior: { revenue: priorRevenue, orders: priorOrders, aov: priorAov },
+        delta: {
+          revenue: pctChange(currentRevenue, priorRevenue),
+          orders: pctChange(currentOrders, priorOrders),
+          aov: pctChange(aov, priorAov),
+        },
+        window: { from: effectiveFrom, to: effectiveTo, priorFrom, priorTo },
+      });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * New vs returning customers within a date window.
+   */
+  app.get('/admin/reports/v2/customers', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? (() => {
+        const d = new Date(); d.setDate(d.getDate() - 29);
+        return d.toISOString().slice(0, 10);
+      })();
+
+      const firstOrderByUser = new Map<string, string>();
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        const day = order.createdAt.slice(0, 10);
+        const existing = firstOrderByUser.get(order.userId);
+        if (!existing || day < existing) firstOrderByUser.set(order.userId, day);
+      }
+
+      let newCustomers = 0, returningCustomers = 0;
+      let newRevenue = 0, returningRevenue = 0;
+      const uniqueInWindow = new Set<string>();
+
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        const firstDay = firstOrderByUser.get(order.userId);
+        const isNew = firstDay !== undefined && firstDay >= effectiveFrom && firstDay <= effectiveTo;
+        if (isNew) {
+          if (!uniqueInWindow.has(`new:${order.userId}`)) {
+            newCustomers += 1;
+            uniqueInWindow.add(`new:${order.userId}`);
+          }
+          newRevenue += order.totalEgp;
+        } else {
+          if (!uniqueInWindow.has(`ret:${order.userId}`)) {
+            returningCustomers += 1;
+            uniqueInWindow.add(`ret:${order.userId}`);
+          }
+          returningRevenue += order.totalEgp;
+        }
+      }
+
+      const total = newCustomers + returningCustomers;
+      const repeatRate = total > 0 ? Math.round((returningCustomers / total) * 1000) / 10 : 0;
+
+      res.json({
+        newCustomers,
+        returningCustomers,
+        repeatRate,
+        newRevenue: Math.round(newRevenue * 100) / 100,
+        returningRevenue: Math.round(returningRevenue * 100) / 100,
+      });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Payment method mix — breakdown by payment_method.
+   */
+  app.get('/admin/reports/v2/payment-mix', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? '2000-01-01';
+
+      const methods = new Map<string, { orders: number; revenue: number }>();
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        const entry = methods.get(order.paymentMethod) ?? { orders: 0, revenue: 0 };
+        entry.orders += 1;
+        entry.revenue += order.totalEgp;
+        methods.set(order.paymentMethod, entry);
+      }
+
+      const breakdown = Array.from(methods.entries()).map(([method, data]) => ({
+        method,
+        orders: data.orders,
+        revenue: Math.round(data.revenue * 100) / 100,
+      })).sort((a, b) => b.orders - a.orders);
+
+      const total = breakdown.reduce((s, b) => s + b.orders, 0);
+      res.json({ breakdown, total });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Channel mix — breakdown by placement_source (customer_app / kiosk / admin_phone).
+   */
+  app.get('/admin/reports/v2/channel-mix', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? '2000-01-01';
+
+      const channels = new Map<string, { orders: number; revenue: number }>();
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        const src = order.placementSource ?? 'customer_app';
+        const entry = channels.get(src) ?? { orders: 0, revenue: 0 };
+        entry.orders += 1;
+        entry.revenue += order.totalEgp;
+        channels.set(src, entry);
+      }
+
+      const breakdown = Array.from(channels.entries()).map(([channel, data]) => ({
+        channel,
+        orders: data.orders,
+        revenue: Math.round(data.revenue * 100) / 100,
+      })).sort((a, b) => b.orders - a.orders);
+
+      const total = breakdown.reduce((s, b) => s + b.orders, 0);
+      res.json({ breakdown, total });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Day-of-week × hour-of-day heatmap (7×24 grid).
+   */
+  app.get('/admin/reports/v2/heatmap', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? '2000-01-01';
+
+      // 7 days × 24 hours; day 0 = Sunday
+      const grid: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+      for (const order of orders.values()) {
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        const d = new Date(order.createdAt);
+        grid[d.getDay()][d.getHours()] += 1;
+      }
+
+      res.json({ grid });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Refund & cancellation rate.
+   */
+  app.get('/admin/reports/v2/refunds', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? '2000-01-01';
+
+      let totalOrders = 0, cancelled = 0, refunded = 0;
+      let cancelledRevenue = 0, refundedRevenue = 0;
+      const cancellationReasons = new Map<string, number>();
+
+      for (const order of orders.values()) {
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        totalOrders += 1;
+        if (order.status === 'cancelled') {
+          cancelled += 1;
+          cancelledRevenue += order.totalEgp;
+          const reason = order.statusHistory.find(e => e.status === 'cancelled')?.note ?? 'No reason';
+          cancellationReasons.set(reason, (cancellationReasons.get(reason) ?? 0) + 1);
+        } else if (order.status === 'refunded') {
+          refunded += 1;
+          refundedRevenue += order.totalEgp;
+        }
+      }
+
+      const cancellationRate = totalOrders > 0 ? Math.round((cancelled / totalOrders) * 1000) / 10 : 0;
+      const refundRate = totalOrders > 0 ? Math.round((refunded / totalOrders) * 1000) / 10 : 0;
+
+      const reasons = Array.from(cancellationReasons.entries())
+        .map(([reason, count]) => ({ reason, count }))
+        .sort((a, b) => b.count - a.count);
+
+      res.json({
+        totalOrders,
+        cancelled, refunded,
+        cancellationRate, refundRate,
+        cancelledRevenue: Math.round(cancelledRevenue * 100) / 100,
+        refundedRevenue: Math.round(refundedRevenue * 100) / 100,
+        reasons,
+      });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Order funnel — tracks progression through statuses.
+   * Uses the in-memory orders to build a funnel snapshot.
+   */
+  app.get('/admin/reports/v2/funnel', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? '2000-01-01';
+
+      let placed = 0, paid = 0, accepted = 0, completed = 0, cancelled = 0;
+
+      for (const order of orders.values()) {
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        placed += 1;
+        if (order.paymentStatus === 'paid' || order.paymentStatus === 'refunded') paid += 1;
+        const statuses = order.statusHistory.map(e => e.status);
+        if (statuses.includes('accepted') || statuses.includes('preparing') ||
+            statuses.includes('ready') || statuses.includes('completed')) accepted += 1;
+        if (order.status === 'completed' || order.status === 'refunded') completed += 1;
+        if (order.status === 'cancelled') cancelled += 1;
+      }
+
+      const stages = [
+        { stage: 'placed', count: placed },
+        { stage: 'paid', count: paid },
+        { stage: 'accepted', count: accepted },
+        { stage: 'completed', count: completed },
+      ];
+
+      const dropoffs = stages.slice(1).map((s, i) => ({
+        from: stages[i].stage,
+        to: s.stage,
+        dropoff: stages[i].count > 0
+          ? Math.round(((stages[i].count - s.count) / stages[i].count) * 1000) / 10
+          : 0,
+      }));
+
+      res.json({ stages, dropoffs, cancelled });
+    } catch (e) { next(e); }
+  });
+
+  // ────── Reports v2 — Layer B: Operational Mastery ──────────────────────────
+
+  /**
+   * Prep-time SLA — p50/p95 for placed→accepted, accepted→ready, placed→completed.
+   */
+  app.get('/admin/reports/v2/prep-sla', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? '2000-01-01';
+
+      const placedToAccepted: number[] = [];
+      const acceptedToReady: number[] = [];
+      const placedToCompleted: number[] = [];
+
+      for (const order of orders.values()) {
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        const hist = order.statusHistory;
+        const placedAt = new Date(order.createdAt).getTime();
+        const acceptedEv = hist.find(e => e.status === 'accepted');
+        const readyEv = hist.find(e => e.status === 'ready');
+        const completedEv = hist.find(e => e.status === 'completed');
+
+        if (acceptedEv) {
+          placedToAccepted.push((new Date(acceptedEv.at).getTime() - placedAt) / 60000);
+        }
+        if (acceptedEv && readyEv) {
+          acceptedToReady.push((new Date(readyEv.at).getTime() - new Date(acceptedEv.at).getTime()) / 60000);
+        }
+        if (completedEv) {
+          placedToCompleted.push((new Date(completedEv.at).getTime() - placedAt) / 60000);
+        }
+      }
+
+      function percentiles(arr: number[]): { p50: number; p95: number; avg: number; count: number } {
+        if (arr.length === 0) return { p50: 0, p95: 0, avg: 0, count: 0 };
+        const sorted = [...arr].sort((a, b) => a - b);
+        const p50 = sorted[Math.floor(sorted.length * 0.5)];
+        const p95 = sorted[Math.floor(sorted.length * 0.95)];
+        const avg = Math.round((arr.reduce((s, v) => s + v, 0) / arr.length) * 10) / 10;
+        return { p50: Math.round(p50 * 10) / 10, p95: Math.round(p95 * 10) / 10, avg, count: arr.length };
+      }
+
+      res.json({
+        placedToAccepted: percentiles(placedToAccepted),
+        acceptedToReady: percentiles(acceptedToReady),
+        placedToCompleted: percentiles(placedToCompleted),
+      });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Kiosk leaderboard — revenue + orders per kiosk for a date window (not just today).
+   */
+  app.get('/admin/reports/v2/kiosk-leaderboard', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? '2000-01-01';
+
+      const kiosks = listKiosks();
+      const byKiosk = new Map<string, { orders: number; revenue: number; hourCounts: number[] }>();
+
+      for (const order of orders.values()) {
+        if (order.placementSource !== 'kiosk' || !order.kioskId) continue;
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        const entry = byKiosk.get(order.kioskId) ?? { orders: 0, revenue: 0, hourCounts: new Array(24).fill(0) };
+        entry.orders += 1;
+        if (order.paymentStatus === 'paid') entry.revenue += order.totalEgp;
+        entry.hourCounts[new Date(order.createdAt).getHours()] += 1;
+        byKiosk.set(order.kioskId, entry);
+      }
+
+      const rows = kiosks.map(k => {
+        const data = byKiosk.get(k.id) ?? { orders: 0, revenue: 0, hourCounts: new Array(24).fill(0) };
+        const peakHour = data.hourCounts.indexOf(Math.max(...data.hourCounts));
+        return {
+          kioskId: k.id,
+          kioskName: k.name,
+          orders: data.orders,
+          revenue: Math.round(data.revenue * 100) / 100,
+          peakHour,
+          hourCounts: data.hourCounts,
+        };
+      }).sort((a, b) => b.revenue - a.revenue);
+
+      res.json({ rows });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Slow movers — bottom-N products by order count in the period.
+   */
+  app.get('/admin/reports/v2/slow-movers', requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? '2000-01-01';
+      const limitN = Math.min(Number(req.query.limit) || 10, 50);
+
+      const catalog = await getCatalog();
+      const productSales = new Map<string, { name_en: string; count: number; revenue: number }>();
+
+      for (const p of catalog.products) {
+        productSales.set(p.id, { name_en: p.name_en, count: 0, revenue: 0 });
+      }
+
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        for (const item of order.items) {
+          const entry = productSales.get(item.productId);
+          if (entry) {
+            entry.count += item.quantity;
+            entry.revenue += item.lineTotalEgp;
+          }
+        }
+      }
+
+      const slowest = Array.from(productSales.values())
+        .sort((a, b) => a.count - b.count)
+        .slice(0, limitN);
+
+      res.json({ products: slowest });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Product attach/affinity matrix — "bought together" frequency.
+   */
+  app.get('/admin/reports/v2/product-attach', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? '2000-01-01';
+      const limitN = Math.min(Number(req.query.limit) || 20, 50);
+
+      const pairCounts = new Map<string, { a: string; b: string; nameA: string; nameB: string; count: number }>();
+
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        const items = order.items;
+        for (let i = 0; i < items.length; i++) {
+          for (let j = i + 1; j < items.length; j++) {
+            const [a, b] = [items[i].productId, items[j].productId].sort();
+            const key = `${a}::${b}`;
+            const entry = pairCounts.get(key) ?? {
+              a, b,
+              nameA: items[i].productId === a ? items[i].productNameEn : items[j].productNameEn,
+              nameB: items[j].productId === b ? items[j].productNameEn : items[i].productNameEn,
+              count: 0,
+            };
+            entry.count += 1;
+            pairCounts.set(key, entry);
+          }
+        }
+      }
+
+      const pairs = Array.from(pairCounts.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limitN)
+        .map(p => ({ productA: p.nameA, productB: p.nameB, count: p.count }));
+
+      res.json({ pairs });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Discount/offer performance — usage, revenue impact per offer.
+   */
+  app.get('/admin/reports/v2/offer-performance', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
+      const effectiveTo = toQ ?? new Date().toISOString().slice(0, 10);
+      const effectiveFrom = fromQ ?? '2000-01-01';
+
+      let totalDiscountedOrders = 0;
+      let totalDiscountAmount = 0;
+      let totalRevenueWithDiscount = 0;
+
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        const day = order.createdAt.slice(0, 10);
+        if (day < effectiveFrom || day > effectiveTo) continue;
+        if (order.discountEgp > 0) {
+          totalDiscountedOrders += 1;
+          totalDiscountAmount += order.discountEgp;
+          totalRevenueWithDiscount += order.totalEgp;
+        }
+      }
+
+      const offers = adminOffers.map(o => ({
+        id: o.id,
+        name_en: o.name_en,
+        type: o.type,
+        value: o.value,
+        usageCount: o.usage_count,
+        usageLimit: o.usage_limit,
+        active: o.starts_at <= new Date().toISOString() && o.ends_at >= new Date().toISOString(),
+      }));
+
+      res.json({
+        totalDiscountedOrders,
+        totalDiscountAmount: Math.round(totalDiscountAmount * 100) / 100,
+        totalRevenueWithDiscount: Math.round(totalRevenueWithDiscount * 100) / 100,
+        offers,
+      });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Loyalty program metrics — points economy overview.
+   */
+  app.get('/admin/reports/v2/loyalty-metrics', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+
+      let totalPointsIssued = 0;
+      let totalPointsRedeemed = 0;
+      let totalCurrentBalance = 0;
+      const tierDistribution: Record<string, number> = { bronze: 0, silver: 0, gold: 0 };
+
+      for (const [userId, balance] of userPoints.entries()) {
+        totalCurrentBalance += balance;
+        const tier = getTierState(userId).currentTier;
+        tierDistribution[tier] = (tierDistribution[tier] ?? 0) + 1;
+      }
+
+      for (const order of orders.values()) {
+        totalPointsIssued += order.pointsAwarded;
+        totalPointsRedeemed += order.pointsRedeemed;
+      }
+
+      const redemptionRate = totalPointsIssued > 0
+        ? Math.round((totalPointsRedeemed / totalPointsIssued) * 1000) / 10
+        : 0;
+
+      let revenueFromRedemptions = 0;
+      for (const order of orders.values()) {
+        if (order.pointsRedeemed > 0 && order.paymentStatus === 'paid') {
+          revenueFromRedemptions += order.totalEgp;
+        }
+      }
+
+      res.json({
+        totalPointsIssued,
+        totalPointsRedeemed,
+        totalCurrentBalance,
+        redemptionRate,
+        tierDistribution,
+        revenueFromRedemptions: Math.round(revenueFromRedemptions * 100) / 100,
+        usersWithPoints: userPoints.size,
+      });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Drill-down — return orders for a specific date + optional filters.
+   */
+  app.get('/admin/reports/v2/drill-down', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const date = typeof req.query.date === 'string' ? req.query.date : undefined;
+      const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+      const channel = typeof req.query.channel === 'string' ? req.query.channel : undefined;
+      const payment = typeof req.query.payment === 'string' ? req.query.payment : undefined;
+      const limitN = Math.min(Number(req.query.limit) || 50, 200);
+
+      const results: Array<{
+        id: string; createdAt: string; totalEgp: number;
+        status: string; paymentMethod: string; placementSource: string;
+        itemCount: number; userId: string;
+      }> = [];
+
+      for (const order of orders.values()) {
+        if (date && !order.createdAt.startsWith(date)) continue;
+        if (status && order.status !== status) continue;
+        if (channel && order.placementSource !== channel) continue;
+        if (payment && order.paymentMethod !== payment) continue;
+        results.push({
+          id: order.id,
+          createdAt: order.createdAt,
+          totalEgp: order.totalEgp,
+          status: order.status,
+          paymentMethod: order.paymentMethod,
+          placementSource: order.placementSource,
+          itemCount: order.items.reduce((s, i) => s + i.quantity, 0),
+          userId: order.userId,
+        });
+        if (results.length >= limitN) break;
+      }
+
+      res.json({ orders: results, total: results.length });
+    } catch (e) { next(e); }
+  });
+
+  // ────── Reports v2 — Layer C: Growth Analytics ─────────────────────────────
+
+  /**
+   * Cohort retention — weekly cohorts based on first-order date.
+   * Returns matrix: cohort[week_index] = { week, size, retention[0..N] }
+   */
+  app.get('/admin/reports/v2/cohort-retention', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const weeksBack = Math.min(Number(req.query.weeks) || 12, 24);
+
+      const now = new Date();
+      const msPerWeek = 7 * 86400000;
+      const cohortStart = new Date(now.getTime() - weeksBack * msPerWeek);
+      const startWeek = Math.floor(cohortStart.getTime() / msPerWeek);
+
+      const firstOrderByUser = new Map<string, number>();
+      const orderWeeksByUser = new Map<string, Set<number>>();
+
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        const orderWeek = Math.floor(new Date(order.createdAt).getTime() / msPerWeek);
+        if (orderWeek < startWeek) continue;
+
+        const existing = firstOrderByUser.get(order.userId);
+        if (existing === undefined || orderWeek < existing) {
+          firstOrderByUser.set(order.userId, orderWeek);
+        }
+        const weeks = orderWeeksByUser.get(order.userId) ?? new Set();
+        weeks.add(orderWeek);
+        orderWeeksByUser.set(order.userId, weeks);
+      }
+
+      const currentWeek = Math.floor(now.getTime() / msPerWeek);
+      const cohorts: Array<{ week: string; size: number; retention: number[] }> = [];
+
+      for (let w = startWeek; w <= currentWeek; w++) {
+        const usersInCohort = Array.from(firstOrderByUser.entries())
+          .filter(([, firstWeek]) => firstWeek === w)
+          .map(([userId]) => userId);
+        const size = usersInCohort.length;
+        if (size === 0) {
+          const weekDate = new Date(w * msPerWeek).toISOString().slice(0, 10);
+          cohorts.push({ week: weekDate, size: 0, retention: [] });
+          continue;
+        }
+
+        const retention: number[] = [];
+        for (let offset = 0; offset <= currentWeek - w; offset++) {
+          const active = usersInCohort.filter(uid => orderWeeksByUser.get(uid)?.has(w + offset)).length;
+          retention.push(Math.round((active / size) * 1000) / 10);
+        }
+        const weekDate = new Date(w * msPerWeek).toISOString().slice(0, 10);
+        cohorts.push({ week: weekDate, size, retention });
+      }
+
+      res.json({ cohorts, weeksBack });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Customer Lifetime Value distribution — revenue per customer, bucketed.
+   */
+  app.get('/admin/reports/v2/clv', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+
+      const revenueByUser = new Map<string, number>();
+      const orderCountByUser = new Map<string, number>();
+      const firstOrderByUser = new Map<string, string>();
+
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        revenueByUser.set(order.userId, (revenueByUser.get(order.userId) ?? 0) + order.totalEgp);
+        orderCountByUser.set(order.userId, (orderCountByUser.get(order.userId) ?? 0) + 1);
+        const existing = firstOrderByUser.get(order.userId);
+        if (!existing || order.createdAt < existing) firstOrderByUser.set(order.userId, order.createdAt);
+      }
+
+      const values = Array.from(revenueByUser.values()).sort((a, b) => a - b);
+      const totalCustomers = values.length;
+      if (totalCustomers === 0) {
+        res.json({ totalCustomers: 0, median: 0, avg: 0, p75: 0, p90: 0, buckets: [], topCustomers: [] });
+        return;
+      }
+
+      const median = values[Math.floor(totalCustomers * 0.5)];
+      const avg = Math.round(values.reduce((s, v) => s + v, 0) / totalCustomers);
+      const p75 = values[Math.floor(totalCustomers * 0.75)];
+      const p90 = values[Math.floor(totalCustomers * 0.9)];
+
+      const bucketEdges = [0, 50, 100, 200, 500, 1000, 2000, Infinity];
+      const buckets = [];
+      for (let i = 0; i < bucketEdges.length - 1; i++) {
+        const count = values.filter(v => v >= bucketEdges[i] && v < bucketEdges[i + 1]).length;
+        buckets.push({
+          label: bucketEdges[i + 1] === Infinity ? `${bucketEdges[i]}+` : `${bucketEdges[i]}–${bucketEdges[i + 1]}`,
+          count,
+        });
+      }
+
+      const topCustomers = Array.from(revenueByUser.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([userId, revenue]) => ({
+          userId,
+          revenue: Math.round(revenue * 100) / 100,
+          orders: orderCountByUser.get(userId) ?? 0,
+          firstOrder: firstOrderByUser.get(userId) ?? '',
+        }));
+
+      res.json({ totalCustomers, median, avg, p75, p90, buckets, topCustomers });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Referral funnel — clicks → signups → conversions → revenue generated.
+   */
+  app.get('/admin/reports/v2/referral-funnel', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const allRefs = getAllReferrals();
+
+      const totalClicks = allRefs.length;
+      const totalSignups = allRefs.filter(r => r.refereeId !== null).length;
+      const totalConversions = allRefs.filter(r => r.status === 'converted').length;
+      const totalPointsAwarded = allRefs
+        .filter(r => r.status === 'converted')
+        .reduce((s, r) => s + (r.referrerReward ?? 0) + (r.refereeReward ?? 0), 0);
+
+      let revenueFromReferred = 0;
+      const refereeIds = new Set(allRefs.filter(r => r.refereeId).map(r => r.refereeId!));
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        if (refereeIds.has(order.userId)) revenueFromReferred += order.totalEgp;
+      }
+
+      const topReferrers = new Map<string, { conversions: number; points: number }>();
+      for (const r of allRefs) {
+        if (r.status !== 'converted') continue;
+        const entry = topReferrers.get(r.referrerId) ?? { conversions: 0, points: 0 };
+        entry.conversions += 1;
+        entry.points += r.referrerReward ?? 0;
+        topReferrers.set(r.referrerId, entry);
+      }
+      const topReferrersList = Array.from(topReferrers.entries())
+        .sort((a, b) => b[1].conversions - a[1].conversions)
+        .slice(0, 10)
+        .map(([userId, data]) => ({ userId, ...data }));
+
+      res.json({
+        totalClicks,
+        totalSignups,
+        totalConversions,
+        totalPointsAwarded,
+        revenueFromReferred: Math.round(revenueFromReferred * 100) / 100,
+        conversionRate: totalClicks > 0 ? Math.round((totalConversions / totalClicks) * 1000) / 10 : 0,
+        topReferrers: topReferrersList,
+      });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Revenue forecasting — simple 7-day forecast based on trailing DOW averages.
+   */
+  app.get('/admin/reports/v2/forecast', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+
+      const dayRevenue = new Map<string, number>();
+      for (const order of orders.values()) {
+        if (order.paymentStatus !== 'paid') continue;
+        const day = order.createdAt.slice(0, 10);
+        dayRevenue.set(day, (dayRevenue.get(day) ?? 0) + order.totalEgp);
+      }
+
+      // Build DOW averages from last 8 weeks
+      const now = new Date();
+      const dowTotals: number[] = [0, 0, 0, 0, 0, 0, 0];
+      const dowCounts: number[] = [0, 0, 0, 0, 0, 0, 0];
+      for (let i = 1; i <= 56; i++) {
+        const d = new Date(now.getTime() - i * 86400000);
+        const key = d.toISOString().slice(0, 10);
+        const rev = dayRevenue.get(key) ?? 0;
+        dowTotals[d.getDay()] += rev;
+        dowCounts[d.getDay()] += 1;
+      }
+      const dowAvg = dowTotals.map((t, i) => dowCounts[i] > 0 ? Math.round(t / dowCounts[i]) : 0);
+
+      // Trend factor from last 4 weeks vs prior 4 weeks
+      let recent4w = 0, prior4w = 0;
+      for (let i = 1; i <= 28; i++) {
+        const d = new Date(now.getTime() - i * 86400000);
+        recent4w += dayRevenue.get(d.toISOString().slice(0, 10)) ?? 0;
+      }
+      for (let i = 29; i <= 56; i++) {
+        const d = new Date(now.getTime() - i * 86400000);
+        prior4w += dayRevenue.get(d.toISOString().slice(0, 10)) ?? 0;
+      }
+      const trendFactor = prior4w > 0 ? recent4w / prior4w : 1;
+
+      const forecast: Array<{ date: string; predicted: number; dow: number }> = [];
+      for (let i = 1; i <= 7; i++) {
+        const d = new Date(now.getTime() + i * 86400000);
+        const predicted = Math.round(dowAvg[d.getDay()] * trendFactor);
+        forecast.push({
+          date: d.toISOString().slice(0, 10),
+          predicted,
+          dow: d.getDay(),
+        });
+      }
+
+      const totalForecast = forecast.reduce((s, f) => s + f.predicted, 0);
+      res.json({ forecast, totalForecast, trendFactor: Math.round(trendFactor * 100) / 100, dowAvg });
+    } catch (e) { next(e); }
+  });
+
+  /**
+   * Anomaly detection — flags days where revenue deviates significantly from DOW average.
+   */
+  app.get('/admin/reports/v2/anomalies', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const daysBack = Math.min(Number(req.query.days) || 30, 90);
+      const threshold = Number(req.query.threshold) || 40;
+
+      const dayRevenue = new Map<string, number>();
+      const dayOrders = new Map<string, number>();
+      for (const order of orders.values()) {
+        const day = order.createdAt.slice(0, 10);
+        dayOrders.set(day, (dayOrders.get(day) ?? 0) + 1);
+        if (order.paymentStatus === 'paid') {
+          dayRevenue.set(day, (dayRevenue.get(day) ?? 0) + order.totalEgp);
+        }
+      }
+
+      // Build DOW averages
+      const now = new Date();
+      const dowTotals: number[] = [0, 0, 0, 0, 0, 0, 0];
+      const dowCounts: number[] = [0, 0, 0, 0, 0, 0, 0];
+      for (let i = 1; i <= 56; i++) {
+        const d = new Date(now.getTime() - i * 86400000);
+        const key = d.toISOString().slice(0, 10);
+        dowTotals[d.getDay()] += dayRevenue.get(key) ?? 0;
+        dowCounts[d.getDay()] += 1;
+      }
+      const dowAvg = dowTotals.map((t, i) => dowCounts[i] > 0 ? t / dowCounts[i] : 0);
+
+      const anomalies: Array<{
+        date: string; revenue: number; expected: number;
+        deviation: number; type: 'spike' | 'dip';
+      }> = [];
+
+      for (let i = 0; i < daysBack; i++) {
+        const d = new Date(now.getTime() - i * 86400000);
+        const key = d.toISOString().slice(0, 10);
+        const revenue = dayRevenue.get(key) ?? 0;
+        const expected = dowAvg[d.getDay()];
+        if (expected === 0) continue;
+        const deviation = Math.round(((revenue - expected) / expected) * 100);
+        if (Math.abs(deviation) >= threshold) {
+          anomalies.push({
+            date: key,
+            revenue: Math.round(revenue * 100) / 100,
+            expected: Math.round(expected * 100) / 100,
+            deviation,
+            type: deviation > 0 ? 'spike' : 'dip',
+          });
+        }
+      }
+
+      anomalies.sort((a, b) => Math.abs(b.deviation) - Math.abs(a.deviation));
+
+      // Today's status
+      const todayKey = now.toISOString().slice(0, 10);
+      const todayRevenue = dayRevenue.get(todayKey) ?? 0;
+      const todayExpected = dowAvg[now.getDay()];
+      const todayDeviation = todayExpected > 0 ? Math.round(((todayRevenue - todayExpected) / todayExpected) * 100) : 0;
+
+      res.json({
+        anomalies: anomalies.slice(0, 20),
+        today: { revenue: todayRevenue, expected: Math.round(todayExpected), deviation: todayDeviation },
+        threshold,
+      });
+    } catch (e) { next(e); }
+  });
+
+  // ── Layer D: Self-serve owner tools ───────────────────────────────────────
+
+  // D.1 — Comparison mode: compare two date ranges side by side
+  app.get('/admin/reports/v2/compare', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const { from1, to1, from2, to2 } = req.query as Record<string, string>;
+      if (!from1 || !to1 || !from2 || !to2) {
+        res.status(400).json({ error: 'Provide from1, to1, from2, to2 (YYYY-MM-DD)' });
+        return;
+      }
+
+      function rangeMetrics(from: string, to: string) {
+        let revenue = 0, orderCount = 0, itemCount = 0;
+        const customers = new Set<string>();
+        for (const order of orders.values()) {
+          const day = order.createdAt.slice(0, 10);
+          if (day < from || day > to) continue;
+          orderCount++;
+          customers.add(order.userId);
+          if (order.paymentStatus === 'paid') {
+            revenue += order.totalEgp;
+            for (const it of order.items) itemCount += it.quantity;
+          }
+        }
+        return {
+          revenue: Math.round(revenue * 100) / 100,
+          orders: orderCount,
+          customers: customers.size,
+          items: itemCount,
+          aov: orderCount > 0 ? Math.round((revenue / orderCount) * 100) / 100 : 0,
+        };
+      }
+
+      const period1 = rangeMetrics(from1, to1);
+      const period2 = rangeMetrics(from2, to2);
+
+      function delta(a: number, b: number) {
+        return b > 0 ? Math.round(((a - b) / b) * 100) : 0;
+      }
+
+      res.json({
+        period1: { from: from1, to: to1, ...period1 },
+        period2: { from: from2, to: to2, ...period2 },
+        delta: {
+          revenue: delta(period1.revenue, period2.revenue),
+          orders: delta(period1.orders, period2.orders),
+          customers: delta(period1.customers, period2.customers),
+          aov: delta(period1.aov, period2.aov),
+        },
+      });
+    } catch (e) { next(e); }
+  });
+
+  // D.2 — Targets: store and retrieve monthly revenue targets
+  const targets = new Map<string, { revenueTarget: number; ordersTarget: number; note: string }>();
+
+  app.get('/admin/reports/v2/targets', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const entries = Array.from(targets.entries()).map(([month, t]) => ({ month, ...t }));
+      entries.sort((a, b) => b.month.localeCompare(a.month));
+      res.json({ targets: entries });
+    } catch (e) { next(e); }
+  });
+
+  app.put('/admin/reports/v2/targets/:month', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const month = String(req.params.month); // YYYY-MM
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        res.status(400).json({ error: 'Month must be YYYY-MM' });
+        return;
+      }
+      const { revenueTarget, ordersTarget, note } = req.body;
+      targets.set(month, {
+        revenueTarget: Number(revenueTarget) || 0,
+        ordersTarget: Number(ordersTarget) || 0,
+        note: String(note ?? ''),
+      });
+      res.json({ ok: true, month, ...targets.get(month)! });
+    } catch (e) { next(e); }
+  });
+
+  // D.3 — Annotations: pin notes to specific dates
+  const annotations: Array<{ id: string; date: string; text: string; createdAt: string; createdBy: string }> = [];
+
+  app.get('/admin/reports/v2/annotations', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const { from, to } = req.query as Record<string, string>;
+      let filtered = annotations;
+      if (from) filtered = filtered.filter(a => a.date >= from);
+      if (to) filtered = filtered.filter(a => a.date <= to);
+      res.json({ annotations: filtered });
+    } catch (e) { next(e); }
+  });
+
+  app.post('/admin/reports/v2/annotations', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const { date, text } = req.body;
+      if (!date || !text) { res.status(400).json({ error: 'date and text required' }); return; }
+      const entry = { id: randomUUID(), date: String(date), text: String(text), createdAt: new Date().toISOString(), createdBy: getRequestUser(req).id };
+      annotations.push(entry);
+      res.status(201).json(entry);
+    } catch (e) { next(e); }
+  });
+
+  app.delete('/admin/reports/v2/annotations/:id', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const idx = annotations.findIndex(a => a.id === req.params.id);
+      if (idx === -1) { res.status(404).json({ error: 'Not found' }); return; }
+      annotations.splice(idx, 1);
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+
+  // D.4 — Saved views: persist filter combos for quick access
+  const savedViews: Array<{ id: string; name: string; preset: string; from?: string; to?: string; createdAt: string }> = [];
+
+  app.get('/admin/reports/v2/saved-views', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      res.json({ views: savedViews });
+    } catch (e) { next(e); }
+  });
+
+  app.post('/admin/reports/v2/saved-views', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const { name, preset, from, to } = req.body;
+      if (!name) { res.status(400).json({ error: 'name required' }); return; }
+      const view = { id: randomUUID(), name: String(name), preset: String(preset ?? '30d'), from, to, createdAt: new Date().toISOString() };
+      savedViews.push(view);
+      res.status(201).json(view);
+    } catch (e) { next(e); }
+  });
+
+  app.delete('/admin/reports/v2/saved-views/:id', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const idx = savedViews.findIndex(v => v.id === req.params.id);
+      if (idx === -1) { res.status(404).json({ error: 'Not found' }); return; }
+      savedViews.splice(idx, 1);
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+
+  // D.5 — Mobile owner pulse: lightweight summary endpoint
+  app.get('/admin/reports/v2/pulse', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const now = new Date();
+      const todayKey = now.toISOString().slice(0, 10);
+      const yesterdayKey = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
+
+      let todayRev = 0, todayOrders = 0, yesterdayRev = 0, yesterdayOrders = 0;
+      let weekRev = 0, weekOrders = 0;
+      const weekStart = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+
+      for (const order of orders.values()) {
+        const day = order.createdAt.slice(0, 10);
+        if (order.paymentStatus !== 'paid') continue;
+        if (day === todayKey) { todayRev += order.totalEgp; todayOrders++; }
+        if (day === yesterdayKey) { yesterdayRev += order.totalEgp; yesterdayOrders++; }
+        if (day >= weekStart) { weekRev += order.totalEgp; weekOrders++; }
+      }
+
+      const pendingNow = Array.from(orders.values()).filter(o =>
+        o.status === 'accepted' || o.status === 'preparing'
+      ).length;
+
+      const currentMonth = todayKey.slice(0, 7);
+      const monthTarget = targets.get(currentMonth);
+
+      let monthRevenue = 0;
+      for (const order of orders.values()) {
+        if (order.createdAt.slice(0, 7) === currentMonth && order.paymentStatus === 'paid') {
+          monthRevenue += order.totalEgp;
+        }
+      }
+
+      res.json({
+        today: { revenue: Math.round(todayRev * 100) / 100, orders: todayOrders },
+        yesterday: { revenue: Math.round(yesterdayRev * 100) / 100, orders: yesterdayOrders },
+        week: { revenue: Math.round(weekRev * 100) / 100, orders: weekOrders },
+        pendingOrders: pendingNow,
+        monthProgress: monthTarget ? {
+          target: monthTarget.revenueTarget,
+          actual: Math.round(monthRevenue * 100) / 100,
+          pct: monthTarget.revenueTarget > 0 ? Math.round((monthRevenue / monthTarget.revenueTarget) * 100) : 0,
+        } : null,
+      });
+    } catch (e) { next(e); }
+  });
+
+  // D.6 — CSV export: server-side CSV for any section
+  app.get('/admin/reports/v2/export/csv', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const section = String(req.query.section || 'orders');
+      const from = req.query.from as string | undefined;
+      const to = req.query.to as string | undefined;
+
+      let rows: Array<Record<string, string | number>> = [];
+
+      if (section === 'orders') {
+        for (const o of orders.values()) {
+          const day = o.createdAt.slice(0, 10);
+          if (from && day < from) continue;
+          if (to && day > to) continue;
+          rows.push({
+            id: o.id,
+            date: o.createdAt,
+            userId: o.userId,
+            status: o.status,
+            fulfillment: o.fulfillmentType,
+            payment: o.paymentMethod,
+            paymentStatus: o.paymentStatus,
+            subtotal: o.subtotalEgp,
+            discount: o.discountEgp,
+            total: o.totalEgp,
+            items: o.items.map(i => `${i.productNameEn}x${i.quantity}`).join('; '),
+          });
+        }
+      } else if (section === 'revenue-daily') {
+        const dayMap = new Map<string, { revenue: number; orders: number }>();
+        for (const o of orders.values()) {
+          const day = o.createdAt.slice(0, 10);
+          if (from && day < from) continue;
+          if (to && day > to) continue;
+          const entry = dayMap.get(day) ?? { revenue: 0, orders: 0 };
+          entry.orders++;
+          if (o.paymentStatus === 'paid') entry.revenue += o.totalEgp;
+          dayMap.set(day, entry);
+        }
+        rows = Array.from(dayMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, d]) => ({ date, revenue: Math.round(d.revenue * 100) / 100, orders: d.orders }));
+      } else if (section === 'customers') {
+        const custMap = new Map<string, { orders: number; revenue: number; firstOrder: string }>();
+        for (const o of orders.values()) {
+          if (o.paymentStatus !== 'paid') continue;
+          const day = o.createdAt.slice(0, 10);
+          if (from && day < from) continue;
+          if (to && day > to) continue;
+          const entry = custMap.get(o.userId) ?? { orders: 0, revenue: 0, firstOrder: day };
+          entry.orders++;
+          entry.revenue += o.totalEgp;
+          if (day < entry.firstOrder) entry.firstOrder = day;
+          custMap.set(o.userId, entry);
+        }
+        rows = Array.from(custMap.entries()).map(([userId, d]) => ({
+          userId,
+          orders: d.orders,
+          revenue: Math.round(d.revenue * 100) / 100,
+          firstOrder: d.firstOrder,
+        }));
+      }
+
+      if (rows.length === 0) {
+        res.status(204).end();
+        return;
+      }
+
+      const headers = Object.keys(rows[0]!);
+      const csv = [
+        headers.join(','),
+        ...rows.map(r => headers.map(h => {
+          const v = String(r[h] ?? '');
+          return v.includes(',') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v;
+        }).join(',')),
+      ].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${section}-${from ?? 'all'}-${to ?? 'all'}.csv"`);
+      res.send(csv);
+    } catch (e) { next(e); }
+  });
+
+  // D.7 — Weekly digest config + preview
+  let digestConfig: { enabled: boolean; recipients: string[]; dayOfWeek: number; hour: number } = {
+    enabled: false,
+    recipients: [],
+    dayOfWeek: 1, // Monday
+    hour: 9,
+  };
+
+  app.get('/admin/reports/v2/digest/config', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      res.json(digestConfig);
+    } catch (e) { next(e); }
+  });
+
+  app.put('/admin/reports/v2/digest/config', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const { enabled, recipients, dayOfWeek, hour } = req.body;
+      digestConfig = {
+        enabled: Boolean(enabled),
+        recipients: Array.isArray(recipients) ? recipients.map(String).filter(Boolean) : [],
+        dayOfWeek: Math.max(0, Math.min(6, Number(dayOfWeek) || 1)),
+        hour: Math.max(0, Math.min(23, Number(hour) || 9)),
+      };
+      res.json(digestConfig);
+    } catch (e) { next(e); }
+  });
+
+  app.get('/admin/reports/v2/digest/preview', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      const now = new Date();
+      const weekStart = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+      const weekStartPrev = new Date(now.getTime() - 14 * 86400000).toISOString().slice(0, 10);
+
+      let weekRev = 0, weekOrders = 0, prevWeekRev = 0, prevWeekOrders = 0;
+      const productCounts = new Map<string, { name: string; qty: number; revenue: number }>();
+      const customers = new Set<string>();
+
+      for (const order of orders.values()) {
+        const day = order.createdAt.slice(0, 10);
+        if (order.paymentStatus !== 'paid') continue;
+        if (day >= weekStart) {
+          weekRev += order.totalEgp;
+          weekOrders++;
+          customers.add(order.userId);
+          for (const it of order.items) {
+            const entry = productCounts.get(it.productId) ?? { name: it.productNameEn, qty: 0, revenue: 0 };
+            entry.qty += it.quantity;
+            entry.revenue += it.lineTotalEgp;
+            productCounts.set(it.productId, entry);
+          }
+        } else if (day >= weekStartPrev && day < weekStart) {
+          prevWeekRev += order.totalEgp;
+          prevWeekOrders++;
+        }
+      }
+
+      const topProducts = Array.from(productCounts.values())
+        .sort((a, b) => b.qty - a.qty)
+        .slice(0, 5);
+
+      const revDelta = prevWeekRev > 0 ? Math.round(((weekRev - prevWeekRev) / prevWeekRev) * 100) : 0;
+      const orderDelta = prevWeekOrders > 0 ? Math.round(((weekOrders - prevWeekOrders) / prevWeekOrders) * 100) : 0;
+
+      res.json({
+        period: { from: weekStart, to: now.toISOString().slice(0, 10) },
+        summary: {
+          revenue: Math.round(weekRev * 100) / 100,
+          orders: weekOrders,
+          customers: customers.size,
+          aov: weekOrders > 0 ? Math.round((weekRev / weekOrders) * 100) / 100 : 0,
+        },
+        deltaVsLastWeek: { revenue: revDelta, orders: orderDelta },
+        topProducts,
+        nextScheduled: digestConfig.enabled ? `Every ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][digestConfig.dayOfWeek]} at ${String(digestConfig.hour).padStart(2,'0')}:00` : 'Not scheduled',
+      });
     } catch (e) { next(e); }
   });
 

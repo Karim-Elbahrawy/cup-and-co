@@ -313,8 +313,12 @@ Total to "production-ready, app-store-ready, free-tier-online": **Phases R + 0 +
 **Goal:** The platform survives a Render redeploy, multi-instance scale, and a real outage.
 
 ### 2.1 — Persist `kiosks`, `kiosk_ratings`, `featured_products`, `product_pairs` to Supabase
-**Status:** `[ ]`
+**Status:** `[~]` (branch `claude/api-phase-2-1-persistence`, PR open — awaiting review/merge + post-merge migration apply)
 **Acceptance:** New migration `0014_persistence.sql` adds tables. Stores read Supabase-first, fall back to in-memory when `SUPABASE_URL` unset (preserves local dev). No client-visible behaviour change.
+**Notes:**
+- Migration creates a separate `kiosk_devices` table (not the `kiosks` table from 0005) — the existing `kiosks` row schema (campus_id, name_en, name_ar NOT NULL) can't accommodate the iPad heartbeat auto-create flow. Distinct domains, distinct tables.
+- All four stores keep their sync function signatures + in-memory Map. The Map hydrates lazily on first call from Supabase and every mutation mirrors back fire-and-forget. Callers in `app.ts` and `routes/catalog.ts` are unchanged.
+- The migration must be applied via Supabase MCP after merge — not done in this PR (Karim's call).
 
 ### 2.2 — Move idempotency-key store off in-memory
 **Status:** `[ ]`
@@ -619,7 +623,7 @@ Report PR URL.
 | 1 | 1.x Bonus: real iOS CI | `[x]` (2026-05-10, PR #70 — macos-15 + `set -o pipefail`; storyboard targetRuntime; CartView label; SearchView optional chain) |
 | 1 | 1.3 Card payments | `[ ]` |
 | 1 | 1.4 Tier badges | `[ ]` |
-| 1 | 1.5 Account delete UI | `[ ]` |
+| 1 | 1.5 Account delete UI | `[x]` (2026-05-10, PR #76 — `AccountAPI.swift` + `PrivacyView.swift` + Profile navrow; covers App Store 5.1.1(v) account-delete + PDPL data export) |
 | 1 | 1.6 TestFlight pipeline | `[!]` (Apple Dev enrollment) |
 | 1 | 1.7 Sentry SDK | `[ ]` (after 1.6) |
 | 1 | 1.8 Cosmetic fixes | `[ ]` |
