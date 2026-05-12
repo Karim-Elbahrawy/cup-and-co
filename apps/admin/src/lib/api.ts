@@ -688,6 +688,10 @@ export const adminApi = {
   getCupAiStats: (days = 7, signal?: AbortSignal) =>
     api<CupAiStatsResponse>(`/admin/reports/cup-ai?days=${days}`, { signal }),
 
+  // Coffee Pass — subscriptions summary
+  getSubscriptionsSummary: (signal?: AbortSignal) =>
+    api<AdminSubscriptionsSummary>('/admin/reports/subscriptions', { signal }),
+
   // Phase K6.1 / K6.3 — kiosk registry + heartbeat-driven health.
   listKiosks: (signal?: AbortSignal) =>
     api<{ kiosks: AdminKiosk[] }>('/admin/kiosks', { signal }),
@@ -848,6 +852,15 @@ export interface CupAiStatsResponse {
   topLowConfidenceQueries: Array<{ query: string; count: number }>;
   topSuggestedProductIds: Array<{ productId: string; count: number }>;
   topProducts: Array<{ productId: string; count: number; name_en: string; name_ar: string }>;
+}
+
+/** Coffee Pass — admin subscriptions summary shape. */
+export interface AdminSubscriptionsSummary {
+  activeCount: number;
+  cancelledCount: number;
+  /** Locked-in MRR for the rest of this billing cycle, in EGP. */
+  monthlyRevenueEgp: number;
+  totalPlans: number;
 }
 
 /** Phase K6.4 — by-kiosk daily report shape. */

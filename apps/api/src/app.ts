@@ -104,6 +104,15 @@ import { adminOffers } from './db/offersStore.js';
 import { setFeatured as setFeaturedProduct } from './db/featuredProductsStore.js';
 import { setPairs as setProductPairs } from './db/productPairsStore.js';
 import {
+  PLANS as SUBSCRIPTION_PLANS,
+  getSubscription,
+  subscribe as subscribeUser,
+  cancelSubscription,
+  checkEligibility as checkSubscriptionEligibility,
+  recordUsage as recordSubscriptionUsage,
+  getSummary as getSubscriptionSummary,
+} from './db/subscriptionsStore.js';
+import {
   recordHeartbeat as recordKioskHeartbeat,
   listKiosks,
   updateKiosk,
@@ -618,6 +627,51 @@ export function createApp(): express.Express {
   app.get('/me/streak', requireAuth, (req, res) => {
     const u = getRequestUser(req);
     res.json({ streak: getStreakState(u.id) });
+  });
+
+  // ── Coffee Pass — subscription read/subscribe/cancel ──────────────────
+  // Returns the user's current subscription (or null), the available plans,
+  // and today's eligibility (used for the home banner + checkout auto-apply).
+  app.get('/me/subscription', requireAuth, (req, res) => {
+    const u = getRequestUser(req);
+    const subscription = getSubscription(u.id);
+    const eligibility = checkSubscriptionEligibility(u.id);
+    res.json({
+      subscription,
+      plans: Object.values(SUBSCRIPTION_PLANS),
+      eligibility,
+    });
+  });
+
+  app.post('/me/subscription/subscribe', requireAuth, (req, res, next) => {
+    try {
+      assertAccountActive(req);
+      const u = getRequestUser(req);
+      const input = z.object({
+        planId: z.string().min(1),
+      }).parse(req.body);
+      if (!SUBSCRIPTION_PLANS[input.planId]) {
+        const e = new Error(`Unknown plan: ${input.planId}`) as Error & { status?: number };
+        e.status = 400;
+        throw e;
+      }
+      const subscription = subscribeUser(u.id, input.planId);
+      res.status(201).json({ subscription });
+    } catch (e) { next(e); }
+  });
+
+  app.post('/me/subscription/cancel', requireAuth, (req, res, next) => {
+    try {
+      assertAccountActive(req);
+      const u = getRequestUser(req);
+      const subscription = cancelSubscription(u.id);
+      if (!subscription) {
+        const e = new Error('No active subscription to cancel.') as Error & { status?: number };
+        e.status = 404;
+        throw e;
+      }
+      res.json({ subscription });
+    } catch (e) { next(e); }
   });
 
   // Phase K4.10 — "Your usual" — most-ordered product over the last 60
@@ -1290,7 +1344,32 @@ export function createApp(): express.Express {
       }
 
       const subtotal = enriched.reduce((s, it) => s + it.quantity * it.unitPriceEgp, 0);
-      const discount = Math.min(calculateDiscountEgp(input.redeemPoints), subtotal);
+      const pointsDiscount = Math.min(calculateDiscountEgp(input.redeemPoints), subtotal);
+
+      // Coffee Pass auto-apply — if the user has an active subscription with
+      // credits left and the plan's hours window is satisfied, comp the
+      // cheapest single drink unit in the order. Recorded as `subscriptionDiscount`
+      // separate from the points discount so reports can split them later.
+      // Kiosk-origin orders are excluded: kiosk customers may be transient
+      // (no JWT) and even when identified, the drink-credit accounting is
+      // tied to the subscriber's account-app habit — we don't want a
+      // walk-in friend redeeming someone else's pass via a shared kiosk.
+      let subscriptionDiscount = 0;
+      let subscriptionAppliedItemId: string | null = null;
+      if (!req.kioskId && enriched.length > 0) {
+        const elig = checkSubscriptionEligibility(user.id);
+        if (elig.eligible) {
+          // Cheapest UNIT price across the whole order — fairest behavior:
+          // a customer with 5 drinks gets the discount on their cheapest one.
+          const cheapest = enriched.reduce((min, it) =>
+            it.unitPriceEgp < min.unitPriceEgp ? it : min, enriched[0]!);
+          subscriptionDiscount = cheapest.unitPriceEgp;
+          subscriptionAppliedItemId = cheapest.productId;
+          recordSubscriptionUsage(user.id);
+        }
+      }
+
+      const discount = pointsDiscount + subscriptionDiscount;
       const total = Math.max(0, subtotal - discount);
 
       const pointsAwarded =
@@ -2501,6 +2580,16 @@ export function createApp(): express.Express {
         roleCounts.set(role, existing);
       }
       res.json({ breakdown: Object.fromEntries(roleCounts) });
+    } catch (e) { next(e); }
+  });
+
+  // ── Coffee Pass — subscriptions summary for the admin reports tile ────
+  // Returns activeCount + cancelledCount + monthlyRevenueEgp (locked-in MRR
+  // for the rest of this billing cycle).
+  app.get('/admin/reports/subscriptions', requireAuth, requireAdmin, (req, res, next) => {
+    try {
+      assertAdminPermission(getAdminRole(req), 'reports:view_full');
+      res.json(getSubscriptionSummary());
     } catch (e) { next(e); }
   });
 

@@ -37,6 +37,7 @@ import { useToast } from '@/components/Toast';
 import { Skeleton, SkeletonCard } from '@/components/Skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { CupAiUsageTile } from '@/components/CupAiUsageTile';
+import { CoffeePassTile } from '@/components/CoffeePassTile';
 import { useSession } from '@/lib/useSession';
 import { formatEgp } from '@/lib/format';
 import {
@@ -472,6 +473,9 @@ export default function ReportsPage() {
 
       {/* Cup AI usage analytics */}
       <CupAiUsageTile />
+
+      {/* Coffee Pass — subscribers + locked-in MRR for this billing cycle. */}
+      <CoffeePassTile />
 
       {/* Payment method + channel mix */}
       <div className="grid gap-4 lg:grid-cols-2">
